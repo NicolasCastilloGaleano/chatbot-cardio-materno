@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+
+# Datos sensibles: nunca versionar datos reales de pacientes
+data/raw/
+data/private/
+*.sqlite3
+*.db
+
+# Índices vectoriales generados
+knowledge/.index/
+chroma/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code (configuración local personal)
+.claude/settings.local.json
