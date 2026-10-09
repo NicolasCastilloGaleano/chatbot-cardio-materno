@@ -102,6 +102,7 @@ def main() -> int:
     missing = find_missing_docs(paths)
     if not missing:
         return EXIT_OK
+    sys.stderr.reconfigure(encoding="utf-8")  # Windows usa cp1252 por defecto.
     print(build_block_message(missing, build_hints(paths)), file=sys.stderr)
     return EXIT_BLOCK
 
