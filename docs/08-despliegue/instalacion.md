@@ -1,68 +1,116 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-10-10 (HU-02: RAG)*
 
-## A. PC de pruebas: ejecutar el chat por consola con Ollama (HU-00)
-Requisitos: **Python 3.12+**, **Git** y **[Ollama](https://ollama.com/download)**. El chat **no necesita `pip install`**: solo usa la librería estándar.
+## A. PC de pruebas (Ubuntu 24.04 + Ollama)
+Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
 
-```powershell
-# 1. Primera vez: clonar
+### Primera vez
+```bash
 git clone https://github.com/NicolasCastilloGaleano/chatbot-cardio-materno.git
 cd chatbot-cardio-materno
 
-# 1b. Las siguientes veces: traer los últimos cambios (y la rama a probar)
-git pull
-
-# 2. Descargar el modelo (una sola vez, ~15 GB)
+# Modelos (si aún no están)
 ollama pull mistral-small3.1:24b
+ollama pull qwen3-embedding:8b
 
-# 3. Crear la configuración local (una sola vez) y ajustarla si hace falta
-copy .env.example .env
+# Entorno virtual: Ubuntu 24.04 no permite pip sobre el Python del sistema (PEP 668)
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 
-# 4. Ejecutar el chat
-python run_console.py
+# Configuración local
+cp .env.example .env
+
+# Índice de la base de conocimiento (minutos con GPU)
+.venv/bin/python run_build_kb_index.py
+
+# Chat
+.venv/bin/python run_console.py
 ```
+
+### Las siguientes veces
+```bash
+git pull
+.venv/bin/pip install -r requirements.txt     # por si cambiaron las dependencias
+.venv/bin/python run_build_kb_index.py        # solo si cambió knowledge/kb/entries.jsonl o OLLAMA_EMBED_MODEL
+.venv/bin/python run_console.py
+```
+Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
+
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
 
-**Guion de prueba de la HU-06:**
+### Líneas de depuración (con `SHOW_THREAD_DEBUG=true`)
+| Línea | Qué muestra |
+|---|---|
+| `[hilo … \| dominio \| estado \| nuevo/continúa \| ⚠️ alertas]` | Hilo del turno y alertas (con origen `usuario` o `agente`) |
+| `[síntomas reportados por el agente: …]` / `[agente no consultado: …]` | Lo que vio el filtro 2 |
+| `[evidencia: E1 0.71 Categoría \| … \| citadas: E1]` | Evidencia ofrecida (puntaje y categoría) y citada. También puede decir `insuficiente (mejor 0.48)`, `no disponible` o `no se buscó` |
+| `[tiempos: análisis 3.1 s · RAG 0.4 s · respuesta 6.2 s]` | Duración de cada etapa |
+
+### Guiones de prueba
+**Hilos (HU-06):**
 1. `Estoy embarazada de 5 meses y tengo mucha acidez` → `[hilo … | materno_infantil | abierto | nuevo]`
 2. `¿Qué puedo comer para eso?` → mismo hilo, `continúa`
 3. `Otra cosa, mi papá tiene la presión alta` → otro hilo, `cardiovascular | nuevo`
-4. `salir` → revisa `data/threads/`: los dos hilos deben quedar `cerrado`
+4. `salir` → en `data/threads/`, los dos hilos quedan `cerrado`
 
-**Guion de prueba de alarmas (HU-03/HU-04):**
-1. `estoy embarazada y tengo un sangrado` → solo el mensaje fijo 🚨 y `⚠️ RN-MI-01 urgencia_inmediata (usuario)` (el modelo no se consulta, así que la respuesta es inmediata)
-2. `mi papá tiene la presión alta` → mensaje fijo ⚠️ + la orientación del agente, y `RN-CV-06 consulta_prioritaria`
-3. Una frase coloquial que las reglas no captan, p. ej. `me está saliendo como agüita rosada por abajo, tengo 7 meses` → si el agente reporta el síntoma, verás la alerta con origen `(agente)`
-4. Una conversación normal (p. ej., `¿qué puedo comer para la acidez?`) → sin alertas
-5. En `data/threads/<id>.json`, la lista `alerts` registra cada alerta y cada respuesta del asistente incluye `reported_symptoms`
-6. Después de cada respuesta, la consola muestra `[síntomas reportados por el agente: …]` o `[agente no consultado: …]`. Si una frase debería alertar y no lo hace, copia esa línea y el mensaje: así se sabe si falló el filtro 1, el agente o el patrón
+**Alarmas (HU-03/HU-04):**
+1. `estoy embarazada y tengo un sangrado` → solo el mensaje fijo 🚨, `RN-MI-01 urgencia_inmediata (usuario)` y `[agente no consultado…]`
+2. `mi papá tiene la presión alta` → mensaje fijo ⚠️ + orientación, `RN-CV-06 consulta_prioritaria`
+3. `tengo 34 semanas y desde ayer el bebé está muy quietico` → alerta `RN-MI-06 (agente)`, `[evidencia: no se buscó…]`
+4. `¿qué signos de alarma hay en el embarazo?` → sin alerta y `[síntomas …: ninguno]`
+5. Si una frase debería alertar y no lo hace, copia las líneas de depuración y el mensaje
 
-| Variable (`.env`) | Por defecto | Para qué |
+**Evidencia (HU-02):**
+1. `¿por qué es importante controlar la presión si no me duele nada?` → respuesta basada en la base, con `[evidencia … citadas: E…]`
+2. `¿qué puedo comer si tengo acidez en el embarazo?` → evidencia de la categoría materna correspondiente
+3. Una pregunta fuera de la base (p. ej., `¿qué opinas del fútbol?`) → el asistente dice que no tiene información validada; evidencia `insuficiente`
+4. Anota los `[tiempos …]`: sirven para decidir si conviene un modelo más pequeño en el análisis (`OLLAMA_ANALYSIS_MODEL`)
+
+**Pruebas en vivo (sonda de recuperación y no contaminación):**
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -m live -s
+```
+Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Además, las preguntas educativas no deben reportar síntomas y los reportes coloquiales deben activar el filtro 2.
+
+### Variables (`.env`)
+| Variable | Por defecto | Para qué |
 |---|---|---|
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
-| `OLLAMA_MODEL` | `mistral-small3.1:24b` | Modelo (nombre exacto de `ollama list`) |
+| `OLLAMA_MODEL` | `mistral-small3.1:24b` | Modelo por defecto de ambas llamadas |
+| `OLLAMA_ANALYSIS_MODEL` | (vacío = `OLLAMA_MODEL`) | Modelo de la llamada de análisis |
+| `OLLAMA_REPLY_MODEL` | (vacío = `OLLAMA_MODEL`) | Modelo de la llamada de respuesta |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta |
-| `OLLAMA_TEMPERATURE` | `0.3` | Creatividad de las respuestas (0 = más predecible) |
+| `OLLAMA_TEMPERATURE` | `0.3` | Creatividad (0 = más predecible) |
 | `OLLAMA_NUM_CTX` | `4096` | Ventana de contexto en tokens |
 | `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
-| `SHOW_THREAD_DEBUG` | `true` | Muestra la línea de estado del hilo después de cada respuesta |
-| `THREADS_DIR` | `data/threads` | Carpeta donde se guardan los JSON de los hilos |
-| `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (se valida al arrancar) |
+| `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
+| `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
+| `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma |
+| `RAG_ENABLED` | `true` | Activa la búsqueda de evidencia |
+| `OLLAMA_EMBED_MODEL` | `qwen3-embedding:8b` | Modelo de embeddings (debe coincidir con el del índice) |
+| `OLLAMA_EMBED_TIMEOUT_SECONDS` | `120` | Espera máxima por embedding |
+| `EMBED_BATCH_SIZE` | `16` | Textos por lote al construir el índice |
+| `KB_ENTRIES_FILE` | `knowledge/kb/entries.jsonl` | Base de conocimiento |
+| `KB_INDEX_DIR` | `data/kb_index` | Índice vectorial (derivado) |
+| `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Umbral, top-k e instrucción de consulta |
 
 ### Problemas frecuentes
 | Mensaje | Solución |
 |---|---|
-| "No se pudo conectar con Ollama…" | Abre la app de Ollama o ejecuta `ollama serve`; revisa `OLLAMA_BASE_URL` |
-| "El modelo '…' no está instalado…" | Ejecuta el `ollama pull …` que indica el mensaje, o cambia `OLLAMA_MODEL` |
-| "Ollama tardó más de … s…" | El modelo es pesado para el equipo: sube `OLLAMA_TIMEOUT_SECONDS` o usa un modelo más pequeño |
+| "No se pudo conectar con Ollama…" | `ollama serve` o `sudo systemctl start ollama`; revisa `OLLAMA_BASE_URL` |
+| "El modelo '…' no está instalado…" | Ejecuta el `ollama pull …` que indica el mensaje |
+| "Ollama tardó más de … s…" | Sube `OLLAMA_TIMEOUT_SECONDS` o usa un modelo más pequeño en `OLLAMA_ANALYSIS_MODEL` |
+| "⚠️ RAG no disponible: … Índice … ausente" | `.venv/bin/python run_build_kb_index.py` |
+| "… se construyó con '…' y OLLAMA_EMBED_MODEL es '…'" / "La base … cambió" | Reconstruye el índice |
+| `error: externally-managed-environment` al usar pip | Usa el entorno virtual: `.venv/bin/pip …` |
 
-## B. Desarrollo: ejecutar pruebas y calidad (no requiere Ollama)
-```powershell
+## B. Desarrollo (Windows o Linux; no requiere Ollama)
+```bash
 python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements-dev.txt
-pytest            # pruebas unitarias (usan dobles; no llaman a Ollama)
-ruff check .      # estilo, complejidad y docstrings
-mypy src tests    # tipos (modo estricto)
+.venv/bin/pip install -r requirements-dev.txt     # Windows: .venv\Scripts\pip
+pytest                 # pruebas sin Ollama (excluye las "live")
+ruff check .           # estilo, complejidad y docstrings
+mypy src tests scripts # tipos (modo estricto)
 ```

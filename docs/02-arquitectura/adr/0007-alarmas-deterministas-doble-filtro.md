@@ -54,3 +54,6 @@ Desde la HU-00 el prototipo conversaba libremente con el LLM sin detección de a
   - el prompt de sistema (v5) se arma al arrancar con la lista de nombres de signos del catálogo (`render_system_prompt`, marcador `{{SIGNOS_DE_ALARMA}}`) y le pide al agente que use el **nombre exacto** en `reported_symptoms`;
   - en el dominio, cada regla también coincide con su propio nombre normalizado (`AlarmRule.matches`).
 - **No es la solución definitiva:** sigue siendo texto libre sin restricción del esquema. La solución definitiva es **B-015**: códigos cerrados con `enum` en el JSON Schema, de prioridad Alta, y se trabajará después de la demo.
+
+## Actualización 2026-10-10 (3): el filtro 2 nunca ve evidencia (ADR 0008)
+`reported_symptoms` lo produce ahora una **llamada de análisis sin evidencia del RAG**, para evitar que los registros de la base (por ejemplo, los *Indagar*, que listan signos de alarma) contaminen o minimicen los síntomas. Si el filtro 2 detecta una urgencia inmediata, no se busca evidencia ni se hace la llamada de respuesta.

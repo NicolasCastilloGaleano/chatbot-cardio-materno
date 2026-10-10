@@ -1,54 +1,24 @@
 """Adaptador de Ollama para el puerto LanguageModel (ADR 0005).
 
-Usa la API HTTP local de Ollama (`/api/chat` y `/api/tags`) solo con la librería
-estándar, para no requerir dependencias en el PC de pruebas.
+Usa `/api/chat` con salida restringida por un JSON Schema. El transporte HTTP y la
+traducción de errores viven en `ollama_http.py`.
 """
 
-import json
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from typing import Any
+from urllib.request import urlopen
 
+from cardio_materno.adapters.outbound.llm.ollama_http import (
+    MSG_INVALID_RESPONSE,
+    OllamaHttpClient,
+    Opener,
+    parse_json_body,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
 
 CHAT_ENDPOINT = "/api/chat"
-TAGS_ENDPOINT = "/api/tags"
-DEFAULT_TAG = ":latest"
-MAX_ERROR_DETAIL_CHARS = 300
-
-MSG_UNREACHABLE = (
-    "No se pudo conectar con Ollama en {url}. Verifica que Ollama esté abierto "
-    "(o ejecuta `ollama serve`) y que OLLAMA_BASE_URL sea correcta."
-)
-MSG_TIMEOUT = (
-    "Ollama tardó más de {seconds:g} s en responder. "
-    "Intenta de nuevo o sube OLLAMA_TIMEOUT_SECONDS."
-)
-MSG_HTTP_ERROR = "Ollama respondió con error HTTP {code}: {detail}"
-MSG_INVALID_RESPONSE = "Ollama devolvió una respuesta inesperada o vacía."
-MSG_MODEL_MISSING = "El modelo '{model}' no está instalado. Descárgalo con: ollama pull {model}"
-
-
-class HttpResponse(Protocol):
-    """Respuesta HTTP mínima que usa el adaptador (la cumple la de `urlopen`)."""
-
-    def read(self) -> bytes:
-        """Devuelve el cuerpo completo de la respuesta."""
-        ...
-
-    def __enter__(self) -> "HttpResponse":
-        """Permite usar la respuesta con `with`."""
-        ...
-
-    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
-        """Libera la conexión al salir del bloque `with`."""
-        ...
-
-
-Opener = Callable[..., HttpResponse]
 
 
 @dataclass(frozen=True)
@@ -81,7 +51,12 @@ class OllamaLanguageModel:
             opener: Función que ejecuta la solicitud HTTP (se reemplaza en las pruebas).
         """
         self._settings = settings
-        self._opener = opener
+        self._http = OllamaHttpClient(settings.base_url, settings.timeout_seconds, opener)
+
+    @property
+    def model(self) -> str:
+        """Modelo que usa este adaptador."""
+        return self._settings.model
 
     def complete_json(
         self, messages: Sequence[ChatMessage], schema: dict[str, Any]
@@ -98,8 +73,9 @@ class OllamaLanguageModel:
         Raises:
             LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON.
         """
-        payload = build_chat_payload(self._settings, messages, schema)
-        response = self._request(CHAT_ENDPOINT, payload)
+        response = self._http.post(
+            CHAT_ENDPOINT, build_chat_payload(self._settings, messages, schema)
+        )
         return parse_json_body(extract_content(response).encode("utf-8"))
 
     def verify_ready(self) -> None:
@@ -108,32 +84,7 @@ class OllamaLanguageModel:
         Raises:
             LanguageModelError: Si Ollama no responde o falta el modelo.
         """
-        tags = self._request(TAGS_ENDPOINT)
-        if not is_model_installed(self._settings.model, installed_models(tags)):
-            raise LanguageModelError(MSG_MODEL_MISSING.format(model=self._settings.model))
-
-    def _request(self, endpoint: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Ejecuta una solicitud JSON y traduce los errores a LanguageModelError."""
-        request = build_request(self._settings.base_url + endpoint, payload)
-        try:
-            with self._opener(request, timeout=self._settings.timeout_seconds) as response:
-                return parse_json_body(response.read())
-        except HTTPError as error:
-            raise LanguageModelError(describe_http_error(error)) from error
-        except TimeoutError as error:
-            raise LanguageModelError(self._timeout_message()) from error
-        except URLError as error:
-            raise LanguageModelError(self._url_error_message(error)) from error
-
-    def _timeout_message(self) -> str:
-        """Mensaje para cuando Ollama no responde a tiempo."""
-        return MSG_TIMEOUT.format(seconds=self._settings.timeout_seconds)
-
-    def _url_error_message(self, error: URLError) -> str:
-        """Distingue un timeout de conexión de un servidor inalcanzable."""
-        if isinstance(error.reason, TimeoutError):
-            return self._timeout_message()
-        return MSG_UNREACHABLE.format(url=self._settings.base_url)
+        self._http.ensure_model_installed(self._settings.model)
 
 
 def build_chat_payload(
@@ -158,29 +109,6 @@ def build_chat_payload(
     }
 
 
-def build_request(url: str, payload: dict[str, Any] | None) -> Request:
-    """Crea una solicitud GET (sin cuerpo) o POST con cuerpo JSON en UTF-8."""
-    if payload is None:
-        return Request(url, method="GET")
-    body = json.dumps(payload).encode("utf-8")
-    return Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-
-
-def parse_json_body(raw: bytes) -> dict[str, Any]:
-    """Decodifica el cuerpo JSON de una respuesta.
-
-    Raises:
-        LanguageModelError: Si el cuerpo no es un objeto JSON válido.
-    """
-    try:
-        data = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise LanguageModelError(MSG_INVALID_RESPONSE) from error
-    if not isinstance(data, dict):
-        raise LanguageModelError(MSG_INVALID_RESPONSE)
-    return data
-
-
 def extract_content(response: dict[str, Any]) -> str:
     """Obtiene el texto de la respuesta de `/api/chat`.
 
@@ -192,20 +120,3 @@ def extract_content(response: dict[str, Any]) -> str:
     if not isinstance(content, str) or not content.strip():
         raise LanguageModelError(MSG_INVALID_RESPONSE)
     return content.strip()
-
-
-def installed_models(tags: dict[str, Any]) -> set[str]:
-    """Lista los nombres de los modelos que reporta `/api/tags`."""
-    models = tags.get("models", [])
-    return {item["name"] for item in models if isinstance(item, dict) and "name" in item}
-
-
-def is_model_installed(model: str, available: set[str]) -> bool:
-    """Indica si el modelo está instalado; sin etiqueta se asume `:latest`."""
-    return model in available or model + DEFAULT_TAG in available
-
-
-def describe_http_error(error: HTTPError) -> str:
-    """Convierte un error HTTP de Ollama en un mensaje legible y acotado."""
-    detail = error.read().decode("utf-8", errors="replace")[:MAX_ERROR_DETAIL_CHARS]
-    return MSG_HTTP_ERROR.format(code=error.code, detail=detail)

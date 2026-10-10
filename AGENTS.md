@@ -9,9 +9,10 @@ Este archivo es la **fuente única de reglas** para cualquier agente de IA (Clau
 - **Qué NO es:** no es un sistema de diagnóstico ni de prescripción, y no reemplaza al personal de salud.
 - **Enfoque:** *spec‑driven*. La especificación en `docs/01-especificacion/` es la **fuente de verdad**. El código se deriva de ella y se verifica contra ella.
 - **Canales, en orden:** 1) Consola → 2) Telegram (multiusuario) → 3) WhatsApp (prototipo final). Ver ADR 0003.
-- **Stack:** Python 3.12+, FastAPI, pytest, ruff y mypy. Ver ADR 0002. LLM: Ollama local (ADR 0005).
-- **Ejecución:** `python run_console.py`. El código de runtime usa **solo la librería estándar** mientras sea posible; agregar una dependencia de ejecución requiere un ADR. Las herramientas de desarrollo van en `requirements-dev.txt`.
-- **Pruebas en otro equipo:** Ollama corre en un PC de pruebas, no en el de desarrollo. Las pruebas automáticas **nunca** deben requerir Ollama (se usan dobles).
+- **Stack:** Python 3.12+, FastAPI, pytest, ruff y mypy. Ver ADR 0002. LLM: Ollama local (ADR 0005). RAG con índice propio y numpy (ADR 0008).
+- **Ejecución:** `python run_console.py` (en el PC de pruebas, dentro de `.venv`). Dependencias de ejecución mínimas en `requirements.txt` (hoy solo `numpy`, ADR 0008); **agregar una nueva requiere un ADR**. Las herramientas de desarrollo van en `requirements-dev.txt`.
+- **Dos llamadas al agente (ADR 0008):** análisis (sin evidencia) y respuesta (con evidencia). **La evidencia del RAG nunca debe llegar a la llamada de análisis**, porque alimenta el filtro de alarmas.
+- **Pruebas en otro equipo:** Ollama corre en un PC de pruebas, no en el de desarrollo. Las pruebas automáticas **nunca** deben requerir Ollama (se usan dobles). Las que sí lo requieren van en `tests/live/` con el marcador `live` (se ejecutan con `pytest -m live`).
 
 ## 2. Arquitectura: hexagonal (puertos y adaptadores)
 ```

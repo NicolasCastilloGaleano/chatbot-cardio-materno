@@ -24,11 +24,11 @@
       <bpmn:incoming>f3</bpmn:incoming>
       <bpmn:outgoing>f14</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:task id="T_Agente" name="Consultar agente LLM (JSON con reported_symptoms)">
+    <bpmn:task id="T_Agente" name="Llamada 1: análisis SIN evidencia (hilo, resumen, reported_symptoms)">
       <bpmn:incoming>f4</bpmn:incoming>
       <bpmn:outgoing>f5</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:exclusiveGateway id="G_LLM" name="¿El agente respondió?">
+    <bpmn:exclusiveGateway id="G_LLM" name="¿El análisis respondió?">
       <bpmn:incoming>f5</bpmn:incoming>
       <bpmn:outgoing>f6</bpmn:outgoing>
       <bpmn:outgoing>f7</bpmn:outgoing>
@@ -59,11 +59,11 @@
       <bpmn:incoming>f11</bpmn:incoming>
       <bpmn:outgoing>f15</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:task id="T_Prioritaria" name="Mensaje fijo + reply del agente">
+    <bpmn:task id="T_Prioritaria" name="RAG + llamada 2 (respuesta con evidencia) + mensaje fijo">
       <bpmn:incoming>f12</bpmn:incoming>
       <bpmn:outgoing>f16</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:task id="T_Normal" name="Reply del agente">
+    <bpmn:task id="T_Normal" name="RAG + llamada 2: respuesta con evidencia citada">
       <bpmn:incoming>f13</bpmn:incoming>
       <bpmn:outgoing>f19</bpmn:outgoing>
     </bpmn:task>

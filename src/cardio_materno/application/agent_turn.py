@@ -1,5 +1,13 @@
-"""Contrato de la respuesta estructurada del agente (HU-06, ADR 0006)."""
+"""Contratos de las dos llamadas al agente (HU-06, HU-02; ADR 0006, 0008).
 
+- **Análisis** (sin evidencia): hilo, dominio, resumen y síntomas reportados → filtro 2.
+- **Respuesta** (con evidencia): texto para el usuario y etiquetas de evidencia citadas.
+
+Se separan para que la evidencia del RAG nunca influya en los síntomas que revisan las
+reglas de alarma.
+"""
+
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -15,61 +23,92 @@ class ThreadAction(StrEnum):
     NEW = "nuevo"
 
 
-# JSON Schema que se envía al modelo para restringir su salida.
-AGENT_TURN_SCHEMA: dict[str, Any] = {
+# JSON Schema de la llamada de análisis.
+ANALYSIS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
         "domain": {"type": "string", "enum": [d.value for d in Domain]},
         "summary": {"type": "string"},
-        "reply": {"type": "string"},
         "reported_symptoms": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["thread_action", "domain", "summary", "reply", "reported_symptoms"],
+    "required": ["thread_action", "domain", "summary", "reported_symptoms"],
 }
 
 MSG_INVALID_TURN = "El modelo no devolvió la estructura esperada ({detail})."
 
 
 @dataclass(frozen=True)
-class AgentTurn:
-    """Respuesta del agente ya validada.
+class AnalysisTurn:
+    """Resultado validado de la llamada de análisis.
 
     Attributes:
         thread_action: Si el mensaje continúa el hilo o empieza un tema nuevo.
         domain: Dominio de salud del hilo resultante.
-        summary: Resumen actualizado del hilo resultante.
-        reply: Texto que se muestra al usuario.
-        reported_symptoms: Síntomas que la persona dice tener o haber tenido, en términos
-            estándar (se revisan con las reglas de alarma, ADR 0007).
+        summary: Resumen del hilo hasta el mensaje actual del usuario.
+        reported_symptoms: Síntomas que la persona dice tener o haber tenido (filtro 2, ADR 0007).
     """
 
     thread_action: ThreadAction
     domain: Domain
     summary: str
-    reply: str
     reported_symptoms: tuple[str, ...] = ()
 
 
-def parse_agent_turn(data: dict[str, Any]) -> AgentTurn:
-    """Valida el JSON del modelo y lo convierte en un AgentTurn.
+@dataclass(frozen=True)
+class ReplyTurn:
+    """Resultado validado de la llamada de respuesta.
 
-    Args:
-        data: Objeto JSON devuelto por el modelo.
+    Attributes:
+        reply: Texto que se muestra al usuario.
+        evidence_ids: Etiquetas de evidencia que el agente dice usar (E1, E2…).
+    """
 
-    Returns:
-        La respuesta validada.
+    reply: str
+    evidence_ids: tuple[str, ...] = ()
+
+
+def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
+    """Valida el JSON de la llamada de análisis.
 
     Raises:
         LanguageModelError: Si falta un campo, está vacío o tiene un valor no permitido.
     """
-    return AgentTurn(
+    return AnalysisTurn(
         thread_action=_parse_enum(ThreadAction, data, "thread_action"),
         domain=_parse_enum(Domain, data, "domain"),
         summary=_required_text(data, "summary"),
-        reply=_required_text(data, "reply"),
         reported_symptoms=_text_list(data, "reported_symptoms"),
     )
+
+
+def reply_schema(labels: Sequence[str]) -> dict[str, Any]:
+    """JSON Schema de la llamada de respuesta; las citas se limitan a las etiquetas ofrecidas."""
+    items: dict[str, Any] = (
+        {"type": "string", "enum": list(labels)} if labels else {"type": "string"}
+    )
+    citations: dict[str, Any] = {"type": "array", "items": items}
+    if not labels:
+        citations["maxItems"] = 0
+    return {
+        "type": "object",
+        "properties": {"reply": {"type": "string"}, "evidence_ids": citations},
+        "required": ["reply", "evidence_ids"],
+    }
+
+
+def parse_reply(data: dict[str, Any], labels: Sequence[str]) -> ReplyTurn:
+    """Valida el JSON de la llamada de respuesta.
+
+    Raises:
+        LanguageModelError: Si falta el texto o se cita una etiqueta que no se ofreció.
+    """
+    cited = _text_list(data, "evidence_ids")
+    unknown = sorted(set(cited) - set(labels))
+    if unknown:
+        detail = f"cita evidencia no ofrecida: {', '.join(unknown)}"
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
+    return ReplyTurn(reply=_required_text(data, "reply"), evidence_ids=tuple(dict.fromkeys(cited)))
 
 
 def _required_text(data: dict[str, Any], field: str) -> str:

@@ -1,0 +1,72 @@
+"""Traza de cómo se produjo una respuesta del asistente (auditoría, HU-03 y HU-02).
+
+Se guarda junto a cada respuesta del asistente para poder explicar después qué síntomas
+identificó el agente, qué evidencia se le ofreció, cuál citó y cuánto tardó cada etapa.
+"""
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+
+class RetrievalStatus(StrEnum):
+    """Resultado de buscar evidencia."""
+
+    SUFFICIENT = "suficiente"
+    INSUFFICIENT = "insuficiente"
+    UNAVAILABLE = "no_disponible"
+
+
+@dataclass(frozen=True)
+class EvidenceRef:
+    """Referencia a un registro de evidencia ofrecido al agente.
+
+    Attributes:
+        label: Etiqueta que vio el agente (E1, E2…).
+        entry_id: Identificador del registro en la base.
+        score: Similitud coseno con la consulta.
+        category: Categoría del registro.
+    """
+
+    label: str
+    entry_id: str
+    score: float
+    category: str
+
+
+@dataclass(frozen=True)
+class StageTiming:
+    """Duración de una etapa del turno.
+
+    Attributes:
+        stage: Nombre de la etapa (análisis, RAG, respuesta).
+        seconds: Duración en segundos.
+    """
+
+    stage: str
+    seconds: float
+
+
+@dataclass(frozen=True)
+class ReplyTrace:
+    """Lo que se registra de una respuesta del asistente cuando se consultó al agente.
+
+    Attributes:
+        reported_symptoms: Síntomas que identificó la llamada de análisis (filtro 2).
+        evidence: Evidencia ofrecida a la llamada de respuesta.
+        cited_evidence: Etiquetas que el agente dijo usar.
+        retrieval_status: Resultado de la búsqueda (None si no se buscó evidencia).
+        best_score: Mejor similitud vista en la búsqueda (None si no se buscó).
+        timings: Duración de cada etapa.
+    """
+
+    reported_symptoms: tuple[str, ...] = ()
+    evidence: tuple[EvidenceRef, ...] = ()
+    cited_evidence: tuple[str, ...] = ()
+    retrieval_status: RetrievalStatus | None = None
+    best_score: float | None = None
+    timings: tuple[StageTiming, ...] = ()
+
+    @property
+    def uncited(self) -> bool:
+        """True si había evidencia suficiente y el agente no citó ninguna (para auditar)."""
+        return self.retrieval_status is RetrievalStatus.SUFFICIENT and not self.cited_evidence

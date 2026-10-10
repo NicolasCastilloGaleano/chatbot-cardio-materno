@@ -16,6 +16,11 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - Solo se usan **datos ficticios** en las pruebas; no se ingresan datos reales de personas.
 - El prompt v2 pide que el resumen no incluya datos personales (nombre, documento, dirección, teléfono). Esto no es una garantía: falta la anonimización automática.
 
+## RAG (HU-02)
+- La consulta de búsqueda (mensaje + resumen + síntomas) se envía al modelo de embeddings de **Ollama local**; no sale del equipo.
+- La base de conocimiento no contiene datos personales.
+- La `trace` de cada respuesta incluye los síntomas reportados (datos de salud) y se guarda con el hilo, en `data/threads/`, que no se versiona.
+
 ## Pendientes
 - TODO: texto del aviso de privacidad validado por los aliados.
 - TODO: política de retención y eliminación.

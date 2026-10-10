@@ -37,7 +37,10 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+# Las pruebas en vivo (Ollama + índice) se excluyen por defecto; se ejecutan con: pytest -m live
+addopts = "-m 'not live'"
 markers = [
+    "live: requiere Ollama, los modelos y el índice de la base de conocimiento (PC de pruebas)",
     "conversational: pruebas de conversaciones de referencia (golden)",
     "integration: pruebas con adaptadores reales",
 ]

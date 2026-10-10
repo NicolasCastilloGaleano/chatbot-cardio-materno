@@ -1,0 +1,119 @@
+{
+  "_description": "Sonda de recuperación (portada de los 16 casos del piloto, con las categorías reales de knowledge/kb/entries.jsonl). Cada caso pasa si alguna categoría esperada aparece en el top-3 sin umbral. Se ejecuta con: pytest -m live",
+  "cases": [
+    {
+      "query": "cuales son los sintomas de un infarto",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Dolor torácico y enfermedad coronaria"
+      ]
+    },
+    {
+      "query": "me duele el pecho",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Dolor torácico y enfermedad coronaria"
+      ]
+    },
+    {
+      "query": "como controlo la presion alta",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Presión arterial y riesgo cardiovascular"
+      ]
+    },
+    {
+      "query": "siento que el corazon se me acelera y late raro",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Palpitaciones, arritmias y síncope"
+      ]
+    },
+    {
+      "query": "se me hinchan los pies y me ahogo al acostarme",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Insuficiencia cardíaca, falta de aire y edema"
+      ]
+    },
+    {
+      "query": "se me torcio la boca y no puedo mover un brazo",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Eventos cerebrovasculares"
+      ]
+    },
+    {
+      "query": "tengo una pierna hinchada, roja y caliente",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Circulación periférica, trombosis y enfermedad venosa"
+      ]
+    },
+    {
+      "query": "me desmaye cuando me pare rapido",
+      "domain": "cardiovascular",
+      "expected_categories": [
+        "Palpitaciones, arritmias y síncope"
+      ]
+    },
+    {
+      "query": "cada cuanto debe mamar un recien nacido",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Materno — parto, posparto, lactancia y recuperación",
+        "Infantil — recién nacido y signos de alarma"
+      ]
+    },
+    {
+      "query": "mi bebe de dos meses tiene fiebre",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Infantil — recién nacido y signos de alarma",
+        "Infantil — fiebre, infecciones y respiración"
+      ]
+    },
+    {
+      "query": "estoy embarazada y me duele mucho la cabeza y veo lucecitas",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Materno — hipertensión y signos neurológicos"
+      ]
+    },
+    {
+      "query": "estoy embarazada y estoy sangrando",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Materno — embarazo, dolor, sangrado y bienestar fetal"
+      ]
+    },
+    {
+      "query": "mi niño tiene diarrea y no quiere tomar liquido",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Infantil — digestivo, hidratación, alimentación y nutrición"
+      ]
+    },
+    {
+      "query": "que cuidados debo tener despues del parto",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Materno — parto, posparto, lactancia y recuperación"
+      ]
+    },
+    {
+      "query": "tengo diabetes en el embarazo, que debo comer",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Materno — complicaciones sistémicas e infecciones"
+      ]
+    },
+    {
+      "query": "mi hijo de 3 años tiene tos y respira rapido",
+      "domain": "materno_infantil",
+      "expected_categories": [
+        "Infantil — fiebre, infecciones y respiración"
+      ]
+    }
+  ]
+}

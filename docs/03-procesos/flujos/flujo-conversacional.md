@@ -23,30 +23,36 @@ stateDiagram-v2
 
 TODO: detallar los subflujos por tema (embarazo, posparto, recién nacido, menor de 5 años, riesgo cardiovascular).
 
-## Turno implementado: hilos conversacionales (HU-06, ADR 0006)
-Este es el comportamiento **actual** del prototipo. El diagrama de estados de arriba es el objetivo e incluye etapas que aún no existen: consentimiento y alarmas.
+## Turno implementado (HU-06 + HU-03/04 + HU-02; ADR 0006, 0007, 0008)
+Este es el comportamiento **actual** del prototipo. El diagrama de estados de arriba es el objetivo e incluye etapas que aún no existen, como el consentimiento.
 
 ```mermaid
 sequenceDiagram
     participant U as Usuario
-    participant C as ConsoleChat
     participant S as ConversationService
+    participant A as Reglas de alarma
+    participant L1 as Agente · análisis
+    participant K as RAG (KnowledgeRetriever)
+    participant L2 as Agente · respuesta
     participant R as ThreadRepository (JSON)
-    participant L as Agente (Ollama)
-    U->>C: mensaje
-    C->>S: send(texto)
-    S->>R: hilo activo + últimos N mensajes
-    S->>L: prompt v2 + JSON del hilo (o "sin hilo") + N mensajes + mensaje nuevo
-    L-->>S: {thread_action, domain, summary, reply}
-    S->>S: validar JSON (si es inválido → error, no se guarda nada)
-    alt sin hilo activo o thread_action = "nuevo"
-        S->>R: cerrar el hilo actual (si existe)
-        S->>R: crear hilo nuevo (UUID, domain, summary, abierto)
-    else thread_action = "continuar"
-        S->>R: actualizar domain y summary del hilo
+    U->>S: mensaje
+    S->>A: filtro 1 (texto original)
+    alt urgencia inmediata
+        S-->>U: mensaje fijo 🚨 (sin LLM, sin RAG)
+    else prioritaria o ninguna
+        S->>L1: prompt de análisis + JSON del hilo + últimos N mensajes + mensaje (SIN evidencia)
+        L1-->>S: {thread_action, domain, summary, reported_symptoms}
+        S->>A: filtro 2 (reported_symptoms)
+        alt urgencia inmediata
+            S-->>U: mensaje fijo 🚨 (sin RAG, sin llamada 2)
+        else
+            S->>K: consulta = mensaje + resumen + síntomas (dominio del análisis)
+            K-->>S: evidencia [E1..E3] o insuficiente / no disponible
+            S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
+            L2-->>S: {reply, evidence_ids ⊆ ofrecidas}
+            S-->>U: (mensaje fijo ⚠️ si prioritaria) + reply
+        end
     end
-    S->>R: guardar mensaje del usuario y respuesta con thread_id
-    S-->>C: respuesta + estado del hilo
-    C-->>U: respuesta y línea [hilo … | dominio | estado | nuevo/continúa]
-    Note over U,C: "salir" → se cierra el hilo activo
+    S->>R: actualizar o abrir hilo · mensajes con thread_id y trace · alertas
+    Note over U,S: "salir" → se cierra el hilo activo
 ```

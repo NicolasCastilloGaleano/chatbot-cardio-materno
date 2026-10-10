@@ -1,30 +1,42 @@
-"""Caso de uso: conversación en hilos con alarmas deterministas (HU-06, HU-03/04).
+"""Caso de uso: conversación en hilos con alarmas y evidencia (HU-06, HU-03/04, HU-02).
 
-En cada turno:
-1. **Filtro 1:** las reglas de alarma revisan el texto original del usuario. Si hay una
-   urgencia inmediata, se responde con el mensaje fijo y no se consulta al agente.
-2. El agente recibe solo el contexto del hilo actual (su JSON y sus últimos N mensajes) y
-   responde en JSON: decide el hilo, resume, responde y lista los síntomas reportados.
-3. **Filtro 2:** las mismas reglas revisan `reported_symptoms`. El agente solo puede
-   sumar alarmas, nunca quitarlas (ADR 0007).
+Flujo de cada turno (ADR 0007 y 0008):
+1. **Filtro 1:** las reglas de alarma revisan el texto original. Si hay urgencia inmediata,
+   se responde con el mensaje fijo, sin consultar al agente ni buscar evidencia.
+2. **Llamada de análisis (sin evidencia):** decide el hilo, resume y lista los síntomas que
+   reporta la persona.
+3. **Filtro 2:** las mismas reglas revisan esos síntomas. El agente solo suma alarmas. Si hay
+   urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
+4. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas.
+5. **Llamada de respuesta (con evidencia):** redacta y cita la evidencia que usa.
+
+La evidencia nunca llega a la llamada de análisis, así no puede alterar los síntomas que
+revisan las reglas de alarma. El hilo solo se modifica al final del turno.
 """
 
-import json
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from cardio_materno.application.agent_turn import (
-    AGENT_TURN_SCHEMA,
-    AgentTurn,
+    ANALYSIS_SCHEMA,
+    AnalysisTurn,
+    ReplyTurn,
     ThreadAction,
-    parse_agent_turn,
+    parse_analysis,
+    parse_reply,
+    reply_schema,
 )
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
+from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
+from cardio_materno.application.stage_timer import StageTimer, Timer
+from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
 from cardio_materno.domain.alarms import Alert, AlertOrigin
 from cardio_materno.domain.conversation import (
     ChatMessage,
@@ -35,13 +47,17 @@ from cardio_materno.domain.conversation import (
     open_thread,
     update_thread,
 )
+from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
+from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, StageTiming
 
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
 DEFAULT_CONTEXT_MESSAGES = 6
-THREAD_CONTEXT_TEMPLATE = "HILO ACTUAL (JSON):\n{thread_json}"
-NO_THREAD_CONTEXT = "HILO ACTUAL: no hay un hilo activo. Este mensaje inicia un hilo nuevo."
+DEFAULT_EVIDENCE_ITEM_CHARS = 700
 ALARM_SUMMARY_TEMPLATE = "Alerta: {sign}."
 SYMPTOM_SEPARATOR = "; "
+STAGE_ANALYSIS = "análisis"
+STAGE_RAG = "RAG"
+STAGE_REPLY = "respuesta"
 
 Clock = Callable[[], datetime]
 IdGenerator = Callable[[], str]
@@ -62,6 +78,56 @@ def no_alarm_policy() -> AlarmPolicy:
     return AlarmPolicy((), {})
 
 
+class UnavailableRetriever:
+    """Buscador nulo: se usa cuando el RAG está desactivado o no hay índice."""
+
+    def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
+        """Siempre indica que no hay evidencia disponible."""
+        return RetrievalResult(RetrievalStatus.UNAVAILABLE)
+
+
+@dataclass(frozen=True)
+class ConversationPorts:
+    """Dependencias externas del caso de uso.
+
+    Attributes:
+        analyzer: Modelo de la llamada de análisis.
+        responder: Modelo de la llamada de respuesta.
+        repository: Repositorio de hilos.
+        retriever: Buscador de evidencia (nulo si el RAG está desactivado).
+    """
+
+    analyzer: LanguageModel
+    responder: LanguageModel
+    repository: ThreadRepository
+    retriever: KnowledgeRetriever = field(default_factory=UnavailableRetriever)
+
+
+@dataclass(frozen=True)
+class ConversationConfig:
+    """Parámetros del caso de uso.
+
+    Attributes:
+        analysis_prompt: Instrucciones de la llamada de análisis.
+        reply_prompt: Instrucciones de la llamada de respuesta.
+        context_messages: Mensajes recientes del hilo que se envían como contexto.
+        alarm_policy: Reglas de alarma y mensajes fijos.
+        evidence_item_chars: Longitud máxima de cada respuesta de evidencia mostrada.
+        clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
+        new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
+        timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
+    """
+
+    analysis_prompt: str
+    reply_prompt: str
+    context_messages: int = DEFAULT_CONTEXT_MESSAGES
+    alarm_policy: AlarmPolicy = field(default_factory=no_alarm_policy)
+    evidence_item_chars: int = DEFAULT_EVIDENCE_ITEM_CHARS
+    clock: Clock = utc_now
+    new_id: IdGenerator = new_uuid
+    timer: Timer = time.perf_counter
+
+
 @dataclass(frozen=True)
 class TurnResult:
     """Resultado de un turno de conversación.
@@ -70,76 +136,46 @@ class TurnResult:
         reply: Respuesta para el usuario.
         thread: Hilo en el que quedó registrado el turno.
         is_new_thread: True si el turno abrió un hilo nuevo.
-        alerts: Alertas registradas en el turno (vacío si no hubo alarma).
-        reported_symptoms: Síntomas que identificó el agente (None si no se le consultó).
+        alerts: Alertas registradas en el turno.
+        trace: Cómo se produjo la respuesta (None si no se consultó al agente).
     """
 
     reply: str
     thread: ConversationThread
     is_new_thread: bool
     alerts: tuple[Alert, ...] = ()
-    reported_symptoms: tuple[str, ...] | None = None
+    trace: ReplyTrace | None = None
 
 
 @dataclass(frozen=True)
-class TurnRecord:
-    """Lo que se guarda de un turno (agrupa datos para mantener funciones pequeñas).
+class TurnOutcome:
+    """Resultado interno del turno antes de modificar el hilo.
 
     Attributes:
-        user_text: Mensaje del usuario.
-        reply: Respuesta mostrada.
+        reply: Respuesta que se mostrará.
         decisions: Decisiones de alarma del turno.
-        reported_symptoms: Síntomas del agente (None si no se le consultó).
+        trace: Traza de la respuesta (None si no se consultó al agente).
+        analysis: Resultado del análisis (None si no se hizo).
     """
 
-    user_text: str
     reply: str
     decisions: tuple[AlarmDecision, ...]
-    reported_symptoms: tuple[str, ...] | None = None
-
-
-@dataclass(frozen=True)
-class ConversationConfig:
-    """Parámetros del caso de uso (agrupados para mantener constructores pequeños).
-
-    Attributes:
-        system_prompt: Instrucciones de sistema del agente.
-        context_messages: Cuántos mensajes recientes del hilo se envían como contexto.
-        alarm_policy: Reglas de alarma y mensajes fijos.
-        clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
-        new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
-    """
-
-    system_prompt: str
-    context_messages: int = DEFAULT_CONTEXT_MESSAGES
-    alarm_policy: AlarmPolicy = field(default_factory=no_alarm_policy)
-    clock: Clock = utc_now
-    new_id: IdGenerator = new_uuid
+    trace: ReplyTrace | None = None
+    analysis: AnalysisTurn | None = None
 
 
 class ConversationService:
-    """Coordina alarmas, agente y repositorio de hilos para una sesión de un usuario."""
+    """Coordina alarmas, agente, evidencia y repositorio para una sesión de un usuario."""
 
-    def __init__(
-        self,
-        language_model: LanguageModel,
-        repository: ThreadRepository,
-        config: ConversationConfig,
-    ) -> None:
+    def __init__(self, ports: ConversationPorts, config: ConversationConfig) -> None:
         """Crea el servicio.
 
         Args:
-            language_model: Implementación del puerto de LLM.
-            repository: Implementación del repositorio de hilos.
-            config: Prompt, tamaño del contexto, política de alarmas, reloj y generador de ids.
+            ports: Modelos, repositorio y buscador de evidencia.
+            config: Prompts, contexto, alarmas, reloj, ids y medidor de tiempos.
         """
-        self._language_model = language_model
-        self._repository = repository
-        self._system_message = ChatMessage(Role.SYSTEM, config.system_prompt)
-        self._context_messages = config.context_messages
-        self._alarm_policy = config.alarm_policy
-        self._clock = config.clock
-        self._new_id = config.new_id
+        self._ports = ports
+        self._config = config
         self._active_thread_id: str | None = None
 
     def send(self, user_text: str) -> TurnResult:
@@ -148,77 +184,130 @@ class ConversationService:
         Si el modelo falla y no hay alarma, no se guarda nada y el hilo activo no cambia.
         Si hay alarma, el mensaje fijo se muestra aunque el modelo falle.
 
-        Args:
-            user_text: Texto escrito por el usuario.
-
-        Returns:
-            La respuesta, el hilo del turno y las alertas registradas.
-
         Raises:
             LanguageModelError: Si el modelo falla (o responde mal) y no hay alarma.
         """
         current = self._active_thread()
-        pre = self._alarm_policy.evaluate([user_text], AlertOrigin.USER)
+        turn = TurnInput(user_text, self._recent(current))
+        pre = self._config.alarm_policy.evaluate([user_text], AlertOrigin.USER)
         if pre is not None and pre.is_immediate:
-            return self._alarm_only_turn(current, user_text, pre)
-        try:
-            turn = self._ask_agent(current, user_text)
-        except LanguageModelError:
-            if pre is None:
-                raise
-            return self._alarm_only_turn(current, user_text, pre)
-        return self._agent_turn(current, user_text, turn, pre)
+            outcome = TurnOutcome(compose_reply([pre], None), (pre,))
+        else:
+            outcome = self._consult_agent(current, turn, pre)
+        return self._finish(current, turn, outcome)
 
     def end_session(self) -> None:
         """Cierra el hilo activo, si existe (p. ej., cuando el usuario escribe "salir")."""
         current = self._active_thread()
         if current is not None:
-            self._repository.save_thread(close_thread(current, self._clock()))
+            self._ports.repository.save_thread(close_thread(current, self._config.clock()))
         self._active_thread_id = None
+
+    # --- Etapas del turno -------------------------------------------------------------
+
+    def _consult_agent(
+        self, current: ConversationThread | None, turn: TurnInput, pre: AlarmDecision | None
+    ) -> TurnOutcome:
+        """Análisis → filtro 2 → (si no hay urgencia) evidencia y respuesta."""
+        timer = StageTimer(self._config.timer)
+        try:
+            analysis = timer.measure(STAGE_ANALYSIS, lambda: self._analyze(current, turn))
+        except LanguageModelError:
+            if pre is None:
+                raise
+            return TurnOutcome(compose_reply([pre], None), (pre,))
+        decisions = tuple(d for d in (pre, self._post_filter(analysis, pre)) if d is not None)
+        if any(decision.is_immediate for decision in decisions):
+            trace = ReplyTrace(analysis.reported_symptoms, timings=timer.timings)
+            return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
+        return self._answer(analysis, turn, decisions, timer)
+
+    def _answer(
+        self,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        decisions: tuple[AlarmDecision, ...],
+        timer: StageTimer,
+    ) -> TurnOutcome:
+        """Busca evidencia y pide la respuesta; con alarma, un fallo deja el mensaje fijo."""
+        query = build_evidence_query(
+            turn.user_text, analysis.summary, analysis.reported_symptoms, analysis.domain
+        )
+        retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
+        try:
+            reply = timer.measure(STAGE_REPLY, lambda: self._reply(analysis, turn, retrieval))
+        except LanguageModelError:
+            if not decisions:
+                raise
+            trace = build_trace(analysis, retrieval, (), timer.timings)
+            return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
+        trace = build_trace(analysis, retrieval, reply.evidence_ids, timer.timings)
+        return TurnOutcome(compose_reply(decisions, reply.reply), decisions, trace, analysis)
+
+    def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
+        """Llamada de análisis: sin evidencia (ADR 0008)."""
+        context = analysis_context(self._config.analysis_prompt, current, turn)
+        return parse_analysis(self._ports.analyzer.complete_json(context, ANALYSIS_SCHEMA))
+
+    def _reply(
+        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult
+    ) -> ReplyTurn:
+        """Llamada de respuesta: con la evidencia recuperada; solo puede citar sus etiquetas."""
+        evidence_text = format_evidence_context(retrieval, self._config.evidence_item_chars)
+        context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
+        data = self._ports.responder.complete_json(context, reply_schema(retrieval.labels))
+        return parse_reply(data, retrieval.labels)
+
+    def _post_filter(
+        self, analysis: AnalysisTurn, pre: AlarmDecision | None
+    ) -> AlarmDecision | None:
+        """Filtro 2: revisa los síntomas reportados sin repetir las reglas ya detectadas."""
+        if not analysis.reported_symptoms:
+            return None
+        symptoms = SYMPTOM_SEPARATOR.join(analysis.reported_symptoms)
+        exclude = pre.rule_ids if pre is not None else ()
+        return self._config.alarm_policy.evaluate([symptoms], AlertOrigin.AGENT, exclude)
+
+    # --- Hilo y registro --------------------------------------------------------------
+
+    def _finish(
+        self, current: ConversationThread | None, turn: TurnInput, outcome: TurnOutcome
+    ) -> TurnResult:
+        """Modifica el hilo y registra el turno (solo cuando el turno terminó bien)."""
+        if outcome.analysis is not None:
+            thread, is_new = self._resolve_thread(current, outcome.analysis)
+        else:
+            thread, is_new = self._thread_for_alarm(current, outcome.decisions[0])
+        alerts = self._record(thread.id, turn.user_text, outcome)
+        return TurnResult(outcome.reply, thread, is_new, alerts, outcome.trace)
 
     def _active_thread(self) -> ConversationThread | None:
         """Obtiene el hilo activo de la sesión, si lo hay y sigue abierto."""
         if self._active_thread_id is None:
             return None
-        thread = self._repository.get_thread(self._active_thread_id)
+        thread = self._ports.repository.get_thread(self._active_thread_id)
         return thread if thread is not None and thread.is_open else None
 
-    def _ask_agent(self, current: ConversationThread | None, user_text: str) -> AgentTurn:
-        """Consulta al agente con el contexto acotado del hilo y valida su JSON."""
-        context = self._build_context(current, user_text)
-        return parse_agent_turn(self._language_model.complete_json(context, AGENT_TURN_SCHEMA))
+    def _recent(self, current: ConversationThread | None) -> tuple[ChatMessage, ...]:
+        """Últimos N mensajes del hilo activo."""
+        if current is None:
+            return ()
+        return tuple(
+            self._ports.repository.recent_messages(current.id, self._config.context_messages)
+        )
 
-    def _agent_turn(
-        self,
-        current: ConversationThread | None,
-        user_text: str,
-        turn: AgentTurn,
-        pre: AlarmDecision | None,
-    ) -> TurnResult:
-        """Aplica el filtro 2 sobre los síntomas reportados y registra el turno del agente."""
-        decisions = [d for d in (pre, self._post_filter(turn, pre)) if d is not None]
-        thread, is_new = self._resolve_thread(current, turn)
-        reply = compose_reply(decisions, turn.reply)
-        record = TurnRecord(user_text, reply, tuple(decisions), turn.reported_symptoms)
-        alerts = self._record_turn(thread.id, record)
-        return TurnResult(reply, thread, is_new, alerts, turn.reported_symptoms)
-
-    def _post_filter(self, turn: AgentTurn, pre: AlarmDecision | None) -> AlarmDecision | None:
-        """Filtro 2: revisa `reported_symptoms` sin repetir las reglas ya detectadas."""
-        if not turn.reported_symptoms:
-            return None
-        symptoms = SYMPTOM_SEPARATOR.join(turn.reported_symptoms)
-        exclude = pre.rule_ids if pre is not None else ()
-        return self._alarm_policy.evaluate([symptoms], AlertOrigin.AGENT, exclude)
-
-    def _alarm_only_turn(
-        self, current: ConversationThread | None, user_text: str, decision: AlarmDecision
-    ) -> TurnResult:
-        """Responde solo con el mensaje fijo (sin agente) y registra la alerta."""
-        thread, is_new = self._thread_for_alarm(current, decision)
-        reply = compose_reply([decision], agent_reply=None)
-        alerts = self._record_turn(thread.id, TurnRecord(user_text, reply, (decision,)))
-        return TurnResult(reply, thread, is_new, alerts)
+    def _resolve_thread(
+        self, current: ConversationThread | None, analysis: AnalysisTurn
+    ) -> tuple[ConversationThread, bool]:
+        """Aplica la decisión del análisis: actualiza el hilo actual o lo cierra y abre otro."""
+        now = self._config.clock()
+        if current is not None and analysis.thread_action is ThreadAction.CONTINUE:
+            thread = update_thread(current, analysis.domain, analysis.summary, now)
+            self._ports.repository.save_thread(thread)
+            return thread, False
+        if current is not None:
+            self._ports.repository.save_thread(close_thread(current, now))
+        return self._open_new_thread(analysis.domain, analysis.summary), True
 
     def _thread_for_alarm(
         self, current: ConversationThread | None, decision: AlarmDecision
@@ -229,70 +318,43 @@ class ConversationService:
         summary = ALARM_SUMMARY_TEMPLATE.format(sign=decision.primary_rule.sign)
         return self._open_new_thread(decision.domain, summary), True
 
-    def _build_context(
-        self, current: ConversationThread | None, user_text: str
-    ) -> list[ChatMessage]:
-        """Arma el contexto: sistema + JSON del hilo + últimos N mensajes + mensaje nuevo."""
-        recent = (
-            self._repository.recent_messages(current.id, self._context_messages) if current else []
-        )
-        return [
-            self._system_message,
-            ChatMessage(Role.SYSTEM, describe_thread(current)),
-            *recent,
-            ChatMessage(Role.USER, user_text),
-        ]
-
-    def _resolve_thread(
-        self, current: ConversationThread | None, turn: AgentTurn
-    ) -> tuple[ConversationThread, bool]:
-        """Aplica la decisión del agente: actualiza el hilo actual o lo cierra y abre otro."""
-        now = self._clock()
-        if current is not None and turn.thread_action is ThreadAction.CONTINUE:
-            thread = update_thread(current, turn.domain, turn.summary, now)
-            self._repository.save_thread(thread)
-            return thread, False
-        if current is not None:
-            self._repository.save_thread(close_thread(current, now))
-        return self._open_new_thread(turn.domain, turn.summary), True
-
     def _open_new_thread(self, domain: Domain, summary: str) -> ConversationThread:
         """Crea, guarda y activa un hilo nuevo."""
-        thread = open_thread(self._new_id(), domain, summary, self._clock())
-        self._repository.save_thread(thread)
+        thread = open_thread(self._config.new_id(), domain, summary, self._config.clock())
+        self._ports.repository.save_thread(thread)
         self._active_thread_id = thread.id
         return thread
 
-    def _record_turn(self, thread_id: str, record: TurnRecord) -> tuple[Alert, ...]:
-        """Guarda los mensajes del turno (con los síntomas del agente) y sus alertas."""
-        now = self._clock()
-        user_message = ChatMessage(Role.USER, record.user_text, thread_id, now)
-        reply_message = ChatMessage(
-            Role.ASSISTANT, record.reply, thread_id, now, record.reported_symptoms
+    def _record(self, thread_id: str, user_text: str, outcome: TurnOutcome) -> tuple[Alert, ...]:
+        """Guarda los mensajes del turno (con la traza de la respuesta) y sus alertas."""
+        now = self._config.clock()
+        repository = self._ports.repository
+        repository.append_message(ChatMessage(Role.USER, user_text, thread_id, now))
+        repository.append_message(
+            ChatMessage(Role.ASSISTANT, outcome.reply, thread_id, now, outcome.trace)
         )
-        self._repository.append_message(user_message)
-        self._repository.append_message(reply_message)
-        alerts = tuple(Alert(d.rule_ids, d.severity, d.origin, now) for d in record.decisions)
+        alerts = tuple(Alert(d.rule_ids, d.severity, d.origin, now) for d in outcome.decisions)
         for alert in alerts:
-            self._repository.append_alert(thread_id, alert)
+            repository.append_alert(thread_id, alert)
         return alerts
 
 
-def describe_thread(thread: ConversationThread | None) -> str:
-    """Describe el hilo actual para el agente, en JSON (o indica que no hay hilo).
-
-    Args:
-        thread: Hilo activo o None.
-
-    Returns:
-        Texto que se envía al agente como mensaje de sistema.
-    """
-    if thread is None:
-        return NO_THREAD_CONTEXT
-    snapshot = {
-        "id": thread.id,
-        "domain": str(thread.domain),
-        "summary": thread.summary,
-        "status": str(thread.status),
-    }
-    return THREAD_CONTEXT_TEMPLATE.format(thread_json=json.dumps(snapshot, ensure_ascii=False))
+def build_trace(
+    analysis: AnalysisTurn,
+    retrieval: RetrievalResult,
+    cited: tuple[str, ...],
+    timings: tuple[StageTiming, ...],
+) -> ReplyTrace:
+    """Traza de una respuesta que pasó por análisis y búsqueda de evidencia."""
+    evidence = tuple(
+        EvidenceRef(item.label, item.entry.id, item.score, item.entry.category)
+        for item in retrieval.items
+    )
+    return ReplyTrace(
+        reported_symptoms=analysis.reported_symptoms,
+        evidence=evidence,
+        cited_evidence=cited,
+        retrieval_status=retrieval.status,
+        best_score=retrieval.best_score,
+        timings=timings,
+    )

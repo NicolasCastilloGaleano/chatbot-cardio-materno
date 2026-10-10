@@ -2,7 +2,7 @@
 
 *Última actualización: 2026-10-10*
 
-Comportamiento implementado ([ADR 0007](../../02-arquitectura/adr/0007-alarmas-deterministas-doble-filtro.md)). El modelo BPMN equivalente está en [`../bpmn/gestion-alerta.bpmn`](../bpmn/gestion-alerta.bpmn).
+Comportamiento implementado ([ADR 0007](../../02-arquitectura/adr/0007-alarmas-deterministas-doble-filtro.md); desde el [ADR 0008](../../02-arquitectura/adr/0008-rag-evidencia-y-dos-llamadas.md) el "Agente LLM" se divide en una llamada de **análisis sin evidencia**, que produce `reported_symptoms`, y, si no hay urgencia, el **RAG** y la **llamada de respuesta** con evidencia. Si falla la llamada de respuesta y hay alarma, se muestra el mensaje fijo). El modelo BPMN equivalente está en [`../bpmn/gestion-alerta.bpmn`](../bpmn/gestion-alerta.bpmn).
 
 ```mermaid
 flowchart TD

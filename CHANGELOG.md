@@ -6,6 +6,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- HU-02: orientación con evidencia (RAG). Base de 1.600 registros versionada en `knowledge/kb/entries.jsonl` (exportada del piloto con `scripts/export_pilot_kb.py`), índice propio con numpy (`run_build_kb_index.py`) y buscador híbrido (coseno + BM25 + RRF + umbral de `knowledge/evidence_policy.json`).
+- Separación del agente en **dos llamadas**: análisis sin evidencia (hilo, resumen y síntomas → filtro 2) y respuesta con evidencia (`reply` + `evidence_ids` restringidos a las etiquetas ofrecidas). Prompts `analysis_prompt_v1` y `reply_prompt_v1`.
+- Traza por respuesta (`trace`: síntomas, evidencia, citas, estado de la búsqueda, tiempos) y nuevas líneas de depuración `[evidencia …]` y `[tiempos …]`.
+- Modelos por etapa (`OLLAMA_ANALYSIS_MODEL`, `OLLAMA_REPLY_MODEL`), cliente HTTP compartido de Ollama y embeddings (`/api/embed`) con división de lotes ante timeouts.
+- Pruebas en vivo (`tests/live/`, `pytest -m live`): sonda de recuperación de 16 casos y no contaminación del análisis. ADR 0008, riesgo R-10, B-018 y B-019.
 - HU-03/HU-04: alarmas deterministas con **doble filtro**. Las reglas revisan el mensaje del usuario (si hay urgencia inmediata no se consulta al LLM) y los `reported_symptoms` del agente. Mensajes fijos de urgencia o de consulta prioritaria, red de seguridad si falla el LLM, y alertas registradas en el hilo con su origen (`usuario`/`agente`).
 - Catálogo PROVISIONAL de 20 reglas (`knowledge/alarm_rules.json`) validado al arrancar (`ALARM_RULES_FILE`), y frases de referencia (`tests/conversational/alarm_phrases.json`).
 - Prompt v3 (`reported_symptoms`), ADR 0007, primer BPMN (`gestion-alerta.bpmn`), flujo de gestión de alerta, solicitud de validación clínica, riesgo R-09, entidad ALERT en el modelo y el diccionario de datos, y B-015/B-016 en el backlog.
@@ -38,6 +43,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - `reported_symptoms` ahora se registra en cada respuesta del asistente (JSON del hilo) y se muestra en la línea de depuración (`[síntomas reportados por el agente: …]`).
 
 ### Changed
+- `numpy` es la primera dependencia de ejecución (`requirements.txt`, ADR 0008). En Ubuntu se ejecuta dentro de `.venv`. La guía de instalación se reescribió para Ubuntu.
+- `ConversationService` recibe `ConversationPorts` + `ConversationConfig`; `TurnResult.reported_symptoms` se reemplaza por `trace`. En el JSON del hilo, `reported_symptoms` pasa a `trace.reported_symptoms` (los archivos anteriores se siguen leyendo).
+- El resumen del hilo lo escribe la llamada de análisis: cada respuesta entra al resumen en el turno siguiente (ADR 0006).
 - `ConversationService` recibe un `ConversationConfig` (se elimina `# noqa: PLR0913`); `HttpResponse` (Protocol) tipa el `opener` del adaptador de Ollama, y mypy ahora también verifica `tests/`.
 - DoD, AGENTS.md §7 y playbook: mientras haya un solo desarrollador activo, su verificación basta para fusionar a `main`; la CI debe pasar.
 - READMEs de `application` y `persistence` y el playbook actualizados (referencias obsoletas).
