@@ -13,6 +13,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Especificación ejecutable v1 | ⏳ Pendiente |
 | Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | ✅ Hecho |
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
+| **Alarmas deterministas** con doble filtro (HU-03/HU-04) | 🔄 En verificación (reglas PROVISIONALES) |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |
@@ -38,7 +39,7 @@ ollama pull mistral-small3.1:24b
 copy .env.example .env
 python run_console.py
 ```
-⚠️ Es un prototipo técnico **sin reglas de alarma** (riesgo R-07): solo para pruebas del equipo.
+⚠️ Es un prototipo técnico: las **reglas de alarma son PROVISIONALES**, no están validadas clínicamente (riesgo R-09). Solo para pruebas del equipo.
 
 Guía completa, variables y solución de problemas: [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
 

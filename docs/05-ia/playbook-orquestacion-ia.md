@@ -19,7 +19,7 @@ Documenta cómo el equipo usa agentes de IA en el desarrollo: qué se delega, co
 | Pruebas unitarias y conversacionales | Claude Code | Criterios de aceptación en Gherkin | Revisar que las pruebas validen el criterio (no triviales) | TODO |
 | Redacción de documentación técnica | Claude Code | Código + matriz de impacto | Lectura y prueba de las instrucciones en un entorno limpio | TODO |
 | Prompts del LLM del producto | Claude Code (borrador) | Reglas RN-xx + guía de tono cultural | Evaluación con conversaciones de referencia + revisión clínica | TODO |
-| Reglas clínicas y signos de alarma | **No delegable** | — | Definidas por el equipo clínico | Equipo clínico |
+| Reglas clínicas y signos de alarma | Claude Code **solo redacta un borrador PROVISIONAL** (patrones y mensajes) a partir de fuentes públicas | Signos de alarma públicos (MinSalud, OPS, AIEPI) | **Validación clínica obligatoria** antes de usar con usuarios ([solicitud](../01-especificacion/solicitud-validacion-alarmas.md)); la decisión final es del equipo clínico | Equipo clínico |
 | Decisiones de arquitectura y stack | **No delegable** (la IA propone opciones) | — | ADR firmado por el equipo | Todo el equipo |
 | Priorización del backlog | **No delegable** | — | Reunión con los aliados | Product Owner |
 

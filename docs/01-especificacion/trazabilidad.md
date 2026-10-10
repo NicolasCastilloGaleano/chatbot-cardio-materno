@@ -18,4 +18,12 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-06 | Respuesta inválida o error del modelo | `application/agent_turn.py`, `conversation_service.py` | `test_agent_turn.py`, `test_model_failure_saves_nothing_and_keeps_thread` | ✅ (automática) |
 | HU-06 | Calidad real de la decisión de hilo y del resumen | prompt v2 | Guion manual en el PC de pruebas (2026-10-10) | ✅ |
 | HU-01 / RN-01 | Primer contacto → aviso + consentimiento | TODO | TODO | ⏳ |
-| HU-03 / RN-02 | Signo de alarma → urgencias primero | TODO | TODO | ⏳ |
+| HU-03 / RN-02 / RN-MI-xx | Urgencia en el mensaje del usuario → solo el mensaje fijo, sin LLM | `domain/alarms.py`, `application/alarm_policy.py`, `conversation_service.py::send` | `test_conversation_service.py::test_urgent_user_message_skips_agent_and_opens_alarm_thread` | ✅ (automática) |
+| HU-03 / RN-MI-xx | Alarma detectada en los síntomas reportados por el agente | `conversation_service.py::_post_filter` | `test_agent_reported_symptom_triggers_urgent_alarm_and_discards_reply` | ✅ (automática) |
+| HU-03 | Los consejos del agente no generan alarmas | `_post_filter` (solo `reported_symptoms`) | `test_advice_in_reply_or_summary_does_not_trigger_alarm` | ✅ (automática) |
+| HU-04 / RN-CV-01 | Urgencia cardiovascular | catálogo + `conversation_service.py` | `tests/conversational/test_alarm_phrases.py` (RN-CV-01) | ✅ (automática) |
+| HU-04 / RN-CV-06 | Consulta prioritaria: mensaje fijo + orientación | `alarm_policy.py::compose_reply` | `test_priority_user_message_shows_fixed_notice_then_agent_reply` | ✅ (automática) |
+| HU-04 | La alarma prioritaria se muestra aunque falle el modelo | `conversation_service.py::send` | `test_priority_alarm_survives_agent_failure` | ✅ (automática) |
+| HU-04 | El agente eleva la severidad, nunca la reduce | `_agent_turn`, `compose_reply` | `test_agent_can_escalate_priority_to_urgent`, `test_rule_detected_by_both_filters_is_recorded_once_as_user` | ✅ (automática) |
+| RN-MI-01 … RN-CV-06 | Cada regla activa sus frases de referencia y no las cotidianas | `knowledge/alarm_rules.json` | `tests/conversational/test_alarm_phrases.py` | ✅ (automática); ❌ validación clínica |
+| HU-03 / HU-04 | Comportamiento con el modelo real | prompt v3 | Guion en el PC de pruebas | 🔄 |

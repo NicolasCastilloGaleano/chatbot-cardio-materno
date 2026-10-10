@@ -9,6 +9,7 @@ import pytest
 from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
     JsonFileThreadRepository,
 )
+from cardio_materno.domain.alarms import Alert, AlertOrigin, Severity
 from cardio_materno.domain.conversation import (
     ChatMessage,
     Domain,
@@ -79,3 +80,29 @@ def test_recent_messages_respects_limit_and_order(tmp_path: Path) -> None:
 def test_append_to_missing_thread_raises_key_error(tmp_path: Path) -> None:
     with pytest.raises(KeyError):
         make_repo(tmp_path).append_message(ChatMessage(Role.USER, "hola", "no-existe", NOW))
+
+
+def test_alerts_are_saved_and_kept_when_thread_is_updated(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    thread = open_thread("t1", Domain.CARDIOVASCULAR, "s", NOW)
+    repo.save_thread(thread)
+
+    repo.append_alert("t1", Alert(("RN-CV-01",), Severity.IMMEDIATE, AlertOrigin.AGENT, NOW))
+    repo.save_thread(close_thread(thread, NOW))
+
+    data = json.loads((tmp_path / "threads" / "t1.json").read_text(encoding="utf-8"))
+    assert data["alerts"] == [
+        {
+            "rule_ids": ["RN-CV-01"],
+            "severity": "urgencia_inmediata",
+            "origin": "agente",
+            "created_at": NOW.isoformat(),
+        }
+    ]
+
+
+def test_alert_on_missing_thread_raises_key_error(tmp_path: Path) -> None:
+    alert = Alert(("X",), Severity.PRIORITY, AlertOrigin.USER, NOW)
+
+    with pytest.raises(KeyError):
+        make_repo(tmp_path).append_alert("no-existe", alert)

@@ -76,25 +76,29 @@ sequenceDiagram
 | `LanguageModel` (`application/ports/language_model.py`) | Generar la respuesta estructurada del agente (`complete_json` con JSON Schema) | ✅ `OllamaLanguageModel` (`adapters/outbound/llm/`, [ADR 0005](adr/0005-ollama-local-como-llm.md)) |
 | `KnowledgeRetriever` | Recuperar contenido validado | TODO: vector store (ADR pendiente) |
 | `ThreadRepository` (`application/ports/thread_repository.py`) | Persistir hilos y mensajes (con `thread_id`) | ✅ `JsonFileThreadRepository` (`adapters/outbound/persistence/`, [ADR 0006](adr/0006-hilos-conversacionales-con-resumen.md)); TODO: BD para Telegram |
-| `AlertNotifier` | Registrar o notificar alertas | log (inicial), TODO |
+| `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
 
-## 4.1 Estado implementado (HU-00 + HU-06, prototipo técnico)
-Camino actual: consola → `ConversationService` (hilos) → Ollama con salida JSON. Todavía no hay detección de alarmas (riesgo R-07).
+## 4.1 Estado implementado (HU-00 + HU-06 + HU-03/04, prototipo técnico)
+Camino actual: consola → `ConversationService` (alarmas deterministas con doble filtro + hilos) → Ollama con salida JSON. Las reglas de alarma son PROVISIONALES (R-09).
 ```mermaid
 flowchart LR
     U[Usuario en consola] --> CC[ConsoleChat<br/>adapters/inbound/console]
     CC --> CS[ConversationService<br/>application<br/>hilo activo + contexto acotado]
     CS --> AT[parse_agent_turn<br/>valida el JSON del agente]
+    CS --> AP[AlarmPolicy<br/>application/alarm_policy.py<br/>filtro 1: texto del usuario<br/>filtro 2: reported_symptoms]
+    AP --> DA[domain/alarms.py<br/>detect_alarms: reglas deterministas]
+    CAT[(knowledge/alarm_rules.json<br/>catálogo PROVISIONAL)] -. carga y valida .-> JC[json_alarm_catalog<br/>adapters/outbound/clinical_rules]
     CS --> LM{{Puerto LanguageModel}}
     CS --> TR{{Puerto ThreadRepository}}
     LM -.-> OL[OllamaLanguageModel<br/>/api/chat + format=JSON Schema]
     OL --> OLL[(Ollama local<br/>mistral-small3.1:24b)]
     TR -.-> JR[JsonFileThreadRepository<br/>data/threads/&lt;id&gt;.json]
-    B[bootstrap/main.py<br/>.env + verificación /api/tags] -. arma .-> CC & CS & OL & JR
+    B[bootstrap/main.py<br/>.env + verificación /api/tags] -. arma .-> CC & CS & OL & JR & JC
 ```
-- Contrato del agente (`application/agent_turn.py`): `{thread_action: continuar|nuevo, domain, summary, reply}`.
+- Contrato del agente (`application/agent_turn.py`): `{thread_action: continuar|nuevo, domain, summary, reply, reported_symptoms}`.
+- Alarmas ([ADR 0007](adr/0007-alarmas-deterministas-doble-filtro.md), [flujo](../03-procesos/flujos/gestion-alerta.md)): el filtro 1 corre antes del LLM (si hay urgencia inmediata, el LLM no se consulta) y el filtro 2 sobre `reported_symptoms`. Las alertas se guardan en el hilo con su origen.
 - Contexto por turno: prompt v2 + JSON del hilo actual + últimos `THREAD_CONTEXT_MESSAGES` mensajes del hilo + mensaje nuevo. Ver el [flujo](../03-procesos/flujos/flujo-conversacional.md).
-- El prompt de sistema está versionado en `src/cardio_materno/prompts/system_prompt_v2.md`.
+- El prompt de sistema está versionado en `src/cardio_materno/prompts/system_prompt_v3.md` (incluye `reported_symptoms`).
 - Los errores de Ollama o un JSON inválido se traducen a `LanguageModelError`. En ese caso no se guarda nada y la consola sigue funcionando.
 
 ## 5. Stack

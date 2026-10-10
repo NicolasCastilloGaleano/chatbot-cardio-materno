@@ -1,0 +1,304 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-10-10",
+  "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales.",
+  "validated_by": null,
+  "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09).",
+  "messages": {
+    "urgencia_embarazo": "🚨 Lo que describes puede ser un signo de alarma en el embarazo o después del parto. Acude de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No esperes a que pase solo y, si puedes, ve acompañada.",
+    "urgencia_bebe": "🚨 Lo que describes puede ser un signo de peligro en el bebé o en el niño. Llévalo de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No le des medicamentos por tu cuenta mientras tanto.",
+    "urgencia_cardio": "🚨 Lo que describes puede ser una emergencia del corazón o un accidente cerebrovascular. Llama ya a la línea de emergencias 123 o acude al servicio de urgencias más cercano. Si es posible, no vayas solo y no manejes.",
+    "urgencia_general": "🚨 Lo que describes puede ser una emergencia. Acude de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123.",
+    "prioritaria_presion": "⚠️ Es importante que un profesional de salud revise la presión arterial pronto. Pide una cita prioritaria en tu EPS o centro de salud en los próximos días. Si aparece dolor en el pecho, dolor de cabeza muy fuerte, dificultad para hablar o debilidad en un lado del cuerpo, acude de inmediato a urgencias o llama al 123."
+  },
+  "rules": [
+    {
+      "id": "RN-MI-01",
+      "domain": "materno_infantil",
+      "population": "gestante/posparto",
+      "sign": "Sangrado vaginal en el embarazo o el posparto",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\bsangrado vaginal\\b",
+        "\\bsangre (por|de) (la vagina|abajo|mis partes|mis partes intimas)\\b",
+        "\\b(agu\\w*|flujo|liquido) con sangre\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(sangr\\w*|hemorragia|manchad\\w*|manchando|manche)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-02",
+      "domain": "materno_infantil",
+      "population": "gestante/posparto",
+      "sign": "Dolor de cabeza intenso o alteraciones visuales en el embarazo",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(cefalea|dolor de cabeza) (intens\\w*|severa|severo|muy fuerte)\\b.{0,40}\\b(embarazo|gestante|posparto)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(dolor de cabeza|cefalea|me duele (mucho )?la cabeza)\\b.{0,30}\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible) dolor de cabeza\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(vision borrosa|veo (lucecitas|luces|puntos|estrellitas|borroso|nublado)|zumbido en (los )?oidos)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-03",
+      "domain": "materno_infantil",
+      "population": "gestante/posparto/niños",
+      "sign": "Convulsiones",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(convulsion\\w*|convulsiona\\w*|convulsiono|convulsiva\\w*)\\b",
+        "\\bse puso (rigid\\w*|tiesa?|tieso)\\b.{0,30}\\b(temblaba|temblando|sacudia|sacudiendo)\\b"
+      ],
+      "message_id": "urgencia_general",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal); Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-04",
+      "domain": "materno_infantil",
+      "population": "gestante/posparto",
+      "sign": "Hinchazón de cara, manos o pies de aparición reciente en el embarazo",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(edema|hinchazon) (facial|de (la )?cara|de (las )?manos)\\b.{0,40}\\b(embarazo|gestante)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(hinchad\\w*|hinchazon|inflamad\\w*|hincho|hincharon|edema)\\b.{0,25}\\b(cara|manos|dedos|parpados)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(cara|manos|dedos|parpados) (muy )?(hinchad\\w*|inflamad\\w*)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-05",
+      "domain": "materno_infantil",
+      "population": "gestante",
+      "sign": "Salida de líquido por la vagina (ruptura de membranas)",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(rompi|rompio|se me rompio|se rompio) (la )?fuente\\b",
+        "\\b(ruptura|rotura) de (membranas|fuente)\\b",
+        "\\bsalida de liquido (amniotico|por la vagina)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(sale|salio|me sale|me salio|bota\\w*|perdi\\w*|se me (vino|salio)) (mucho |un )?(liquido|agua|aguita)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-06",
+      "domain": "materno_infantil",
+      "population": "gestante",
+      "sign": "Disminución o ausencia de movimientos fetales",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(disminucion|ausencia) de (los )?movimientos fetales\\b",
+        "\\bmovimientos fetales (disminuidos|ausentes)\\b",
+        "\\b(bebe|nene|nena) (ya )?(no se mueve|no se ha movido|se mueve (muy )?poco|se mueve menos|dejo de moverse)\\b",
+        "\\bno (lo |la )?(siento|he sentido) (mover\\w*|al bebe|el bebe)\\b"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-07",
+      "domain": "materno_infantil",
+      "population": "gestante/posparto",
+      "sign": "Fiebre en el embarazo o el posparto",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\bfiebre\\b.{0,30}\\b(en el embarazo|en la gestacion|en el posparto|posparto)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(fiebre|calentura|escalofrios)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-08",
+      "domain": "materno_infantil",
+      "population": "gestante",
+      "sign": "Contracciones o dolor tipo parto antes de las 37 semanas",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(contracciones|trabajo de parto) (prematur\\w*|antes de tiempo|pretermino)\\b",
+        "\\b(amenaza de parto prematuro|parto prematuro)\\b",
+        "^(?=.*\\b([1-2]\\d|3[0-6]) semanas\\b)(?=.*\\b(contraccion\\w*|dolores de parto|barriga (dura|se pone dura)|se me pone dura la barriga)\\b)",
+        "^(?=.*\\b[1-8] meses\\b)(?=.*\\b(contraccion\\w*|dolores de parto|barriga (dura|se pone dura)|se me pone dura la barriga)\\b)"
+      ],
+      "message_id": "urgencia_embarazo",
+      "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
+    },
+    {
+      "id": "RN-MI-09",
+      "domain": "materno_infantil",
+      "population": "recién nacido/menor de 5 años",
+      "sign": "No puede comer, beber o tomar el pecho",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(rechazo|rechaza) (del |al |el )?(pecho|seno|alimento|tetero)\\b.{0,40}\\b(bebe|lactante|recien nacido|nino)\\b",
+        "\\bno (quiere |puede )?(tomar|recibir|agarrar) (el )?(pecho|seno|tetero)\\b",
+        "\\b(bebe|bebito|bebita|recien nacid\\w*|nene|nena|lactante)\\b.{0,40}\\bno (quiere |puede )?(comer|come|tomar|toma|mamar|mama|recibe|recibir) (nada|leche|el pecho|el seno|el tetero)?\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-10",
+      "domain": "materno_infantil",
+      "population": "menor de 5 años",
+      "sign": "Vomita todo lo que come o bebe",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\bvomita (todo|absolutamente todo|todo lo que)\\b",
+        "\\btodo lo (vomita|devuelve|bota)\\b",
+        "\\bno (le )?(retiene|aguanta|tolera) (nada|ni el agua|ni agua|la leche)\\b",
+        "\\bvomito (persistente|incoercible|con todo)\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-11",
+      "domain": "materno_infantil",
+      "population": "recién nacido/menor de 5 años",
+      "sign": "Letárgico, muy decaído o no despierta",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(letargia|letargic\\w*|aletargad\\w*)\\b",
+        "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(muy decaid\\w*|no (se )?despierta|no reacciona|como ido|como ida|desmadejad\\w*|no responde|muy flojit\\w*|muy dormid\\w*)\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-12",
+      "domain": "materno_infantil",
+      "population": "recién nacido/menor de 5 años",
+      "sign": "Respira rápido o con dificultad",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\bdificultad (respiratoria|para respirar)\\b.{0,30}\\b(bebe|lactante|recien nacido|nino|nina)\\b",
+        "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(respira (muy )?(rapido|rapidito|agitad\\w*|con dificultad|feo|mal)|le cuesta respirar|se le hunden las costillas|se ahoga|no puede respirar|hace un quejido|tiraje)\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-13",
+      "domain": "materno_infantil",
+      "population": "recién nacido",
+      "sign": "Fiebre o temperatura baja en el recién nacido",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(fiebre|hipotermia)\\b.{0,30}\\b(recien nacid\\w*|neonato)\\b",
+        "\\b(recien nacid\\w*|neonato|bebe de (\\d|[1-2]\\d) dias|bebe de (1|un) mes)\\b.{0,40}\\b(fiebre|calentura|muy caliente|muy frio|muy fria|hipotermia)\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-MI-14",
+      "domain": "materno_infantil",
+      "population": "recién nacido/menor de 5 años",
+      "sign": "Piel o labios muy amarillos o morados",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(ictericia|cianosis)\\b",
+        "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(muy amarill\\w*|amarillit\\w*|morad\\w*|azulad\\w*|azul)\\b",
+        "\\b(labios|unas|piel) (morad\\w*|azulad\\w*|azules)\\b"
+      ],
+      "message_id": "urgencia_bebe",
+      "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
+    },
+    {
+      "id": "RN-CV-01",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Dolor u opresión en el pecho",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\bdolor (fuerte |muy fuerte |intenso )?(en el|del) pecho\\b",
+        "\\b(opresion|presion|peso|apreton|ardor fuerte) (en el|del) pecho\\b",
+        "\\bme (aprieta|duele|esta doliendo) (mucho )?el pecho\\b",
+        "\\bdolor (toracico|precordial)\\b"
+      ],
+      "message_id": "urgencia_cardio",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    },
+    {
+      "id": "RN-CV-02",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Dificultad para respirar",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(me|le) (falta|falto|faltaba) (el )?aire\\b",
+        "\\bno (puedo|podia|puede|podia) respirar\\b",
+        "\\bme (estoy ahogando|ahogo)\\b",
+        "\\b(dificultad|problemas) (para|al) respirar\\b",
+        "\\bdisnea\\b"
+      ],
+      "message_id": "urgencia_cardio",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    },
+    {
+      "id": "RN-CV-03",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita)",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(cara|boca) (torcida|caida|desviada|chueca|ladeada)\\b",
+        "\\bse (le|me) (cayo|torcio|desvio) (la cara|la boca|un lado de la cara)\\b",
+        "\\b(no (puede|puedo) mover|no siento|debilidad (en|de)) (el|un|la) (brazo|pierna|lado( del cuerpo)?|mano)\\b",
+        "\\b(habla|hablando) (enredad\\w*|rar\\w*|arrastrad\\w*|incoherente)\\b",
+        "\\b(no (puede|puedo) hablar|dificultad para hablar)\\b",
+        "\\b(accidente cerebrovascular|derrame cerebral|acv|trombosis cerebral|ictus)\\b",
+        "\\bdolor de cabeza (muy fuerte )?(repentino|subito|de repente)\\b"
+      ],
+      "message_id": "urgencia_cardio",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    },
+    {
+      "id": "RN-CV-04",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Desmayo o pérdida del conocimiento",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(desmay\\w*|sincope)\\b",
+        "\\bperdi\\w* (el conocimiento|la conciencia)\\b",
+        "\\bperdida (del conocimiento|de (la )?conciencia)\\b"
+      ],
+      "message_id": "urgencia_cardio",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    },
+    {
+      "id": "RN-CV-05",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Presión arterial muy alta (≥ 180) o presión alta con síntomas",
+      "severity": "urgencia_inmediata",
+      "patterns": [
+        "\\b(presion|tension)\\b.{0,30}\\b(1[89]\\d|2\\d\\d)\\b",
+        "\\bcrisis hipertensiva\\b",
+        "^(?=.*\\b(presion|tension) (arterial )?(muy )?(alta|elevada|disparada)\\b)(?=.*\\b(dolor de cabeza|me duele (mucho )?la cabeza|mareo|mareada|mareado|vision borrosa|zumbido|dolor (en el|del) pecho|nauseas)\\b)"
+      ],
+      "message_id": "urgencia_cardio",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    },
+    {
+      "id": "RN-CV-06",
+      "domain": "cardiovascular",
+      "population": "adulto",
+      "sign": "Presión arterial alta sin síntomas de alarma",
+      "severity": "consulta_prioritaria",
+      "patterns": [
+        "\\b(presion|tension) (arterial )?(alta|elevada|muy alta)\\b",
+        "\\bhipertension\\b",
+        "\\b(presion|tension)\\b.{0,30}\\b1[4-7]\\d\\b"
+      ],
+      "message_id": "prioritaria_presion",
+      "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
+    }
+  ]
+}

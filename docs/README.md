@@ -25,7 +25,7 @@ Los informes de validación (§3.4) y el business case (§3.7) se añadirán com
 | Cualquier cambio en `src/`, `tests/` o `knowledge/` | `CHANGELOG.md` + `05-ia/bitacora-verificacion-ia.md` (**siempre**) |
 | Agrega o modifica una funcionalidad visible al usuario | `01-especificacion/historias-usuario.md`, `01-especificacion/trazabilidad.md`, `00-gestion/backlog.md` |
 | Cambia el flujo conversacional o los estados | `03-procesos/flujos/*.md` y el BPMN correspondiente en `03-procesos/bpmn/` |
-| Cambia reglas clínicas, signos de alarma o rutas de atención | `01-especificacion/especificacion-ejecutable.md`, `03-procesos/flujos/`, `07-gobernanza/riesgos-ia.md` + **validación clínica humana** |
+| Cambia reglas clínicas, signos de alarma o rutas de atención (`knowledge/alarm_rules.json`) | `01-especificacion/especificacion-ejecutable.md` (§4.1), `01-especificacion/solicitud-validacion-alarmas.md`, `tests/conversational/alarm_phrases.json`, `03-procesos/` (flujo + BPMN de gestión de alerta), `07-gobernanza/riesgos-ia.md` + **validación clínica humana** |
 | Agrega o modifica un componente, capa, puerto o adaptador | `02-arquitectura/arquitectura.md` |
 | Toma una decisión técnica relevante (librería, proveedor, patrón) | Nuevo ADR en `02-arquitectura/adr/` |
 | Cambia entidades, tablas o esquemas | `04-datos/modelo-datos.md`, `04-datos/diccionario-datos.md` |

@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-10-10 (HU-03/HU-04)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -94,11 +94,55 @@ Estado: ⏳ Borrador. TODO: criterios.
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
-Estado: ⏳ Borrador. TODO: criterios (dependen de RN-MI).
+Reglas: `RN-MI-01` a `RN-MI-14` (catálogo PROVISIONAL, ADR 0007).
+```gherkin
+Escenario: Urgencia materno-infantil en el mensaje del usuario
+  Dado que el catálogo de alarmas está cargado
+  Cuando escribo "estoy embarazada y tengo un sangrado"
+  Entonces el asistente responde solo con el mensaje fijo de urgencia (acudir a urgencias o llamar al 123)
+  Y no se consulta al modelo de lenguaje
+  Y se registra en el hilo una alerta con la regla RN-MI-01, severidad "urgencia_inmediata" y origen "usuario"
+
+Escenario: Alarma detectada en los síntomas que reporta el agente
+  Dado que mi mensaje no coincide con ninguna regla ("me está saliendo agüita rosada por abajo")
+  Y el agente reporta el síntoma "sangrado vaginal en el embarazo"
+  Cuando se revisan los síntomas reportados con las mismas reglas
+  Entonces se descarta la respuesta del agente y se muestra solo el mensaje fijo de urgencia
+  Y la alerta queda registrada con origen "agente"
+
+Escenario: Los consejos del agente no generan alarmas
+  Dado que pregunto "¿qué signos de alarma hay en el embarazo?"
+  Cuando el agente menciona el sangrado como signo de alarma en su respuesta o en su resumen
+  Y no reporta síntomas de la persona
+  Entonces no se registra ninguna alerta
+```
+Estado: 🔄 En verificación (reglas PROVISIONALES pendientes de validación clínica)
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.
-Estado: ⏳ Borrador. TODO: criterios (dependen de RN-CV).
+Reglas: `RN-CV-01` a `RN-CV-06` (catálogo PROVISIONAL, ADR 0007).
+```gherkin
+Escenario: Urgencia cardiovascular
+  Cuando escribo "tengo un dolor muy fuerte en el pecho"
+  Entonces el asistente responde solo con el mensaje fijo de urgencia cardiovascular
+  Y se registra una alerta RN-CV-01 "urgencia_inmediata"
+
+Escenario: Consulta prioritaria por presión alta sin síntomas
+  Cuando escribo "mi papá tiene la presión alta"
+  Entonces el asistente muestra primero el mensaje fijo de consulta prioritaria y luego su orientación
+  Y se registra una alerta RN-CV-06 "consulta_prioritaria"
+
+Escenario: La alarma prioritaria se muestra aunque falle el modelo
+  Dado que el modelo de lenguaje no responde
+  Cuando escribo "tengo la presión alta"
+  Entonces veo el mensaje fijo de consulta prioritaria y la alerta queda registrada
+
+Escenario: El agente puede elevar la severidad, nunca reducirla
+  Dado que mi mensaje activa una consulta prioritaria
+  Cuando el agente reporta un síntoma de urgencia inmediata
+  Entonces se muestra el mensaje fijo de urgencia y se registran ambas alertas (usuario y agente)
+```
+Estado: 🔄 En verificación (reglas PROVISIONALES pendientes de validación clínica)
 
 ### HU-05: Ruta de atención
 **Como** usuario con una alerta, **quiero** saber a dónde acudir en mi municipio, **para** recibir atención oportuna.

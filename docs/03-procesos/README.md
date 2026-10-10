@@ -6,4 +6,5 @@
 | Proceso | Flujo | BPMN | Estado |
 |---|---|---|---|
 | Atención conversacional general (incluye el turno con hilos, HU-06) | [flujo-conversacional.md](flujos/flujo-conversacional.md) | TODO: modelar en bpmn.io cuando se estabilice el flujo con consentimiento | Borrador + turno implementado |
-| Gestión de alerta y ruta de atención | TODO | TODO | ⏳ |
+| Gestión de alerta por signos de alarma (HU-03/04) | [gestion-alerta.md](flujos/gestion-alerta.md) | [gestion-alerta.bpmn](bpmn/gestion-alerta.bpmn) (TODO: exportar `.svg` desde bpmn.io) | Implementado |
+| Ruta de atención por municipio (HU-05) | TODO | TODO | ⏳ Depende de la DTS |

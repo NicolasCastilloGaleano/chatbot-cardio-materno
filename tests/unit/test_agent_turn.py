@@ -52,4 +52,22 @@ def test_schema_lists_allowed_values() -> None:
 
     assert properties["thread_action"]["enum"] == ["continuar", "nuevo"]
     assert properties["domain"]["enum"] == ["materno_infantil", "cardiovascular", "ninguno"]
-    assert set(AGENT_TURN_SCHEMA["required"]) == {"thread_action", "domain", "summary", "reply"}
+    assert set(AGENT_TURN_SCHEMA["required"]) == {
+        "thread_action",
+        "domain",
+        "summary",
+        "reply",
+        "reported_symptoms",
+    }
+
+
+def test_reported_symptoms_are_trimmed_and_empty_items_dropped() -> None:
+    turn = parse_agent_turn(agent_json(reported_symptoms=[" fiebre ", "", "  "]))
+
+    assert turn.reported_symptoms == ("fiebre",)
+
+
+@pytest.mark.parametrize("value", ["fiebre", [1, 2], None])
+def test_reported_symptoms_must_be_a_list_of_texts(value: Any) -> None:
+    with pytest.raises(LanguageModelError, match="reported_symptoms"):
+        parse_agent_turn(agent_json() | {"reported_symptoms": value})

@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from cardio_materno.application.conversation_service import ConversationService, TurnResult
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.domain.alarms import Alert
 
 EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
 USER_PROMPT = "\nTú: "
@@ -11,7 +12,8 @@ ASSISTANT_LABEL = "Asistente: "
 THINKING_TEXT = "(pensando…)"
 ERROR_PREFIX = "⚠️  "
 SHORT_ID_LENGTH = 8
-THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}]"
+THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}{alerts}]"
+ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
 NEW_THREAD_LABEL = "nuevo"
 SAME_THREAD_LABEL = "continúa"
 WELCOME_TEXT = (
@@ -83,7 +85,9 @@ class ConsoleChat:
 def format_thread_debug(result: TurnResult) -> str:
     """Línea compacta con el estado del hilo.
 
-    Ejemplo: "[hilo 3f2a91c0 | cardiovascular | abierto | nuevo]".
+    Ejemplo:
+        "[hilo 3f2a91c0 | cardiovascular | abierto | nuevo
+          | ⚠️ RN-CV-01 urgencia_inmediata (usuario)]" (en una sola línea).
 
     Args:
         result: Resultado del turno.
@@ -96,4 +100,12 @@ def format_thread_debug(result: TurnResult) -> str:
         domain=result.thread.domain,
         status=result.thread.status,
         change=NEW_THREAD_LABEL if result.is_new_thread else SAME_THREAD_LABEL,
+        alerts="".join(format_alert_debug(alert) for alert in result.alerts),
+    )
+
+
+def format_alert_debug(alert: Alert) -> str:
+    """Fragmento de la línea de depuración que describe una alerta."""
+    return ALERT_DEBUG_TEMPLATE.format(
+        rule_ids=",".join(alert.rule_ids), severity=alert.severity, origin=alert.origin
     )

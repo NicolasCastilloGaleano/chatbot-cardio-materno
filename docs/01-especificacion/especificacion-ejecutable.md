@@ -1,6 +1,6 @@
 # Especificación ejecutable v0 (borrador)
 
-*Última actualización: 2026-10-09*
+*Última actualización: 2026-10-10*
 
 > **Fuente de verdad del proyecto** (enfoque spec‑driven). El código y las pruebas se derivan de aquí. Los criterios de aceptación se escriben en Gherkin para poder convertirlos en pruebas automatizadas.
 
@@ -25,11 +25,36 @@ Ver [Project Charter § Alcance](../00-gestion/project-charter.md#alcance).
 | ID | Regla | Fuente | Validada por |
 |---|---|---|---|
 | RN-01 | Toda conversación inicia con el aviso de teleorientación y la solicitud de consentimiento de tratamiento de datos | Res. 2654/2019, Ley 1581/2012 | TODO |
-| RN-02 | Si se detecta un signo de alarma, se muestra de inmediato la indicación de acudir a urgencias o la línea correspondiente, antes de cualquier otra respuesta | TODO | TODO |
+| RN-02 | Si se detecta un signo de alarma, se muestra un **mensaje fijo** (no generado por el LLM). En una urgencia inmediata, solo ese mensaje; en una consulta prioritaria, el mensaje fijo antes de la orientación. Doble filtro: texto del usuario + `reported_symptoms` del agente (ADR 0007) | ADR 0004, ADR 0007 | Equipo de desarrollo (comportamiento); TODO: equipo clínico (contenido) |
 | RN-03 | El asistente nunca emite diagnósticos ni recomienda medicamentos o dosis | Res. 2654/2019 | TODO |
-| RN-MI-xx | Signos de alarma materno‑infantiles (p. ej., en el embarazo: cefalea intensa, visión borrosa, sangrado, convulsiones; en el recién nacido: TODO) | TODO: guía MinSalud/OPS | TODO |
-| RN-CV-xx | Signos de alarma cardiovasculares (p. ej., dolor torácico, signos de ACV) y orientación según HEARTS OPS | TODO: OPS HEARTS | TODO |
+| RN-MI-xx / RN-CV-xx | Signos de alarma: ver el catálogo `knowledge/alarm_rules.json` y la tabla 4.1 | Borrador basado en MinSalud, OPS y AIEPI | ❌ **PROVISIONAL**: [solicitud de validación](solicitud-validacion-alarmas.md) |
 | RN-RUTA-xx | Ruta de atención según el municipio, el tipo de alarma y el régimen de salud | TODO: DTS Caldas | TODO |
+
+### 4.1 Catálogo de signos de alarma (v0.1.0, PROVISIONAL)
+Fuente de verdad: `knowledge/alarm_rules.json` (patrones, mensajes fijos y fuentes). Frases de referencia: `tests/conversational/alarm_phrases.json`.
+
+| ID | Signo (población) | Severidad | Validación |
+|---|---|---|---|
+| RN-MI-01 | Sangrado vaginal en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-02 | Dolor de cabeza intenso o alteraciones visuales en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-03 | Convulsiones (gestante/posparto/niños) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-04 | Hinchazón de cara, manos o pies de aparición reciente en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-05 | Salida de líquido por la vagina (ruptura de membranas) (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-06 | Disminución o ausencia de movimientos fetales (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-07 | Fiebre en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-08 | Contracciones o dolor tipo parto antes de las 37 semanas (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-09 | No puede comer, beber o tomar el pecho (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-10 | Vomita todo lo que come o bebe (menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-11 | Letárgico, muy decaído o no despierta (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-12 | Respira rápido o con dificultad (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-13 | Fiebre o temperatura baja en el recién nacido (recién nacido) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-14 | Piel o labios muy amarillos o morados (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-01 | Dolor u opresión en el pecho (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-02 | Dificultad para respirar (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-03 | Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita) (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-04 | Desmayo o pérdida del conocimiento (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-05 | Presión arterial muy alta (≥ 180) o presión alta con síntomas (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-06 | Presión arterial alta sin síntomas de alarma (adulto) | consulta_prioritaria | PROVISIONAL |
 
 ## 5. Criterios de aceptación (ejemplo de formato)
 ```gherkin

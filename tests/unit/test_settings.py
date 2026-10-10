@@ -81,6 +81,7 @@ def test_conversation_settings_defaults(tmp_path: Path) -> None:
     assert settings.context_messages == 6
     assert settings.show_thread_debug is True
     assert settings.threads_dir == tmp_path / "data" / "threads"
+    assert settings.alarm_rules_file == tmp_path / "knowledge" / "alarm_rules.json"
 
 
 def test_conversation_settings_from_environment(tmp_path: Path) -> None:

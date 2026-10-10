@@ -12,11 +12,13 @@ from cardio_materno.application.conversation_service import (
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ThreadStatus
 from tests.unit.fakes import (
+    URGENT_MESSAGE,
     FakeClock,
     InMemoryThreadRepository,
     ScriptedLanguageModel,
     SequentialIds,
     agent_json,
+    make_alarm_policy,
 )
 
 
@@ -39,7 +41,9 @@ def run_console(
     service = ConversationService(
         model,
         repo or InMemoryThreadRepository(),
-        ConversationConfig("sys", clock=FakeClock(), new_id=SequentialIds()),
+        ConversationConfig(
+            "sys", alarm_policy=make_alarm_policy(), clock=FakeClock(), new_id=SequentialIds()
+        ),
     )
     ConsoleChat(service, show_thread_debug, read=read, write=output.append).run()
     return output
@@ -104,3 +108,15 @@ def test_exit_closes_active_thread() -> None:
     run_console(["hola", "salir"], ScriptedLanguageModel(agent_json()), repo)
 
     assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED
+
+
+def test_alarm_is_shown_with_alert_in_debug_line() -> None:
+    output = run_console(
+        ["tengo sangrado vaginal", "salir"], ScriptedLanguageModel(), show_thread_debug=True
+    )
+
+    assert f"Asistente: {URGENT_MESSAGE}" in output
+    assert (
+        "[hilo hilo-1 | materno_infantil | abierto | nuevo"
+        " | ⚠️ T-URG urgencia_inmediata (usuario)]" in output
+    )

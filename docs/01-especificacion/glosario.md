@@ -1,6 +1,6 @@
 # Glosario
 
-*Última actualización: 2026-10-09*
+*Última actualización: 2026-10-10*
 
 Incluye términos técnicos, clínicos y **expresiones comunitarias** que el asistente debe entender (pertinencia cultural).
 
@@ -8,6 +8,10 @@ Incluye términos técnicos, clínicos y **expresiones comunitarias** que el asi
 |---|---|
 | Teleorientación | Información y consejería en salud a distancia, sin diagnóstico ni tratamiento (Res. 2654/2019) |
 | Signo de alarma | Síntoma o situación que exige atención médica urgente |
+| Urgencia inmediata | Severidad de una regla de alarma: el asistente solo muestra el mensaje fijo de acudir a urgencias o llamar al 123 |
+| Consulta prioritaria | Severidad de una regla de alarma: mensaje fijo de pedir cita pronto, seguido de la orientación |
+| Filtro 1 / Filtro 2 | Revisión de las reglas de alarma sobre el texto del usuario (1) y sobre los síntomas que reporta el agente (2) |
+| Hilo | Conversación sobre una misma consulta o caso, con su resumen (HU-06) |
 | Ruta de atención | Camino institucional para recibir atención (p. ej., RIAS materno‑perinatal) |
 | RIAS | Rutas Integrales de Atención en Salud (MinSalud) |
 | HEARTS | Iniciativa OPS/OMS para el manejo del riesgo cardiovascular en atención primaria |

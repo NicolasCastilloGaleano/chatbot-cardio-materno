@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Proceso: gestión de alerta por signos de alarma (HU-03/HU-04, ADR 0007).
+     Abrir y editar en https://demo.bpmn.io ; exportar el SVG con el mismo nombre. -->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_GestionAlerta"
+                  targetNamespace="https://github.com/NicolasCastilloGaleano/chatbot-cardio-materno">
+  <bpmn:process id="Process_GestionAlerta" name="Gestión de alerta por signos de alarma" isExecutable="false">
+    <bpmn:startEvent id="Start" name="Mensaje del usuario">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="T_Recibir" name="Normalizar mensaje">
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="G_Filtro1" name="Filtro 1: ¿alarma en el texto del usuario?">
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>f3</bpmn:outgoing>
+      <bpmn:outgoing>f4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="T_UrgenciaSinLLM" name="Mensaje fijo de urgencia (sin consultar al LLM)">
+      <bpmn:incoming>f3</bpmn:incoming>
+      <bpmn:outgoing>f14</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="T_Agente" name="Consultar agente LLM (JSON con reported_symptoms)">
+      <bpmn:incoming>f4</bpmn:incoming>
+      <bpmn:outgoing>f5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="G_LLM" name="¿El agente respondió?">
+      <bpmn:incoming>f5</bpmn:incoming>
+      <bpmn:outgoing>f6</bpmn:outgoing>
+      <bpmn:outgoing>f7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="G_AlarmaPrevia" name="¿Hubo alarma prioritaria en el filtro 1?">
+      <bpmn:incoming>f7</bpmn:incoming>
+      <bpmn:outgoing>f8</bpmn:outgoing>
+      <bpmn:outgoing>f9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="T_PrioritariaSinLLM" name="Mensaje fijo de la alarma prioritaria">
+      <bpmn:incoming>f8</bpmn:incoming>
+      <bpmn:outgoing>f17</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_Error" name="Error mostrado; no se guarda nada">
+      <bpmn:incoming>f9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="T_Filtro2" name="Filtro 2: reglas sobre reported_symptoms">
+      <bpmn:incoming>f6</bpmn:incoming>
+      <bpmn:outgoing>f10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="G_Severidad" name="Severidad máxima de ambos filtros">
+      <bpmn:incoming>f10</bpmn:incoming>
+      <bpmn:outgoing>f11</bpmn:outgoing>
+      <bpmn:outgoing>f12</bpmn:outgoing>
+      <bpmn:outgoing>f13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="T_UrgenciaDescarta" name="Mensaje fijo de urgencia (se descarta el reply)">
+      <bpmn:incoming>f11</bpmn:incoming>
+      <bpmn:outgoing>f15</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="T_Prioritaria" name="Mensaje fijo + reply del agente">
+      <bpmn:incoming>f12</bpmn:incoming>
+      <bpmn:outgoing>f16</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="T_Normal" name="Reply del agente">
+      <bpmn:incoming>f13</bpmn:incoming>
+      <bpmn:outgoing>f19</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="T_RegistrarAlerta" name="Registrar alerta en el hilo (rule_ids, severity, origin)">
+      <bpmn:incoming>f14</bpmn:incoming>
+      <bpmn:incoming>f15</bpmn:incoming>
+      <bpmn:incoming>f16</bpmn:incoming>
+      <bpmn:incoming>f17</bpmn:incoming>
+      <bpmn:outgoing>f18</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="T_RegistrarMensajes" name="Registrar mensajes con thread_id y responder">
+      <bpmn:incoming>f18</bpmn:incoming>
+      <bpmn:incoming>f19</bpmn:incoming>
+      <bpmn:outgoing>f20</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End" name="Respuesta entregada">
+      <bpmn:incoming>f20</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="f1" sourceRef="Start" targetRef="T_Recibir" />
+    <bpmn:sequenceFlow id="f2" sourceRef="T_Recibir" targetRef="G_Filtro1" />
+    <bpmn:sequenceFlow id="f3" name="urgencia_inmediata" sourceRef="G_Filtro1" targetRef="T_UrgenciaSinLLM" />
+    <bpmn:sequenceFlow id="f4" name="prioritaria o ninguna" sourceRef="G_Filtro1" targetRef="T_Agente" />
+    <bpmn:sequenceFlow id="f5" sourceRef="T_Agente" targetRef="G_LLM" />
+    <bpmn:sequenceFlow id="f6" name="sí (JSON válido)" sourceRef="G_LLM" targetRef="T_Filtro2" />
+    <bpmn:sequenceFlow id="f7" name="no (error)" sourceRef="G_LLM" targetRef="G_AlarmaPrevia" />
+    <bpmn:sequenceFlow id="f8" name="sí" sourceRef="G_AlarmaPrevia" targetRef="T_PrioritariaSinLLM" />
+    <bpmn:sequenceFlow id="f9" name="no" sourceRef="G_AlarmaPrevia" targetRef="End_Error" />
+    <bpmn:sequenceFlow id="f10" sourceRef="T_Filtro2" targetRef="G_Severidad" />
+    <bpmn:sequenceFlow id="f11" name="urgencia_inmediata" sourceRef="G_Severidad" targetRef="T_UrgenciaDescarta" />
+    <bpmn:sequenceFlow id="f12" name="consulta_prioritaria" sourceRef="G_Severidad" targetRef="T_Prioritaria" />
+    <bpmn:sequenceFlow id="f13" name="ninguna" sourceRef="G_Severidad" targetRef="T_Normal" />
+    <bpmn:sequenceFlow id="f14" sourceRef="T_UrgenciaSinLLM" targetRef="T_RegistrarAlerta" />
+    <bpmn:sequenceFlow id="f15" sourceRef="T_UrgenciaDescarta" targetRef="T_RegistrarAlerta" />
+    <bpmn:sequenceFlow id="f16" sourceRef="T_Prioritaria" targetRef="T_RegistrarAlerta" />
+    <bpmn:sequenceFlow id="f17" sourceRef="T_PrioritariaSinLLM" targetRef="T_RegistrarAlerta" />
+    <bpmn:sequenceFlow id="f18" sourceRef="T_RegistrarAlerta" targetRef="T_RegistrarMensajes" />
+    <bpmn:sequenceFlow id="f19" sourceRef="T_Normal" targetRef="T_RegistrarMensajes" />
+    <bpmn:sequenceFlow id="f20" sourceRef="T_RegistrarMensajes" targetRef="End" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_GestionAlerta">
+    <bpmndi:BPMNPlane id="Plane_GestionAlerta" bpmnElement="Process_GestionAlerta">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start"><dc:Bounds x="100" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Recibir_di" bpmnElement="T_Recibir"><dc:Bounds x="180" y="178" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Filtro1_di" bpmnElement="G_Filtro1" isMarkerVisible="true"><dc:Bounds x="330" y="193" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_UrgenciaSinLLM_di" bpmnElement="T_UrgenciaSinLLM"><dc:Bounds x="430" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Agente_di" bpmnElement="T_Agente"><dc:Bounds x="430" y="178" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_LLM_di" bpmnElement="G_LLM" isMarkerVisible="true"><dc:Bounds x="600" y="193" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_AlarmaPrevia_di" bpmnElement="G_AlarmaPrevia" isMarkerVisible="true"><dc:Bounds x="600" y="420" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_PrioritariaSinLLM_di" bpmnElement="T_PrioritariaSinLLM"><dc:Bounds x="700" y="405" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Error_di" bpmnElement="End_Error"><dc:Bounds x="607" y="520" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Filtro2_di" bpmnElement="T_Filtro2"><dc:Bounds x="700" y="178" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Severidad_di" bpmnElement="G_Severidad" isMarkerVisible="true"><dc:Bounds x="870" y="193" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_UrgenciaDescarta_di" bpmnElement="T_UrgenciaDescarta"><dc:Bounds x="970" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Prioritaria_di" bpmnElement="T_Prioritaria"><dc:Bounds x="970" y="178" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Normal_di" bpmnElement="T_Normal"><dc:Bounds x="970" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_RegistrarAlerta_di" bpmnElement="T_RegistrarAlerta"><dc:Bounds x="1140" y="60" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_RegistrarMensajes_di" bpmnElement="T_RegistrarMensajes"><dc:Bounds x="1310" y="178" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End"><dc:Bounds x="1480" y="200" width="36" height="36" /></bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="f1_di" bpmnElement="f1"><di:waypoint x="136" y="218" /><di:waypoint x="180" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f2_di" bpmnElement="f2"><di:waypoint x="280" y="218" /><di:waypoint x="330" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f3_di" bpmnElement="f3"><di:waypoint x="355" y="193" /><di:waypoint x="355" y="100" /><di:waypoint x="430" y="100" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f4_di" bpmnElement="f4"><di:waypoint x="380" y="218" /><di:waypoint x="430" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f5_di" bpmnElement="f5"><di:waypoint x="550" y="218" /><di:waypoint x="600" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f6_di" bpmnElement="f6"><di:waypoint x="650" y="218" /><di:waypoint x="700" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f7_di" bpmnElement="f7"><di:waypoint x="625" y="243" /><di:waypoint x="625" y="420" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f8_di" bpmnElement="f8"><di:waypoint x="650" y="445" /><di:waypoint x="700" y="445" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f9_di" bpmnElement="f9"><di:waypoint x="625" y="470" /><di:waypoint x="625" y="520" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f10_di" bpmnElement="f10"><di:waypoint x="820" y="218" /><di:waypoint x="870" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f11_di" bpmnElement="f11"><di:waypoint x="895" y="193" /><di:waypoint x="895" y="100" /><di:waypoint x="970" y="100" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f12_di" bpmnElement="f12"><di:waypoint x="920" y="218" /><di:waypoint x="970" y="218" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f13_di" bpmnElement="f13"><di:waypoint x="895" y="243" /><di:waypoint x="895" y="340" /><di:waypoint x="970" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f14_di" bpmnElement="f14"><di:waypoint x="490" y="60" /><di:waypoint x="490" y="30" /><di:waypoint x="1200" y="30" /><di:waypoint x="1200" y="60" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f15_di" bpmnElement="f15"><di:waypoint x="1090" y="100" /><di:waypoint x="1140" y="100" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f16_di" bpmnElement="f16"><di:waypoint x="1090" y="218" /><di:waypoint x="1170" y="218" /><di:waypoint x="1170" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f17_di" bpmnElement="f17"><di:waypoint x="820" y="445" /><di:waypoint x="1220" y="445" /><di:waypoint x="1220" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f18_di" bpmnElement="f18"><di:waypoint x="1260" y="100" /><di:waypoint x="1370" y="100" /><di:waypoint x="1370" y="178" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f19_di" bpmnElement="f19"><di:waypoint x="1090" y="340" /><di:waypoint x="1370" y="340" /><di:waypoint x="1370" y="258" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f20_di" bpmnElement="f20"><di:waypoint x="1430" y="218" /><di:waypoint x="1480" y="218" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

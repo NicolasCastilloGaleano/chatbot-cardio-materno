@@ -23,8 +23,9 @@ AGENT_TURN_SCHEMA: dict[str, Any] = {
         "domain": {"type": "string", "enum": [d.value for d in Domain]},
         "summary": {"type": "string"},
         "reply": {"type": "string"},
+        "reported_symptoms": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["thread_action", "domain", "summary", "reply"],
+    "required": ["thread_action", "domain", "summary", "reply", "reported_symptoms"],
 }
 
 MSG_INVALID_TURN = "El modelo no devolvió la estructura esperada ({detail})."
@@ -39,12 +40,15 @@ class AgentTurn:
         domain: Dominio de salud del hilo resultante.
         summary: Resumen actualizado del hilo resultante.
         reply: Texto que se muestra al usuario.
+        reported_symptoms: Síntomas que la persona dice tener o haber tenido, en términos
+            estándar (se revisan con las reglas de alarma, ADR 0007).
     """
 
     thread_action: ThreadAction
     domain: Domain
     summary: str
     reply: str
+    reported_symptoms: tuple[str, ...] = ()
 
 
 def parse_agent_turn(data: dict[str, Any]) -> AgentTurn:
@@ -64,6 +68,7 @@ def parse_agent_turn(data: dict[str, Any]) -> AgentTurn:
         domain=_parse_enum(Domain, data, "domain"),
         summary=_required_text(data, "summary"),
         reply=_required_text(data, "reply"),
+        reported_symptoms=_text_list(data, "reported_symptoms"),
     )
 
 
@@ -73,6 +78,15 @@ def _required_text(data: dict[str, Any], field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=f"'{field}' vacío o ausente"))
     return value.strip()
+
+
+def _text_list(data: dict[str, Any], field: str) -> tuple[str, ...]:
+    """Obtiene una lista obligatoria de textos; descarta los vacíos."""
+    value = data.get(field)
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        detail = f"'{field}' debe ser una lista de textos"
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
+    return tuple(item.strip() for item in value if item.strip())
 
 
 def _parse_enum[E: StrEnum](enum_type: type[E], data: dict[str, Any], field: str) -> E:

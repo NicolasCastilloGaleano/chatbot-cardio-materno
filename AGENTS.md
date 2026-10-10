@@ -47,7 +47,8 @@ src/cardio_materno/
 ## 4. Datos y privacidad (Ley 1581/2012)
 - **Nunca** se envían al LLM datos personales identificables (nombre, documento, teléfono, dirección). Hay que anonimizar antes.
 - **Nunca** se versionan secretos ni datos reales: los secretos van en `.env` y los datos de prueba deben ser sintéticos.
-- La base de conocimiento (`knowledge/`) solo admite fuentes **citadas y validadas** por el equipo clínico.
+- La base de conocimiento (`knowledge/`) solo admite fuentes **citadas y validadas** por el equipo clínico. Excepción documentada: `knowledge/alarm_rules.json` es un borrador **PROVISIONAL** (ADR 0007) hasta su validación; no se usa con usuarios reales.
+- El **catálogo de alarmas** vive en `knowledge/alarm_rules.json` (datos, no código). Toda regla nueva o modificada requiere ≥ 2 frases en `tests/conversational/alarm_phrases.json`.
 
 ## 5. Decisiones que NO se delegan a la IA
 Arquitectura y stack, alcance y priorización del backlog, contenido clínico y umbrales de alarma, interpretación de la validación con usuarios, y riesgos éticos. La IA puede **proponer**; el equipo **decide** y lo registra en un ADR.

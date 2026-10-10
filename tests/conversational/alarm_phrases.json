@@ -1,0 +1,234 @@
+{
+  "_description": "Frases de referencia de las reglas de alarma (ADR 0007). Cada regla del catálogo debe tener al menos 2 frases en 'debe_activar'. 'debe_activar' incluye frases coloquiales (filtro 1, texto del usuario) y términos estándar (filtro 2, reported_symptoms del agente). 'no_debe_activar' son frases que NO deben activar esa regla. 'ninguna_regla' son frases que no deben activar ninguna regla. El equipo clínico puede ampliar este archivo.",
+  "rules": {
+    "RN-MI-01": {
+      "debe_activar": [
+        "Estoy embarazada de 5 meses y estoy sangrando",
+        "tengo 30 semanas de embarazo y me salió sangre",
+        "me está saliendo como agüita con sangre por abajo",
+        "sangrado vaginal en el embarazo",
+        "di a luz hace una semana y tengo una hemorragia"
+      ],
+      "no_debe_activar": [
+        "me sangra la nariz",
+        "estoy embarazada y tengo acidez"
+      ]
+    },
+    "RN-MI-02": {
+      "debe_activar": [
+        "estoy embarazada y tengo un dolor de cabeza muy fuerte",
+        "tengo 7 meses de embarazo y veo lucecitas",
+        "cefalea intensa en el embarazo",
+        "estoy embarazada, me duele la cabeza horrible y tengo visión borrosa"
+      ],
+      "no_debe_activar": [
+        "estoy embarazada y me duele un poquito la cabeza",
+        "tengo dolor de cabeza fuerte por el trabajo"
+      ]
+    },
+    "RN-MI-03": {
+      "debe_activar": [
+        "mi bebé está convulsionando",
+        "tuvo una convulsión hace un rato",
+        "convulsiones en gestante",
+        "se puso rígido y temblaba todo"
+      ],
+      "no_debe_activar": [
+        "tengo un temblor en las manos por el frío"
+      ]
+    },
+    "RN-MI-04": {
+      "debe_activar": [
+        "estoy embarazada y se me hinchó mucho la cara",
+        "tengo 8 meses de embarazo y las manos muy hinchadas",
+        "edema facial en el embarazo"
+      ],
+      "no_debe_activar": [
+        "se me hincharon los pies después de caminar",
+        "estoy embarazada y tengo los pies un poco hinchados"
+      ]
+    },
+    "RN-MI-05": {
+      "debe_activar": [
+        "creo que se me rompió la fuente",
+        "estoy embarazada y me salió mucho líquido",
+        "ruptura de membranas",
+        "salida de líquido amniótico"
+      ],
+      "no_debe_activar": [
+        "tomo mucha agua durante el embarazo"
+      ]
+    },
+    "RN-MI-06": {
+      "debe_activar": [
+        "el bebé no se mueve desde ayer",
+        "no lo siento moverse como antes",
+        "disminución de movimientos fetales",
+        "mi bebé se mueve menos que de costumbre"
+      ],
+      "no_debe_activar": [
+        "el bebé se mueve mucho en las noches"
+      ]
+    },
+    "RN-MI-07": {
+      "debe_activar": [
+        "estoy embarazada y tengo fiebre",
+        "tengo calentura y estoy en el posparto",
+        "fiebre en el embarazo"
+      ],
+      "no_debe_activar": [
+        "mi esposo tiene fiebre"
+      ]
+    },
+    "RN-MI-08": {
+      "debe_activar": [
+        "tengo 30 semanas y tengo contracciones",
+        "tengo 7 meses y se me pone dura la barriga a cada rato",
+        "contracciones prematuras",
+        "amenaza de parto prematuro"
+      ],
+      "no_debe_activar": [
+        "tengo 39 semanas y empezaron las contracciones"
+      ]
+    },
+    "RN-MI-09": {
+      "debe_activar": [
+        "mi bebé no quiere comer nada",
+        "el recién nacido no recibe el pecho",
+        "no quiere tomar el seno desde la mañana",
+        "rechazo del alimento en el lactante"
+      ],
+      "no_debe_activar": [
+        "mi hijo de 10 años no quiere comer verduras",
+        "mi bebé come muy bien"
+      ]
+    },
+    "RN-MI-10": {
+      "debe_activar": [
+        "el niño vomita todo lo que come",
+        "todo lo devuelve, no retiene nada",
+        "vómito persistente"
+      ],
+      "no_debe_activar": [
+        "vomitó una vez después del almuerzo"
+      ]
+    },
+    "RN-MI-11": {
+      "debe_activar": [
+        "mi bebé está muy decaído y no se despierta",
+        "la niña no reacciona",
+        "letargia en el lactante"
+      ],
+      "no_debe_activar": [
+        "mi bebé duerme mucho en la tarde"
+      ]
+    },
+    "RN-MI-12": {
+      "debe_activar": [
+        "mi bebé respira muy rápido",
+        "al niño se le hunden las costillas al respirar",
+        "dificultad respiratoria en el bebé"
+      ],
+      "no_debe_activar": [
+        "mi bebé respira tranquilo"
+      ]
+    },
+    "RN-MI-13": {
+      "debe_activar": [
+        "mi recién nacido tiene fiebre",
+        "el bebé de 10 días está muy frío",
+        "fiebre en recién nacido"
+      ],
+      "no_debe_activar": [
+        "el recién nacido está tranquilo y come bien"
+      ]
+    },
+    "RN-MI-14": {
+      "debe_activar": [
+        "mi bebé está muy amarillo",
+        "el niño tiene los labios morados",
+        "ictericia en el recién nacido"
+      ],
+      "no_debe_activar": [
+        "le compré un vestido amarillo a la bebé"
+      ]
+    },
+    "RN-CV-01": {
+      "debe_activar": [
+        "tengo un dolor muy fuerte en el pecho",
+        "siento como un peso en el pecho",
+        "me aprieta el pecho",
+        "dolor torácico opresivo"
+      ],
+      "no_debe_activar": [
+        "me duele la espalda"
+      ]
+    },
+    "RN-CV-02": {
+      "debe_activar": [
+        "me falta el aire",
+        "mi papá no puede respirar bien",
+        "dificultad para respirar"
+      ],
+      "no_debe_activar": [
+        "quiero respirar aire puro en el campo"
+      ]
+    },
+    "RN-CV-03": {
+      "debe_activar": [
+        "a mi papá se le torció la boca",
+        "mi mamá está hablando enredado",
+        "no puede mover el brazo derecho",
+        "creo que le dio un derrame cerebral",
+        "signos de ACV"
+      ],
+      "no_debe_activar": [
+        "me duele el brazo de cargar al bebé"
+      ]
+    },
+    "RN-CV-04": {
+      "debe_activar": [
+        "mi abuela se desmayó",
+        "perdió el conocimiento por unos segundos",
+        "síncope"
+      ],
+      "no_debe_activar": [
+        "me siento un poco cansado"
+      ]
+    },
+    "RN-CV-05": {
+      "debe_activar": [
+        "tengo la presión en 190 sobre 110",
+        "la tensión me dio 200",
+        "tengo la presión muy alta y me duele la cabeza",
+        "crisis hipertensiva"
+      ],
+      "no_debe_activar": [
+        "tengo la presión en 120 sobre 80"
+      ]
+    },
+    "RN-CV-06": {
+      "debe_activar": [
+        "mi papá tiene la presión alta",
+        "tengo hipertensión",
+        "me tomaron la presión y salió en 150"
+      ],
+      "no_debe_activar": [
+        "tengo la presión normal",
+        "tengo la presión baja"
+      ]
+    }
+  },
+  "ninguna_regla": [
+    "hola, buenos días",
+    "Estoy embarazada de 5 meses y tengo mucha acidez",
+    "¿Qué puedo comer para eso?",
+    "¿cada cuánto debo ir al control prenatal?",
+    "¿qué vacunas necesita mi bebé?",
+    "mi papá toma pastillas para el colesterol",
+    "¿es mejor parto natural o cesárea?",
+    "quiero dejar de fumar",
+    "¿cuánto ejercicio debo hacer a la semana?",
+    "¿cómo preparo el tetero?"
+  ]
+}

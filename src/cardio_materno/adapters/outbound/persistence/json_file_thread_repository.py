@@ -2,7 +2,8 @@
 
 Formato de `<directorio>/<thread_id>.json`:
     {"id", "domain", "summary", "status", "created_at", "updated_at",
-     "messages": [{"thread_id", "role", "content", "created_at"}]}
+     "messages": [{"thread_id", "role", "content", "created_at"}],
+     "alerts": [{"rule_ids", "severity", "origin", "created_at"}]}
 
 Es una solución para el prototipo de un solo proceso (consola). Para Telegram,
 con varios usuarios a la vez, se migrará a una base de datos cambiando solo este adaptador.
@@ -13,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -24,6 +26,7 @@ from cardio_materno.domain.conversation import (
 FILE_SUFFIX = ".json"
 TMP_SUFFIX = ".tmp"
 MESSAGES_KEY = "messages"
+ALERTS_KEY = "alerts"
 
 
 class JsonFileThreadRepository:
@@ -39,10 +42,13 @@ class JsonFileThreadRepository:
         self._directory.mkdir(parents=True, exist_ok=True)
 
     def save_thread(self, thread: ConversationThread) -> None:
-        """Crea o actualiza el hilo conservando sus mensajes."""
-        existing = self._read(thread.id)
-        messages = existing[MESSAGES_KEY] if existing else []
-        self._write(thread.id, {**thread_to_dict(thread), MESSAGES_KEY: messages})
+        """Crea o actualiza el hilo conservando sus mensajes y alertas."""
+        existing = self._read(thread.id) or {}
+        history = {
+            MESSAGES_KEY: existing.get(MESSAGES_KEY, []),
+            ALERTS_KEY: existing.get(ALERTS_KEY, []),
+        }
+        self._write(thread.id, {**thread_to_dict(thread), **history})
 
     def get_thread(self, thread_id: str) -> ConversationThread | None:
         """Devuelve el hilo o None si no existe su archivo."""
@@ -55,11 +61,15 @@ class JsonFileThreadRepository:
         Raises:
             KeyError: Si el mensaje no tiene hilo o el hilo no existe.
         """
-        data = self._read(message.thread_id) if message.thread_id else None
-        if data is None:
-            raise KeyError(f"No existe el hilo {message.thread_id!r}")
-        data[MESSAGES_KEY].append(message_to_dict(message))
-        self._write(data["id"], data)
+        self._append(message.thread_id, MESSAGES_KEY, message_to_dict(message))
+
+    def append_alert(self, thread_id: str, alert: Alert) -> None:
+        """Agrega la alerta al archivo del hilo.
+
+        Raises:
+            KeyError: Si el hilo no existe.
+        """
+        self._append(thread_id, ALERTS_KEY, alert_to_dict(alert))
 
     def recent_messages(self, thread_id: str, limit: int) -> list[ChatMessage]:
         """Devuelve los últimos `limit` mensajes del hilo (vacío si no existe)."""
@@ -67,6 +77,14 @@ class JsonFileThreadRepository:
         if data is None or limit <= 0:
             return []
         return [message_from_dict(item) for item in data[MESSAGES_KEY][-limit:]]
+
+    def _append(self, thread_id: str | None, key: str, item: dict[str, Any]) -> None:
+        """Agrega un elemento a una lista del archivo del hilo."""
+        data = self._read(thread_id) if thread_id else None
+        if data is None:
+            raise KeyError(f"No existe el hilo {thread_id!r}")
+        data.setdefault(key, []).append(item)
+        self._write(data["id"], data)
 
     def _path(self, thread_id: str) -> Path:
         """Ruta del archivo del hilo."""
@@ -127,3 +145,13 @@ def message_from_dict(data: dict[str, Any]) -> ChatMessage:
     """Reconstruye un mensaje desde su forma serializada."""
     created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
     return ChatMessage(Role(data["role"]), data["content"], data.get("thread_id"), created_at)
+
+
+def alert_to_dict(alert: Alert) -> dict[str, Any]:
+    """Serializa una alerta."""
+    return {
+        "rule_ids": list(alert.rule_ids),
+        "severity": str(alert.severity),
+        "origin": str(alert.origin),
+        "created_at": alert.created_at.isoformat(),
+    }

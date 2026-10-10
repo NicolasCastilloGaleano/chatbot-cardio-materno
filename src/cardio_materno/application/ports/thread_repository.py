@@ -2,6 +2,7 @@
 
 from typing import Protocol
 
+from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread
 
 
@@ -18,6 +19,14 @@ class ThreadRepository(Protocol):
 
     def append_message(self, message: ChatMessage) -> None:
         """Agrega un mensaje al hilo indicado en `message.thread_id`.
+
+        Raises:
+            KeyError: Si el hilo no existe.
+        """
+        ...
+
+    def append_alert(self, thread_id: str, alert: Alert) -> None:
+        """Registra una alerta en el hilo indicado.
 
         Raises:
             KeyError: Si el hilo no existe.

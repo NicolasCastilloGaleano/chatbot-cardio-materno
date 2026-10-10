@@ -30,6 +30,13 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 3. `Otra cosa, mi papá tiene la presión alta` → otro hilo, `cardiovascular | nuevo`
 4. `salir` → revisa `data/threads/`: los dos hilos deben quedar `cerrado`
 
+**Guion de prueba de alarmas (HU-03/HU-04):**
+1. `estoy embarazada y tengo un sangrado` → solo el mensaje fijo 🚨 y `⚠️ RN-MI-01 urgencia_inmediata (usuario)` (el modelo no se consulta, así que la respuesta es inmediata)
+2. `mi papá tiene la presión alta` → mensaje fijo ⚠️ + la orientación del agente, y `RN-CV-06 consulta_prioritaria`
+3. Una frase coloquial que las reglas no captan, p. ej. `me está saliendo como agüita rosada por abajo, tengo 7 meses` → si el agente reporta el síntoma, verás la alerta con origen `(agente)`
+4. Una conversación normal (p. ej., `¿qué puedo comer para la acidez?`) → sin alertas
+5. En `data/threads/<id>.json`, la lista `alerts` registra cada alerta
+
 | Variable (`.env`) | Por defecto | Para qué |
 |---|---|---|
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
@@ -40,6 +47,7 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 | `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
 | `SHOW_THREAD_DEBUG` | `true` | Muestra la línea de estado del hilo después de cada respuesta |
 | `THREADS_DIR` | `data/threads` | Carpeta donde se guardan los JSON de los hilos |
+| `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (se valida al arrancar) |
 
 ### Problemas frecuentes
 | Mensaje | Solución |

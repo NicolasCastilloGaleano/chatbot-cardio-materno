@@ -33,7 +33,7 @@ Revisión periódica de que el proyecto sigue sus propias reglas (AGENTS.md, la 
 |---|---|---|---|
 | C01 | ✅ | Las capas respetan la regla de dependencias | — |
 | C02 | ⚠️ → ✅ | `ConversationService.__init__` usaba `# noqa: PLR0913` (6 parámetros) | Refactor a `ConversationConfig`; regla agregada en los estándares de código |
-| C03 | ⚠️ | `tests/conversational/` vacío | Se cubre con las frases de referencia de alarmas (HU-03/04) |
+| C03 | ⚠️ → ✅ | `tests/conversational/` vacío | Cubierto: `alarm_phrases.json` + `test_alarm_phrases.py` (HU-03/04) |
 | C04 | ✅ | `.env` y `data/threads/` ignorados; sin datos reales | — |
 | C05 | ✅ | CHANGELOG y bitácora actualizados en HU-00 y HU-06 | — |
 | C06 | ⚠️ → ✅ | `application/README.md` y `persistence/README.md` mencionaban `ConversationRepository`; el playbook decía "LLM: TODO" | Corregidos |
@@ -45,7 +45,7 @@ Revisión periódica de que el proyecto sigue sus propias reglas (AGENTS.md, la 
 | C12 | ✅ | THREAD y MESSAGE documentados | — |
 | C13 | ❌ → ✅ | No existía la CI | Creado `.github/workflows/ci.yml` (ruff, mypy `src` + `tests`, pytest) |
 | C14 | ❌ → ⚠️ | No había registro de sprint ni retro | Creado [sprint-01.md](../00-gestion/sprints/sprint-01.md); **la retro la llena el equipo** |
-| C15 | ❌ | Sin BPMN | Se cubre con el BPMN de gestión de alerta (HU-03/04) |
+| C15 | ❌ → ✅ | Sin BPMN | Cubierto: `bpmn/gestion-alerta.bpmn` + flujo Mermaid (HU-03/04); falta exportar el `.svg` |
 | C16 | ✅ | R-01 a R-08 y protección de datos al día | — |
 
 **Pendientes no delegables del equipo:** métricas de éxito del charter, roles (PO, líder técnico), responsables en la matriz de delegación del playbook y la retro del sprint 1.
