@@ -11,7 +11,8 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 |---|---|
 | Estructura, reglas y documentación base | ✅ Hecha |
 | Especificación ejecutable v1 | ⏳ Pendiente |
-| Flujo conversacional por **consola** | ⏳ Pendiente |
+| Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | 🔄 En verificación |
+| Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |
 
@@ -30,7 +31,15 @@ scripts/                Utilidades de desarrollo
 ```
 
 ## Instalación y ejecución
-Todavía no hay código ejecutable. Cuando lo haya, se documentará aquí y en [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
+Chat por consola con Ollama (requiere Python 3.12+ y Ollama; **sin `pip install`**):
+```powershell
+ollama pull mistral-small3.1:24b
+copy .env.example .env
+python run_console.py
+```
+⚠️ Es un prototipo técnico **sin reglas de alarma** (riesgo R-07): solo para pruebas del equipo.
+
+Guía completa, variables y solución de problemas: [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
 
 ## Cómo contribuir
 1. Leer [AGENTS.md](AGENTS.md). Aplica a personas y a agentes de IA.
@@ -38,4 +47,4 @@ Todavía no hay código ejecutable. Cuando lo haya, se documentará aquí y en [
 3. Antes de cerrar una tarea: cumplir la [Definition of Done](docs/00-gestion/definition-of-done.md) y la matriz de impacto de [docs/README.md](docs/README.md).
 
 ## Equipo
-Investigación: Dolly Magnolia González Hoyos, PhD; Andrés Paolo Castaño, PhD; Carlos Alberto Ruiz, PhD. Desarrollo: equipo de Proyecto Integrador II (TODO: completar integrantes).
+Investigación: Dolly Magnolia González Hoyos, PhD; Andrés Paolo Castaño, PhD; Carlos Alberto Ruiz, PhD. Desarrollo: equipo de Proyecto Integrador II: Nicolas Castillo Galeano, Juan Felipe Montanchez Botina, Santiago Silva Guarnizo.

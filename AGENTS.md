@@ -9,7 +9,9 @@ Este archivo es la **fuente única de reglas** para cualquier agente de IA (Clau
 - **Qué NO es:** no es un sistema de diagnóstico ni de prescripción, y no reemplaza al personal de salud.
 - **Enfoque:** *spec‑driven*. La especificación en `docs/01-especificacion/` es la **fuente de verdad**. El código se deriva de ella y se verifica contra ella.
 - **Canales, en orden:** 1) Consola → 2) Telegram (multiusuario) → 3) WhatsApp (prototipo final). Ver ADR 0003.
-- **Stack:** Python 3.12+, FastAPI, pytest, ruff y mypy. Ver ADR 0002.
+- **Stack:** Python 3.12+, FastAPI, pytest, ruff y mypy. Ver ADR 0002. LLM: Ollama local (ADR 0005).
+- **Ejecución:** `python run_console.py`. El código de runtime usa **solo la librería estándar** mientras sea posible; agregar una dependencia de ejecución requiere un ADR. Las herramientas de desarrollo van en `requirements-dev.txt`.
+- **Pruebas en otro equipo:** Ollama corre en un PC de pruebas, no en el de desarrollo. Las pruebas automáticas **nunca** deben requerir Ollama (se usan dobles).
 
 ## 2. Arquitectura: hexagonal (puertos y adaptadores)
 ```
@@ -20,6 +22,7 @@ src/cardio_materno/
     inbound/     console, telegram, whatsapp, api (FastAPI): traducen el mensaje del canal → caso de uso
     outbound/    llm, rag, persistence, notifications: implementan los puertos
   bootstrap/     Composition root: arma las dependencias según la configuración
+  prompts/       Prompts del LLM versionados (nombre_vN.md), registrados en docs/05-ia/prompts/README.md
 ```
 **Regla de dependencias (inviolable):** las dependencias van solo hacia adentro.
 - `domain` no importa nada del proyecto ni librerías de infraestructura (FastAPI, SDKs, ORM, HTTP).

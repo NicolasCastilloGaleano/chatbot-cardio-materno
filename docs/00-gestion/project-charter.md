@@ -10,7 +10,7 @@
 | Curso | Proyecto Integrador II, Universidad de Caldas (ago–dic 2026) |
 | Entidades aliadas | Fundación Soy Mujer en la Ciencia; Dirección Territorial de Salud de Caldas; Thynk Unlimited |
 | Investigadores | Dolly Magnolia González Hoyos, PhD (salud materno‑infantil); Andrés Paolo Castaño, PhD (investigador principal); Carlos Alberto Ruiz, PhD |
-| Equipo de desarrollo | TODO: integrantes y roles (Product Owner, líder técnico, etc.) |
+| Equipo de desarrollo | Nicolas Castillo Galeano, Juan Felipe Montanchez Botina, Santiago Silva Guarnizo |
 
 ## Problema
 Caldas presenta brechas en salud cardiovascular (las enfermedades CV causaron el 16,8 % de las muertes en 2024) y en salud materno‑infantil (mortalidad infantil de 10,6 por 1.000 nacidos vivos en 2024, con picos en áreas rurales y pobres). Las comunidades tienen acceso limitado a información confiable, oportuna y culturalmente pertinente sobre signos de alarma y rutas de atención.

@@ -1,19 +1,50 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-09*
+*Última actualización: 2026-10-10*
 
-Todavía no hay código ejecutable. Esta guía se completa a medida que se agregan dependencias y canales.
+## A. PC de pruebas: ejecutar el chat por consola con Ollama (HU-00)
+Requisitos: **Python 3.12+**, **Git** y **[Ollama](https://ollama.com/download)**. El chat **no necesita `pip install`**: solo usa la librería estándar.
 
-## Requisitos
-- Python 3.12+
-- Git
-- TODO: Docker (fase de despliegue)
-
-## Pasos (previstos)
-```bash
+```powershell
+# 1. Primera vez: clonar
 git clone https://github.com/NicolasCastilloGaleano/chatbot-cardio-materno.git
 cd chatbot-cardio-materno
-python -m venv .venv
-cp .env.example .env   # completar las variables
+
+# 1b. Las siguientes veces: traer los últimos cambios (y la rama a probar)
+git pull
+
+# 2. Descargar el modelo (una sola vez, ~15 GB)
+ollama pull mistral-small3.1:24b
+
+# 3. Crear la configuración local (una sola vez) y ajustarla si hace falta
+copy .env.example .env
+
+# 4. Ejecutar el chat
+python run_console.py
 ```
-TODO: instalación de dependencias y comandos de ejecución por canal.
+Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C).
+
+| Variable (`.env`) | Por defecto | Para qué |
+|---|---|---|
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
+| `OLLAMA_MODEL` | `mistral-small3.1:24b` | Modelo (nombre exacto de `ollama list`) |
+| `OLLAMA_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta |
+| `OLLAMA_TEMPERATURE` | `0.3` | Creatividad de las respuestas (0 = más predecible) |
+| `OLLAMA_NUM_CTX` | `4096` | Ventana de contexto en tokens |
+
+### Problemas frecuentes
+| Mensaje | Solución |
+|---|---|
+| "No se pudo conectar con Ollama…" | Abre la app de Ollama o ejecuta `ollama serve`; revisa `OLLAMA_BASE_URL` |
+| "El modelo '…' no está instalado…" | Ejecuta el `ollama pull …` que indica el mensaje, o cambia `OLLAMA_MODEL` |
+| "Ollama tardó más de … s…" | El modelo es pesado para el equipo: sube `OLLAMA_TIMEOUT_SECONDS` o usa un modelo más pequeño |
+
+## B. Desarrollo: ejecutar pruebas y calidad (no requiere Ollama)
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-dev.txt
+pytest            # pruebas unitarias (usan dobles; no llaman a Ollama)
+ruff check .      # estilo, complejidad y docstrings
+mypy src          # tipos (modo estricto)
+```

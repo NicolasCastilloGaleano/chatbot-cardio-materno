@@ -21,8 +21,12 @@ STATUS_PREFIX_LEN = 3  # Formato porcelain: "XY ruta"
 
 # Recordatorios contextuales: prefijo de ruta cambiada -> documentos a revisar.
 CONTEXT_HINTS = {
-    "src/cardio_materno/domain/": "reglas clínicas → especificacion-ejecutable.md, flujos, riesgos-ia.md",
-    "src/cardio_materno/application/": "casos de uso/estados → historias-usuario.md, flujos, BPMN, trazabilidad.md",
+    "src/cardio_materno/domain/": (
+        "reglas clínicas → especificacion-ejecutable.md, flujos, riesgos-ia.md"
+    ),
+    "src/cardio_materno/application/": (
+        "casos de uso/estados → historias-usuario.md, flujos, BPMN, trazabilidad.md"
+    ),
     "src/cardio_materno/adapters/": "componentes → 02-arquitectura/arquitectura.md (¿nuevo ADR?)",
     "knowledge/": "base de conocimiento → validar fuente y registrar la validación clínica",
 }

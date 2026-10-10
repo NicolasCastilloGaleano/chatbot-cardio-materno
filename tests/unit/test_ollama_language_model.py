@@ -1,0 +1,116 @@
+"""Pruebas del adaptador de Ollama con un `opener` simulado (no requiere Ollama)."""
+
+import io
+import json
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request
+
+import pytest
+
+from cardio_materno.adapters.outbound.llm.ollama_language_model import (
+    OllamaLanguageModel,
+    OllamaSettings,
+    is_model_installed,
+)
+from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.domain.conversation import ChatMessage, Role
+
+SETTINGS = OllamaSettings(
+    base_url="http://ollama.test:11434",
+    model="mistral-small3.1:24b",
+    timeout_seconds=5,
+    temperature=0.3,
+    num_ctx=4096,
+)
+
+
+class FakeResponse(io.BytesIO):
+    """Respuesta HTTP mínima que funciona como context manager."""
+
+
+class FakeOpener:
+    """Simula `urlopen`: devuelve un cuerpo JSON o lanza el error indicado."""
+
+    def __init__(self, body: Any = None, error: Exception | None = None) -> None:
+        self.body = body
+        self.error = error
+        self.requests: list[Request] = []
+
+    def __call__(self, request: Request, timeout: float) -> FakeResponse:
+        self.requests.append(request)
+        if self.error:
+            raise self.error
+        raw = self.body if isinstance(self.body, bytes) else json.dumps(self.body).encode()
+        return FakeResponse(raw)
+
+
+def make_model(opener: FakeOpener) -> OllamaLanguageModel:
+    return OllamaLanguageModel(SETTINGS, opener=opener)
+
+
+def test_reply_sends_chat_payload_and_returns_content() -> None:
+    opener = FakeOpener({"message": {"role": "assistant", "content": "  Hola  "}})
+    messages = [ChatMessage(Role.SYSTEM, "sys"), ChatMessage(Role.USER, "hola")]
+
+    answer = make_model(opener).reply(messages)
+
+    request = opener.requests[0]
+    payload = json.loads(request.data)  # type: ignore[arg-type]
+    assert answer == "Hola"
+    assert request.full_url == "http://ollama.test:11434/api/chat"
+    assert payload["model"] == "mistral-small3.1:24b"
+    assert payload["stream"] is False
+    assert payload["messages"] == [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hola"},
+    ]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"message": {"content": "   "}}, {"other": 1}, b"no es json", ["lista"]],
+)
+def test_reply_rejects_invalid_or_empty_responses(body: Any) -> None:
+    with pytest.raises(LanguageModelError, match="inesperada"):
+        make_model(FakeOpener(body)).reply([ChatMessage(Role.USER, "hola")])
+
+
+def test_connection_error_explains_how_to_fix() -> None:
+    opener = FakeOpener(error=URLError(ConnectionRefusedError()))
+
+    with pytest.raises(LanguageModelError, match="No se pudo conectar"):
+        make_model(opener).reply([ChatMessage(Role.USER, "hola")])
+
+
+@pytest.mark.parametrize("error", [TimeoutError(), URLError(TimeoutError())])
+def test_timeout_is_reported(error: Exception) -> None:
+    with pytest.raises(LanguageModelError, match="tardó más de 5 s"):
+        make_model(FakeOpener(error=error)).reply([ChatMessage(Role.USER, "hola")])
+
+
+def test_http_error_includes_status_and_detail() -> None:
+    error = HTTPError("url", 500, "err", {}, io.BytesIO(b"model failed"))  # type: ignore[arg-type]
+
+    with pytest.raises(LanguageModelError, match="HTTP 500: model failed"):
+        make_model(FakeOpener(error=error)).reply([ChatMessage(Role.USER, "hola")])
+
+
+def test_verify_ready_passes_when_model_installed() -> None:
+    opener = FakeOpener({"models": [{"name": "mistral-small3.1:24b"}]})
+
+    make_model(opener).verify_ready()
+
+    assert opener.requests[0].get_method() == "GET"
+
+
+def test_verify_ready_reports_missing_model_with_pull_command() -> None:
+    opener = FakeOpener({"models": [{"name": "otro:7b"}]})
+
+    with pytest.raises(LanguageModelError, match="ollama pull mistral-small3.1:24b"):
+        make_model(opener).verify_ready()
+
+
+def test_model_without_tag_matches_latest() -> None:
+    assert is_model_installed("llama3", {"llama3:latest"})
+    assert not is_model_installed("llama3", {"llama3:8b"})

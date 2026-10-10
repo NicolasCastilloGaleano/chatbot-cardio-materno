@@ -1,0 +1,67 @@
+"""Chat interactivo por consola (HU-00)."""
+
+from collections.abc import Callable
+
+from cardio_materno.application.chat_service import ChatService
+from cardio_materno.application.errors import LanguageModelError
+
+EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
+USER_PROMPT = "\nTú: "
+ASSISTANT_LABEL = "Asistente: "
+THINKING_TEXT = "(pensando…)"
+ERROR_PREFIX = "⚠️  "
+WELCOME_TEXT = (
+    "=== Asistente de teleorientación cardio-materno (prototipo técnico) ===\n"
+    "Escribe tu mensaje y presiona Enter. Escribe 'salir' para terminar."
+)
+GOODBYE_TEXT = "Hasta pronto. Cuídate mucho."
+
+Reader = Callable[[str], str]
+Writer = Callable[[str], None]
+
+
+class ConsoleChat:
+    """Bucle de lectura y respuesta que conecta la consola con el ChatService."""
+
+    def __init__(
+        self, chat_service: ChatService, read: Reader = input, write: Writer = print
+    ) -> None:
+        """Crea el chat de consola.
+
+        Args:
+            chat_service: Caso de uso que obtiene las respuestas.
+            read: Función que lee una línea mostrando un prompt (por defecto `input`).
+            write: Función que muestra texto (por defecto `print`).
+        """
+        self._chat_service = chat_service
+        self._read = read
+        self._write = write
+
+    def run(self) -> None:
+        """Muestra la bienvenida y conversa hasta que el usuario sale."""
+        self._write(WELCOME_TEXT)
+        while (text := self._next_message()) is not None:
+            self._answer(text)
+        self._write(GOODBYE_TEXT)
+
+    def _next_message(self) -> str | None:
+        """Lee el siguiente mensaje no vacío; devuelve None si el usuario quiere salir."""
+        while True:
+            try:
+                text = self._read(USER_PROMPT).strip()
+            except (EOFError, KeyboardInterrupt):
+                return None
+            if text.lower() in EXIT_COMMANDS:
+                return None
+            if text:
+                return text
+
+    def _answer(self, text: str) -> None:
+        """Obtiene la respuesta del asistente y la muestra; los errores no cierran el chat."""
+        self._write(THINKING_TEXT)
+        try:
+            answer = self._chat_service.send(text)
+        except LanguageModelError as error:
+            self._write(f"{ERROR_PREFIX}{error}")
+            return
+        self._write(f"{ASSISTANT_LABEL}{answer}")
