@@ -76,7 +76,7 @@ Escenario: Respuesta inválida o error del modelo
   Cuando escribo un mensaje
   Entonces veo un mensaje de error claro, no se guarda nada en el hilo y el chat sigue abierto
 ```
-Estado: 🔄 En progreso
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-10)
 
 ### HU-01: Inicio de conversación y consentimiento
 **Como** persona de la comunidad, **quiero** saber qué hace el asistente y aceptar el uso de mis datos, **para** usarlo con confianza.

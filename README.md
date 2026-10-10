@@ -12,7 +12,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Estructura, reglas y documentación base | ✅ Hecha |
 | Especificación ejecutable v1 | ⏳ Pendiente |
 | Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | ✅ Hecho |
-| **Hilos conversacionales** con respuesta JSON del agente (HU-06) | 🔄 En verificación |
+| **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |

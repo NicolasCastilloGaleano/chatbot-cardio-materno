@@ -8,7 +8,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 |---|---|---|---|---|---|
 | B-001 | Estructura del repositorio, reglas y documentación base | — | Alta | 0 | ✅ Hecho |
 | B-012 | Chat libre por consola con Ollama (prototipo técnico) | HU-00 | Alta | 1 | ✅ Hecho |
-| B-013 | Hilos conversacionales con resumen y respuesta estructurada del agente | HU-06 | Alta | 1 | 🔄 En verificación |
+| B-013 | Hilos conversacionales con resumen y respuesta estructurada del agente | HU-06 | Alta | 1 | ✅ Hecho |
 | B-002 | Especificación ejecutable v1 con signos de alarma validados clínicamente | — | Alta | — | ⏳ |
 | B-003 | Flujo conversacional mínimo por consola (saludo → consentimiento → tema → orientación) | HU-01, HU-02 | Alta | — | ⏳ |
 | B-004 | Detección determinista de signos de alarma materno‑infantiles | HU-03 | Alta | — | ⏳ |

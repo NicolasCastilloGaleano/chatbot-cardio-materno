@@ -21,4 +21,5 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Plantilla de Pull Request con la checklist de la Definition of Done.
 
 ### Changed
+- HU-06 verificada en el PC de pruebas y marcada como aceptada.
 - `ChatService` reemplazado por `ConversationService`; el puerto `LanguageModel` ahora expone `complete_json` (salida restringida por JSON Schema) en lugar de `reply`.
