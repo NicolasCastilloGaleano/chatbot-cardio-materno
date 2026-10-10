@@ -1,6 +1,6 @@
 # Solicitud de validación clínica: reglas de alarma (borrador PROVISIONAL)
 
-*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.2.0 · Generado el 2026-10-10*
+*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.3.0 · Generado el 2026-10-10*
 
 **Para:** Dra. Dolly Magnolia González Hoyos y equipo clínico del proyecto.
 **De:** equipo de desarrollo (Nicolas Castillo Galeano).
@@ -81,8 +81,8 @@ Este borrador lo redactó el equipo con apoyo de IA a partir de signos de alarma
 ### RN-MI-06: Disminución o ausencia de movimientos fetales
 - **Población:** gestante · **Severidad propuesta:** 🚨 Urgencia inmediata · **Mensaje:** `urgencia_embarazo`
 - **Fuente sugerida:** Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)
-- **Frases que la activan (ejemplos):** “el bebé no se mueve desde ayer”; “no lo siento moverse como antes”; “disminución de movimientos fetales”; “mi bebé se mueve menos que de costumbre”
-- **Frases que NO deben activarla:** “el bebé se mueve mucho en las noches”
+- **Frases que la activan (ejemplos):** “el bebé no se mueve desde ayer”; “no lo siento moverse como antes”; “disminución de movimientos fetales”; “mi bebé se mueve menos que de costumbre”; “siento que el bebé ya no patea igual que antes, tengo 8 meses”; “disminución de los movimientos del bebé en el embarazo de 8 meses”; “el bebé patea menos que antes”; “ya no lo siento patear”
+- **Frases que NO deben activarla:** “el bebé se mueve mucho en las noches”; “el bebé patea mucho en las noches”
 - [ ] Aprobar · [ ] Corregir · [ ] Eliminar
 - Fuente clínica: ______________________ · Severidad correcta: [ ] Sí [ ] No → ______
 - Otras frases de la comunidad: ____________________________________________
@@ -222,6 +222,11 @@ Este borrador lo redactó el equipo con apoyo de IA a partir de signos de alarma
 - El sistema **no interpreta negaciones**: “no tengo sangrado” también activa la alerta. Se prefiere alertar de más que dejar pasar un caso.
 - Mientras no tengamos las rutas por municipio (DTS Caldas), el mensaje fijo remite a urgencias o a la línea 123 de forma general.
 - Además del mensaje de la persona, se revisan los síntomas que el asistente identificó en la conversación. Cada alerta registra si la detectó la regla sobre el texto original o sobre lo identificado por el asistente.
+
+## Pregunta para el equipo clínico
+Hoy, una **pregunta educativa** que menciona un signo de alarma (p. ej., “¿por qué se pueden dar secreciones rosadas en el embarazo?”) recibe el mismo mensaje de urgencia que un reporte real, porque muchas personas reportan sus síntomas en forma de pregunta (“¿es normal que me salga agüita rosada? tengo 7 meses”).
+Propuesta (B-017): mantener siempre la alarma, pero si el asistente identifica que es una consulta general, mostrar un mensaje condicional (“Si esto le está pasando ahora a ti o a alguien, acude de inmediato a urgencias o llama al 123”) seguido de una explicación.
+- [ ] De acuerdo con la propuesta · [ ] Mantener siempre solo el mensaje de urgencia · [ ] Otra: ______________________
 
 ## Validación
 Validado por: ______________________ · Fecha: ________ · Firma: ______________________

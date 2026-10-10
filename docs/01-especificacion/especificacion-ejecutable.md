@@ -30,8 +30,8 @@ Ver [Project Charter § Alcance](../00-gestion/project-charter.md#alcance).
 | RN-MI-xx / RN-CV-xx | Signos de alarma: ver el catálogo `knowledge/alarm_rules.json` y la tabla 4.1 | Borrador basado en MinSalud, OPS y AIEPI | ❌ **PROVISIONAL**: [solicitud de validación](solicitud-validacion-alarmas.md) |
 | RN-RUTA-xx | Ruta de atención según el municipio, el tipo de alarma y el régimen de salud | TODO: DTS Caldas | TODO |
 
-### 4.1 Catálogo de signos de alarma (v0.2.0, PROVISIONAL)
-Fuente de verdad: `knowledge/alarm_rules.json` (patrones, mensajes fijos y fuentes). Frases de referencia: `tests/conversational/alarm_phrases.json`.
+### 4.1 Catálogo de signos de alarma (v0.3.0, PROVISIONAL)
+Fuente de verdad: `knowledge/alarm_rules.json` (patrones, mensajes fijos y fuentes). Cada regla se activa con sus patrones **o** con su propio nombre (columna "Signo"), que el agente usa en `reported_symptoms` (ADR 0007, puente hacia B-015). Frases de referencia: `tests/conversational/alarm_phrases.json`.
 
 | ID | Signo (población) | Severidad | Validación |
 |---|---|---|---|

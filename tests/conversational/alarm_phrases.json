@@ -73,10 +73,15 @@
         "el bebé no se mueve desde ayer",
         "no lo siento moverse como antes",
         "disminución de movimientos fetales",
-        "mi bebé se mueve menos que de costumbre"
+        "mi bebé se mueve menos que de costumbre",
+        "siento que el bebé ya no patea igual que antes, tengo 8 meses",
+        "disminución de los movimientos del bebé en el embarazo de 8 meses",
+        "el bebé patea menos que antes",
+        "ya no lo siento patear"
       ],
       "no_debe_activar": [
-        "el bebé se mueve mucho en las noches"
+        "el bebé se mueve mucho en las noches",
+        "el bebé patea mucho en las noches"
       ]
     },
     "RN-MI-07": {
@@ -243,6 +248,7 @@
     "tengo 7 meses de embarazo y quiero saber qué comer"
   ],
   "_regresiones": {
-    "2026-10-10": "La frase 'me está saliendo como agüita rosada por abajo, tengo 7 meses' no activaba ninguna regla en ninguno de los dos filtros (catálogo v0.1.0). Corregido en el catálogo v0.2.0 + prompt v4."
+    "2026-10-10": "La frase 'me está saliendo como agüita rosada por abajo, tengo 7 meses' no activaba ninguna regla en ninguno de los dos filtros (catálogo v0.1.0). Corregido en el catálogo v0.2.0 + prompt v4.",
+    "2026-10-10 (2)": "El agente reportó 'disminución de los movimientos del bebé en el embarazo de 8 meses' y RN-MI-06 solo aceptaba 'movimientos fetales'. Corregido en el catálogo v0.3.0 (más patrones) + prompt v5 (nombres exactos de los signos del catálogo; cada regla coincide con su propio nombre)."
   }
 }

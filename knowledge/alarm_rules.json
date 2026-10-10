@@ -1,9 +1,9 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "updated_at": "2026-10-10",
   "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales.",
   "validated_by": null,
-  "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09).",
+  "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09). Además de sus patrones, cada regla se activa si el texto contiene su nombre (campo sign) normalizado: el prompt le pide al agente usar esos nombres en reported_symptoms (puente hacia B-015).",
   "messages": {
     "urgencia_embarazo": "🚨 Lo que describes puede ser un signo de alarma en el embarazo o después del parto. Acude de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No esperes a que pase solo y, si puedes, ve acompañada.",
     "urgencia_bebe": "🚨 Lo que describes puede ser un signo de peligro en el bebé o en el niño. Llévalo de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No le des medicamentos por tu cuenta mientras tanto.",
@@ -99,7 +99,11 @@
         "\\b(disminucion|ausencia) de (los )?movimientos fetales\\b",
         "\\bmovimientos fetales (disminuidos|ausentes)\\b",
         "\\b(bebe|nene|nena) (ya )?(no se mueve|no se ha movido|se mueve (muy )?poco|se mueve menos|dejo de moverse)\\b",
-        "\\bno (lo |la )?(siento|he sentido) (mover\\w*|al bebe|el bebe)\\b"
+        "\\bno (lo |la )?(siento|he sentido) (mover\\w*|al bebe|el bebe)\\b",
+        "\\b(disminucion|ausencia|reduccion|disminuyeron|bajaron) (de )?(los )?(movimientos|pataditas) (del bebe|del nene|de la nena|fetales)\\b",
+        "\\b(movimientos|pataditas) (del bebe )?(disminuid\\w*|menos frecuentes|ausentes)\\b",
+        "\\b(bebe|nene|nena) (ya )?(no patea|patea (muy )?(menos|poco|diferente|distinto)|no patea (igual|como antes)|no se mueve (igual|como antes))\\b",
+        "\\bya no (lo |la )?(siento|senti) (patear|moverse|mover)\\b"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"

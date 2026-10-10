@@ -114,6 +114,11 @@ Escenario: Descripción coloquial de un sangrado (regresión del 2026-10-10)
   Cuando escribo "me está saliendo como agüita rosada por abajo, tengo 7 meses"
   Entonces se activa RN-MI-01 y el asistente responde solo con el mensaje fijo de urgencia
 
+Escenario: El agente usa el nombre del signo del catálogo (regresión 2 del 2026-10-10)
+  Cuando escribo "siento que el bebé ya no patea igual que antes, tengo 8 meses"
+  Entonces se activa RN-MI-06
+  Y si el agente reporta "Disminución o ausencia de movimientos fetales: …", la regla también se activa por su nombre
+
 Escenario: Los síntomas reportados por el agente quedan registrados
   Cuando el agente responde un mensaje
   Entonces su respuesta en el JSON del hilo incluye "reported_symptoms" (lista vacía si no hubo síntomas)

@@ -16,7 +16,7 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
 from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
     JsonFileThreadRepository,
 )
-from cardio_materno.application.alarm_policy import AlarmPolicy
+from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_prompt
 from cardio_materno.application.conversation_service import (
     ConversationConfig,
     ConversationService,
@@ -33,7 +33,7 @@ from cardio_materno.bootstrap.settings import (
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
-SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v4.md"
+SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v5.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 
@@ -92,7 +92,11 @@ def _build_service(
     return ConversationService(
         language_model,
         JsonFileThreadRepository(settings.threads_dir),
-        ConversationConfig(_read_system_prompt(), settings.context_messages, alarm_policy),
+        ConversationConfig(
+            render_system_prompt(_read_system_prompt(), alarm_policy),
+            settings.context_messages,
+            alarm_policy,
+        ),
     )
 
 

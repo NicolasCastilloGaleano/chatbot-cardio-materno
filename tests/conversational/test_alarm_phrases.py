@@ -61,3 +61,10 @@ def test_every_catalog_rule_has_enough_positive_phrases() -> None:
 def test_phrases_only_reference_existing_rules() -> None:
     catalog_ids = {rule.id for rule in CATALOG.rules}
     assert set(PHRASES["rules"]) <= catalog_ids
+
+
+@pytest.mark.parametrize("rule", CATALOG.rules, ids=lambda rule: rule.id)
+def test_rule_triggers_with_its_own_sign_name_as_the_agent_would_report_it(rule: Any) -> None:
+    reported = f"{rule.sign}: contexto adicional del caso"
+
+    assert rule.id in _triggered(reported)

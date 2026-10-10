@@ -46,4 +46,4 @@ Clase: `domain/alarms.py::Alert`. Se guarda dentro de `alerts` del hilo.
 | `domain` | `materno_infantil` \| `cardiovascular` \| `ninguno` | Dominio del hilo resultante |
 | `summary` | string | Resumen actualizado del hilo |
 | `reply` | string | Respuesta para el usuario (se descarta si hay urgencia inmediata) |
-| `reported_symptoms` | lista de string | Síntomas que la persona reporta, en términos estándar y con contexto; se revisan con las reglas de alarma (filtro 2) |
+| `reported_symptoms` | lista de string | Síntomas que la persona reporta, literales y con contexto. Si corresponden a un signo del catálogo, empiezan por su nombre exacto. Se revisan con las reglas de alarma (filtro 2). En B-015 se complementará con códigos cerrados |

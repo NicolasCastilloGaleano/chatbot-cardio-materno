@@ -60,7 +60,13 @@ class AlarmRule:
     source: str
 
     def matches(self, normalized_text: str) -> bool:
-        """Indica si algún patrón de la regla aparece en el texto normalizado."""
+        """Indica si el texto normalizado contiene el nombre del signo o algún patrón.
+
+        El nombre del signo funciona como término canónico: el prompt le pide al agente
+        usarlo en `reported_symptoms` (puente hacia B-015, códigos cerrados).
+        """
+        if normalize_text(self.sign) in normalized_text:
+            return True
         return any(pattern.search(normalized_text) for pattern in self.patterns)
 
 

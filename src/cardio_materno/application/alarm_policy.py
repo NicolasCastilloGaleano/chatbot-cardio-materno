@@ -14,6 +14,9 @@ from cardio_materno.domain.alarms import (
 from cardio_materno.domain.conversation import Domain
 
 REPLY_SEPARATOR = "\n\n"
+# Marcador del prompt de sistema que se reemplaza por la lista de signos del catálogo.
+ALARM_SIGNS_PLACEHOLDER = "{{SIGNOS_DE_ALARMA}}"
+NO_SIGNS_TEXT = "(no hay signos de alarma cargados)"
 
 
 @dataclass(frozen=True)
@@ -124,3 +127,25 @@ def compose_reply(decisions: Sequence[AlarmDecision], agent_reply: str | None) -
 def most_severe_decision(decisions: Sequence[AlarmDecision]) -> AlarmDecision:
     """Decisión más grave; ante empate, la primera (la del usuario)."""
     return max(decisions, key=lambda decision: SEVERITY_RANK[decision.severity])
+
+
+def render_system_prompt(template: str, policy: AlarmPolicy) -> str:
+    """Inserta en el prompt la lista de nombres de signos de alarma del catálogo.
+
+    Así el agente puede usar el nombre exacto de cada signo en `reported_symptoms`, y el
+    filtro 2 lo reconoce sin depender de su redacción (puente hacia B-015).
+
+    Args:
+        template: Prompt de sistema con el marcador `{{SIGNOS_DE_ALARMA}}`.
+        policy: Política con las reglas del catálogo.
+
+    Returns:
+        El prompt con la lista de signos (o el prompt sin cambios si no tiene marcador).
+    """
+    return template.replace(ALARM_SIGNS_PLACEHOLDER, format_sign_list(policy))
+
+
+def format_sign_list(policy: AlarmPolicy) -> str:
+    """Lista con viñetas de los nombres de signos, sin repetir y en el orden del catálogo."""
+    signs = list(dict.fromkeys(rule.sign for rule in policy.rules))
+    return "\n".join(f"- {sign}" for sign in signs) if signs else NO_SIGNS_TEXT

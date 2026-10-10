@@ -1,8 +1,16 @@
 """Pruebas del detector determinista de alarmas y de la política (dominio y aplicación)."""
 
+from pathlib import Path
+
 import pytest
 
-from cardio_materno.application.alarm_policy import compose_reply
+from cardio_materno.application.alarm_policy import (
+    ALARM_SIGNS_PLACEHOLDER,
+    NO_SIGNS_TEXT,
+    AlarmPolicy,
+    compose_reply,
+    render_system_prompt,
+)
 from cardio_materno.domain.alarms import (
     AlertOrigin,
     Severity,
@@ -69,3 +77,29 @@ def test_compose_reply_variants() -> None:
     assert compose_reply([priority], None) == PRIORITY_MESSAGE
     with pytest.raises(ValueError):
         compose_reply([], None)
+
+
+def test_rule_matches_its_own_sign_name_ignoring_accents_and_case() -> None:
+    rule = make_alarm_policy().rules[0]
+
+    assert rule.matches(normalize_text("SANGRADO VAGINAL en el embarazo de 7 meses"))
+
+
+def test_render_system_prompt_inserts_unique_sign_names() -> None:
+    template = f"Reglas.\n{ALARM_SIGNS_PLACEHOLDER}\nFin."
+
+    prompt = render_system_prompt(template, make_alarm_policy())
+
+    assert prompt == "Reglas.\n- Sangrado vaginal\n- Presión alta\nFin."
+
+
+def test_render_system_prompt_without_rules_says_so() -> None:
+    prompt = render_system_prompt(ALARM_SIGNS_PLACEHOLDER, AlarmPolicy((), {}))
+
+    assert prompt == NO_SIGNS_TEXT
+
+
+def test_current_system_prompt_has_the_signs_placeholder() -> None:
+    prompts = Path(__file__).resolve().parents[2] / "src" / "cardio_materno" / "prompts"
+
+    assert ALARM_SIGNS_PLACEHOLDER in (prompts / "system_prompt_v5.md").read_text(encoding="utf-8")

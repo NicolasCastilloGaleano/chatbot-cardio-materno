@@ -20,8 +20,9 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-010 | Adaptador WhatsApp | — | Media | — | ⏳ |
 | B-011 | Panel o registro de métricas anonimizadas | — | Baja | — | ⏳ |
 | B-014 | Foco actual del hilo: campo `current_focus` en el JSON del agente, separado del `summary` (ver nota) | HU-06 | Media | — | ⏳ Diferido |
-| B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre | HU-03, HU-04 | Media | — | ⏳ |
+| B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza | HU-03, HU-04 | **Alta** | Siguiente tras la demo | ⏳ |
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |
+| B-017 | Intención del mensaje (reporte / consulta general / ambiguo) para **adaptar** la respuesta a una alarma, nunca para suprimirla (ver nota) | HU-03, HU-04 | Media | — | ⏳ |
 
 ## Notas de ítems
 
@@ -36,4 +37,36 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 - Hoy el agente escribe `reported_symptoms` en texto libre y las mismas regex lo revisan (filtro 2, ADR 0007).
 - Evolución: el catálogo define un código por signo, el JSON Schema restringe `reported_symptoms` a esos códigos y el cruce con las reglas pasa a ser exacto, sin depender de la redacción del agente.
 - Se retoma si el origen `agente` muestra fallos de cobertura o falsos positivos frecuentes.
-- **Evidencia (2026-10-10):** el agente describió un sangrado como "secreción rosada por la vagina" y ningún patrón lo cubría. Se corrigió ampliando los patrones, pero confirma la fragilidad del texto libre. Prioridad sugerida: subir a Alta después de la demo.
+- **Evidencia (2026-10-10):** el agente describió un sangrado como "secreción rosada por la vagina" y ningún patrón lo cubría. Se corrigió ampliando los patrones, pero confirma la fragilidad del texto libre.
+- **Evidencia 2 (2026-10-10):** el agente reportó "disminución de los movimientos del bebé" y la regla solo aceptaba "movimientos fetales". Misma causa.
+- **Versión puente implementada (catálogo v0.3.0, prompt v5):** el prompt incluye los nombres exactos de los signos (campo `sign`) y cada regla coincide con su propio nombre normalizado. **Decisión del usuario: esta versión simple NO debe quedar como definitiva.** Sus límites son:
+  1. sigue siendo texto libre: el agente puede no usar el nombre exacto o parafrasearlo;
+  2. el JSON Schema no restringe los valores, así que no hay validación estructural;
+  3. los nombres de los signos son largos y están pensados para personas, no como identificadores estables;
+  4. un cambio de redacción del `sign` en el catálogo cambia lo que el agente debe escribir.
+- **Alcance del B-015 completo (a refinar al iniciarlo):**
+  - código estable por signo en el catálogo (p. ej., `code: "MOVIMIENTOS_FETALES_DISMINUIDOS"`), separado del nombre legible;
+  - un campo nuevo, p. ej. `reported_signs`, con `enum` de esos códigos en el JSON Schema (salida restringida por Ollama), además de `reported_symptoms` en texto libre para auditoría;
+  - cruce exacto código → regla, sin regex en el filtro 2;
+  - prompt con la tabla código → descripción → ejemplos coloquiales;
+  - pruebas golden con frases coloquiales evaluadas contra el modelo real (marca `live`);
+  - métricas: alertas por origen y casos que solo detectó el agente;
+  - posible combinación con B-017 (intención del mensaje) en el mismo contrato JSON.
+- **Prioridad:** Alta; es el siguiente ítem después de la demo.
+
+### B-017: Intención del mensaje ante una alarma (consulta vs. reporte)
+- **Idea (Nicolas Castillo Galeano, 2026-10-10):** una pregunta educativa como "¿por qué se pueden dar síntomas como secreciones de agüita rosada por abajo en embarazos de 7 meses?" activa la misma alarma que un reporte real. Propuesta original: un paso previo en el que el agente clasifique si el mensaje es una consulta o un reporte de síntomas, y responder distinto en cada caso.
+- **Por qué no como filtro previo que suprima la alarma:**
+  1. Le daría al LLM poder para **quitar** alarmas, en contra del ADR 0004 y del ADR 0007 ("el agente solo suma alarmas"). Los errores no son simétricos: un reporte clasificado como consulta es una emergencia sin alerta.
+  2. Muchas personas **reportan preguntando** ("¿es normal que me salga agüita rosada? tengo 7 meses"; "¿por qué mi bebé respira tan rápido?"). El clasificador fallaría justo en los casos de mayor riesgo, cuando la persona minimiza lo que le pasa.
+  3. Agregaría la latencia del LLM a las urgencias, que hoy se responden sin consultarlo.
+- **Diseño seguro propuesto (el agente cambia el *cómo*, no el *si*):**
+  1. El filtro determinista se mantiene igual: la alarma se activa siempre.
+  2. El agente agrega a su JSON `message_intent`: `reporte` | `consulta_general` | `ambiguo`.
+  3. Con `consulta_general`, se muestra un **mensaje fijo condicional** ("🚨 Si esto le está pasando ahora a ti o a alguien, es un signo de alarma: acude de inmediato a urgencias o llama al 123") **seguido** de la explicación educativa del agente. Con `reporte` o `ambiguo`, el comportamiento actual (solo el mensaje fijo).
+  4. La alerta se registra igual, con la intención anotada, para medir cuántas alertas fueron preguntas.
+  5. Para no perder inmediatez, el mensaje fijo se muestra primero y la explicación después, cuando responda el agente (en consulta urgente sí se llama al LLM).
+- **Si el agente se equivoca:** la persona igual recibe la instrucción de urgencia; solo cambia si además recibe una explicación.
+- **Decisión clínica (no delegable):** si un mensaje con signo de alarma puede recibir una respuesta distinta por ser una pregunta. Se agregará a la solicitud de validación del equipo clínico.
+- **Impacto estimado:** campo `message_intent` (esquema, validación y registro), prompt v5, mensajes fijos condicionales en el catálogo, respuesta en dos tiempos en la consola, pruebas (incluida una golden con preguntas que en realidad son reportes), un ADR o una actualización del ADR 0007, HU-03/HU-04, flujo y BPMN de gestión de alerta y R-09.
+- **Mientras tanto:** el aviso de más ante una pregunta educativa se acepta como falso positivo seguro (criterio conservador, R-09).
