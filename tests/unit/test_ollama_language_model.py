@@ -49,18 +49,27 @@ def make_model(opener: FakeOpener) -> OllamaLanguageModel:
     return OllamaLanguageModel(SETTINGS, opener=opener)
 
 
-def test_reply_sends_chat_payload_and_returns_content() -> None:
-    opener = FakeOpener({"message": {"role": "assistant", "content": "  Hola  "}})
-    messages = [ChatMessage(Role.SYSTEM, "sys"), ChatMessage(Role.USER, "hola")]
+SCHEMA = {"type": "object", "properties": {"reply": {"type": "string"}}}
+USER_MESSAGE = [ChatMessage(Role.USER, "hola")]
 
-    answer = make_model(opener).reply(messages)
+
+def chat_body(content: str) -> dict[str, Any]:
+    return {"message": {"role": "assistant", "content": content}}
+
+
+def test_complete_json_sends_schema_and_returns_parsed_object() -> None:
+    opener = FakeOpener(chat_body('{"reply": "Hola"}'))
+    messages = [ChatMessage(Role.SYSTEM, "sys"), ChatMessage(Role.USER, "hola", "hilo-1")]
+
+    result = make_model(opener).complete_json(messages, SCHEMA)
 
     request = opener.requests[0]
     payload = json.loads(request.data)  # type: ignore[arg-type]
-    assert answer == "Hola"
+    assert result == {"reply": "Hola"}
     assert request.full_url == "http://ollama.test:11434/api/chat"
     assert payload["model"] == "mistral-small3.1:24b"
     assert payload["stream"] is False
+    assert payload["format"] == SCHEMA
     assert payload["messages"] == [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hola"},
@@ -69,31 +78,38 @@ def test_reply_sends_chat_payload_and_returns_content() -> None:
 
 @pytest.mark.parametrize(
     "body",
-    [{"message": {"content": "   "}}, {"other": 1}, b"no es json", ["lista"]],
+    [
+        chat_body("   "),
+        chat_body("esto no es json"),
+        chat_body('["lista"]'),
+        {"other": 1},
+        b"no es json",
+        ["lista"],
+    ],
 )
-def test_reply_rejects_invalid_or_empty_responses(body: Any) -> None:
+def test_complete_json_rejects_invalid_or_empty_responses(body: Any) -> None:
     with pytest.raises(LanguageModelError, match="inesperada"):
-        make_model(FakeOpener(body)).reply([ChatMessage(Role.USER, "hola")])
+        make_model(FakeOpener(body)).complete_json(USER_MESSAGE, SCHEMA)
 
 
 def test_connection_error_explains_how_to_fix() -> None:
     opener = FakeOpener(error=URLError(ConnectionRefusedError()))
 
     with pytest.raises(LanguageModelError, match="No se pudo conectar"):
-        make_model(opener).reply([ChatMessage(Role.USER, "hola")])
+        make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
 
 
 @pytest.mark.parametrize("error", [TimeoutError(), URLError(TimeoutError())])
 def test_timeout_is_reported(error: Exception) -> None:
     with pytest.raises(LanguageModelError, match="tardó más de 5 s"):
-        make_model(FakeOpener(error=error)).reply([ChatMessage(Role.USER, "hola")])
+        make_model(FakeOpener(error=error)).complete_json(USER_MESSAGE, SCHEMA)
 
 
 def test_http_error_includes_status_and_detail() -> None:
     error = HTTPError("url", 500, "err", {}, io.BytesIO(b"model failed"))  # type: ignore[arg-type]
 
     with pytest.raises(LanguageModelError, match="HTTP 500: model failed"):
-        make_model(FakeOpener(error=error)).reply([ChatMessage(Role.USER, "hola")])
+        make_model(FakeOpener(error=error)).complete_json(USER_MESSAGE, SCHEMA)
 
 
 def test_verify_ready_passes_when_model_installed() -> None:

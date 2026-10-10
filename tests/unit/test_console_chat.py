@@ -1,31 +1,28 @@
 """Pruebas del chat de consola con entrada y salida simuladas."""
 
-from collections.abc import Sequence
-
 from cardio_materno.adapters.inbound.console.console_chat import (
     GOODBYE_TEXT,
     WELCOME_TEXT,
     ConsoleChat,
 )
-from cardio_materno.application.chat_service import ChatService
+from cardio_materno.application.conversation_service import ConversationService
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.domain.conversation import ChatMessage
+from cardio_materno.domain.conversation import ThreadStatus
+from tests.unit.fakes import (
+    FakeClock,
+    InMemoryThreadRepository,
+    ScriptedLanguageModel,
+    SequentialIds,
+    agent_json,
+)
 
 
-class EchoModel:
-    """Modelo falso que repite el último mensaje o falla si se le indica."""
-
-    def __init__(self, fail_on: str | None = None) -> None:
-        self.fail_on = fail_on
-
-    def reply(self, messages: Sequence[ChatMessage]) -> str:
-        last = messages[-1].content
-        if last == self.fail_on:
-            raise LanguageModelError("Ollama tardó demasiado")
-        return f"eco: {last}"
-
-
-def run_console(inputs: list[str], model: EchoModel | None = None) -> list[str]:
+def run_console(
+    inputs: list[str],
+    model: ScriptedLanguageModel,
+    repo: InMemoryThreadRepository | None = None,
+    show_thread_debug: bool = False,
+) -> list[str]:
     """Ejecuta la consola con las entradas dadas y devuelve todo lo mostrado."""
     pending = iter(inputs)
     output: list[str] = []
@@ -36,33 +33,69 @@ def run_console(inputs: list[str], model: EchoModel | None = None) -> list[str]:
         except StopIteration:
             raise EOFError from None
 
-    ConsoleChat(ChatService(model or EchoModel(), "sys"), read=read, write=output.append).run()
+    service = ConversationService(
+        model, repo or InMemoryThreadRepository(), "sys", clock=FakeClock(), new_id=SequentialIds()
+    )
+    ConsoleChat(service, show_thread_debug, read=read, write=output.append).run()
     return output
 
 
 def test_shows_answer_and_exits_with_salir() -> None:
-    output = run_console(["hola", "salir", "no se lee"])
+    output = run_console(["hola", "salir", "no se lee"], ScriptedLanguageModel(agent_json("eco")))
 
     assert output[0] == WELCOME_TEXT
-    assert "Asistente: eco: hola" in output
+    assert "Asistente: eco" in output
     assert output[-1] == GOODBYE_TEXT
     assert not any("no se lee" in line for line in output)
 
 
 def test_empty_lines_are_ignored() -> None:
-    output = run_console(["   ", "hola", "SALIR"])
+    output = run_console(["   ", "hola", "SALIR"], ScriptedLanguageModel(agent_json("eco")))
 
     assert sum(line.startswith("Asistente:") for line in output) == 1
 
 
 def test_model_error_is_shown_and_chat_continues() -> None:
-    output = run_console(["falla", "hola", "salir"], EchoModel(fail_on="falla"))
+    model = ScriptedLanguageModel(LanguageModelError("Ollama tardó demasiado"), agent_json("eco"))  # type: ignore[arg-type]
+
+    output = run_console(["falla", "hola", "salir"], model)
 
     assert any("Ollama tardó demasiado" in line for line in output)
-    assert "Asistente: eco: hola" in output
+    assert "Asistente: eco" in output
 
 
 def test_end_of_input_closes_gracefully() -> None:
-    output = run_console(["hola"])
+    output = run_console(["hola"], ScriptedLanguageModel(agent_json()))
 
     assert output[-1] == GOODBYE_TEXT
+
+
+def test_thread_debug_line_shows_thread_state_when_enabled() -> None:
+    model = ScriptedLanguageModel(
+        agent_json(domain="materno_infantil"),
+        agent_json(),
+        agent_json(thread_action="nuevo", domain="cardiovascular"),
+    )
+
+    output = run_console(["a", "b", "c", "salir"], model, show_thread_debug=True)
+
+    debug = [line for line in output if line.startswith("[hilo")]
+    assert debug == [
+        "[hilo hilo-1 | materno_infantil | abierto | nuevo]",
+        "[hilo hilo-1 | materno_infantil | abierto | continúa]",
+        "[hilo hilo-2 | cardiovascular | abierto | nuevo]",
+    ]
+
+
+def test_thread_debug_line_hidden_by_default() -> None:
+    output = run_console(["hola", "salir"], ScriptedLanguageModel(agent_json()))
+
+    assert not any(line.startswith("[hilo") for line in output)
+
+
+def test_exit_closes_active_thread() -> None:
+    repo = InMemoryThreadRepository()
+
+    run_console(["hola", "salir"], ScriptedLanguageModel(agent_json()), repo)
+
+    assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED

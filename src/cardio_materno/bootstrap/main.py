@@ -9,15 +9,23 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
 )
-from cardio_materno.application.chat_service import ChatService
+from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
+    JsonFileThreadRepository,
+)
+from cardio_materno.application.conversation_service import ConversationService
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.bootstrap.env_file import load_env_file
-from cardio_materno.bootstrap.settings import ConfigurationError, load_ollama_settings
+from cardio_materno.bootstrap.settings import (
+    ConfigurationError,
+    ConversationSettings,
+    load_conversation_settings,
+    load_ollama_settings,
+)
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
-SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v1.md"
+SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v2.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 
@@ -30,13 +38,14 @@ def main() -> int:
     """
     _use_utf8_streams()
     try:
-        settings = _load_settings()
-        language_model = _connect_language_model(settings)
+        load_env_file(ENV_FILE)
+        conversation_settings = load_conversation_settings(os.environ, PROJECT_ROOT)
+        language_model = _connect_language_model(load_ollama_settings(os.environ))
     except (ConfigurationError, LanguageModelError) as error:
         print(f"No se pudo iniciar el asistente: {error}", file=sys.stderr)
         return EXIT_ERROR
-    chat_service = ChatService(language_model, _read_system_prompt())
-    ConsoleChat(chat_service).run()
+    service = _build_service(language_model, conversation_settings)
+    ConsoleChat(service, conversation_settings.show_thread_debug).run()
     return EXIT_OK
 
 
@@ -48,18 +57,24 @@ def _use_utf8_streams() -> None:
             reconfigure(encoding="utf-8")
 
 
-def _load_settings() -> OllamaSettings:
-    """Carga `.env` (si existe) y lee la configuración de Ollama."""
-    load_env_file(ENV_FILE)
-    return load_ollama_settings(os.environ)
-
-
 def _connect_language_model(settings: OllamaSettings) -> OllamaLanguageModel:
     """Crea el adaptador de Ollama y verifica que el servidor y el modelo estén listos."""
     print(f"Conectando con Ollama en {settings.base_url} (modelo: {settings.model})…")
     language_model = OllamaLanguageModel(settings)
     language_model.verify_ready()
     return language_model
+
+
+def _build_service(
+    language_model: OllamaLanguageModel, settings: ConversationSettings
+) -> ConversationService:
+    """Arma el caso de uso con el repositorio de hilos en archivos JSON."""
+    return ConversationService(
+        language_model,
+        JsonFileThreadRepository(settings.threads_dir),
+        _read_system_prompt(),
+        settings.context_messages,
+    )
 
 
 def _read_system_prompt() -> str:

@@ -22,7 +22,13 @@ copy .env.example .env
 # 4. Ejecutar el chat
 python run_console.py
 ```
-Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C).
+Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
+
+**Guion de prueba de la HU-06:**
+1. `Estoy embarazada de 5 meses y tengo mucha acidez` → `[hilo … | materno_infantil | abierto | nuevo]`
+2. `¿Qué puedo comer para eso?` → mismo hilo, `continúa`
+3. `Otra cosa, mi papá tiene la presión alta` → otro hilo, `cardiovascular | nuevo`
+4. `salir` → revisa `data/threads/`: los dos hilos deben quedar `cerrado`
 
 | Variable (`.env`) | Por defecto | Para qué |
 |---|---|---|
@@ -31,6 +37,9 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta |
 | `OLLAMA_TEMPERATURE` | `0.3` | Creatividad de las respuestas (0 = más predecible) |
 | `OLLAMA_NUM_CTX` | `4096` | Ventana de contexto en tokens |
+| `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
+| `SHOW_THREAD_DEBUG` | `true` | Muestra la línea de estado del hilo después de cada respuesta |
+| `THREADS_DIR` | `data/threads` | Carpeta donde se guardan los JSON de los hilos |
 
 ### Problemas frecuentes
 | Mensaje | Solución |

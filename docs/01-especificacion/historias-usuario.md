@@ -34,7 +34,49 @@ Escenario: Error durante la conversación
   Cuando una llamada al modelo falla (p. ej., por timeout)
   Entonces veo un mensaje de error claro y el chat sigue abierto
 ```
-Estado: 🔄 En progreso (pendiente de verificación en el PC de pruebas)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-10)
+
+### HU-06: Hilos conversacionales con resumen
+**Como** persona que consulta al asistente, **quiero** que recuerde de qué estamos hablando en mi consulta actual y que distinga cuando cambio de tema, **para** recibir respuestas coherentes sin que mezcle casos distintos.
+
+Notas técnicas: cada hilo es un JSON (`id`, `domain`, `summary`, `status`) y cada mensaje lleva su `thread_id`. El agente responde en JSON estructurado y decide si el mensaje continúa el hilo o abre uno nuevo. Al agente solo se envía el resumen del hilo actual y sus últimos N mensajes (ADR 0006).
+
+```gherkin
+Escenario: El primer mensaje crea un hilo
+  Dado que no hay un hilo activo en la sesión
+  Cuando escribo "Estoy embarazada de 5 meses y tengo mucha acidez"
+  Entonces se crea un hilo con un identificador único y estado "abierto"
+  Y el agente clasifica el dominio como "materno_infantil" y escribe un resumen
+  Y mi mensaje y la respuesta quedan guardados con el identificador del hilo
+
+Escenario: Un mensaje relacionado continúa el hilo
+  Dado que hay un hilo abierto sobre acidez en el embarazo
+  Cuando escribo "¿Qué puedo comer para eso?"
+  Entonces el mensaje se agrega al mismo hilo
+  Y el resumen del hilo se actualiza
+
+Escenario: Un cambio de tema cierra el hilo y abre uno nuevo
+  Dado que hay un hilo abierto sobre acidez en el embarazo
+  Cuando escribo "Otra cosa, mi papá tiene la presión alta"
+  Entonces el hilo anterior queda en estado "cerrado"
+  Y se crea un hilo nuevo con dominio "cardiovascular"
+
+Escenario: El contexto enviado al agente está acotado
+  Dado un hilo abierto con más de N mensajes
+  Cuando escribo un mensaje nuevo
+  Entonces al agente solo se envían el prompt de sistema, el JSON del hilo actual, los últimos N mensajes del hilo y el mensaje nuevo
+
+Escenario: Salir cierra el hilo activo
+  Dado que hay un hilo abierto
+  Cuando escribo "salir"
+  Entonces el hilo queda en estado "cerrado" en su archivo JSON
+
+Escenario: Respuesta inválida o error del modelo
+  Dado que el modelo falla o no devuelve el JSON esperado
+  Cuando escribo un mensaje
+  Entonces veo un mensaje de error claro, no se guarda nada en el hilo y el chat sigue abierto
+```
+Estado: 🔄 En progreso
 
 ### HU-01: Inicio de conversación y consentimiento
 **Como** persona de la comunidad, **quiero** saber qué hace el asistente y aceptar el uso de mis datos, **para** usarlo con confianza.

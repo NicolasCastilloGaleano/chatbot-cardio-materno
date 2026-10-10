@@ -1,6 +1,8 @@
 """Lectura de la configuración desde variables de entorno."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
 
@@ -9,10 +11,51 @@ DEFAULT_OLLAMA_MODEL = "mistral-small3.1:24b"
 DEFAULT_TIMEOUT_SECONDS = "180"
 DEFAULT_TEMPERATURE = "0.3"
 DEFAULT_NUM_CTX = "4096"
+DEFAULT_THREAD_CONTEXT_MESSAGES = "6"
+DEFAULT_SHOW_THREAD_DEBUG = "true"
+DEFAULT_THREADS_DIR = "data/threads"
+TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 
 
 class ConfigurationError(Exception):
     """Una variable de configuración tiene un valor inválido."""
+
+
+@dataclass(frozen=True)
+class ConversationSettings:
+    """Configuración de los hilos conversacionales (HU-06).
+
+    Attributes:
+        context_messages: Mensajes recientes del hilo que se envían al agente.
+        show_thread_debug: Si se muestra en consola la línea con el estado del hilo.
+        threads_dir: Carpeta de los archivos JSON de los hilos.
+    """
+
+    context_messages: int
+    show_thread_debug: bool
+    threads_dir: Path
+
+
+def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:
+    """Construye la configuración de los hilos a partir de las variables de entorno.
+
+    Args:
+        env: Variables de entorno (normalmente `os.environ`).
+        project_root: Raíz del proyecto, para resolver rutas relativas.
+
+    Returns:
+        Configuración validada.
+
+    Raises:
+        ConfigurationError: Si un valor numérico no es válido.
+    """
+    threads_dir = Path(_get(env, "THREADS_DIR", DEFAULT_THREADS_DIR))
+    return ConversationSettings(
+        context_messages=_get_int(env, "THREAD_CONTEXT_MESSAGES", DEFAULT_THREAD_CONTEXT_MESSAGES),
+        show_thread_debug=_get(env, "SHOW_THREAD_DEBUG", DEFAULT_SHOW_THREAD_DEBUG).lower()
+        in TRUE_VALUES,
+        threads_dir=threads_dir if threads_dir.is_absolute() else project_root / threads_dir,
+    )
 
 
 def load_ollama_settings(env: Mapping[str, str]) -> OllamaSettings:

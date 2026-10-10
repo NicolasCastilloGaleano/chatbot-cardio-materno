@@ -20,6 +20,7 @@ build/
 # Datos sensibles: nunca versionar datos reales de pacientes
 data/raw/
 data/private/
+data/threads/
 *.sqlite3
 *.db
 

@@ -67,21 +67,24 @@ class OllamaLanguageModel:
         self._settings = settings
         self._opener = opener
 
-    def reply(self, messages: Sequence[ChatMessage]) -> str:
-        """Pide a Ollama la siguiente respuesta de la conversación.
+    def complete_json(
+        self, messages: Sequence[ChatMessage], schema: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Pide a Ollama una respuesta en JSON restringida por un JSON Schema.
 
         Args:
-            messages: Conversación completa, empezando por el mensaje de sistema.
+            messages: Conversación a enviar, empezando por los mensajes de sistema.
+            schema: JSON Schema que Ollama usa para restringir la salida (`format`).
 
         Returns:
-            Texto de la respuesta del modelo.
+            El objeto JSON generado por el modelo.
 
         Raises:
-            LanguageModelError: Si Ollama no responde, falla o devuelve algo inválido.
+            LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON.
         """
-        payload = build_chat_payload(self._settings, messages)
+        payload = build_chat_payload(self._settings, messages, schema)
         response = self._request(CHAT_ENDPOINT, payload)
-        return extract_content(response)
+        return parse_json_body(extract_content(response).encode("utf-8"))
 
     def verify_ready(self) -> None:
         """Comprueba que Ollama responde y que el modelo configurado está instalado.
@@ -117,12 +120,15 @@ class OllamaLanguageModel:
         return MSG_UNREACHABLE.format(url=self._settings.base_url)
 
 
-def build_chat_payload(settings: OllamaSettings, messages: Sequence[ChatMessage]) -> dict[str, Any]:
-    """Construye el cuerpo de la solicitud a `/api/chat` (sin streaming).
+def build_chat_payload(
+    settings: OllamaSettings, messages: Sequence[ChatMessage], schema: dict[str, Any]
+) -> dict[str, Any]:
+    """Construye el cuerpo de la solicitud a `/api/chat` (sin streaming, salida JSON).
 
     Args:
         settings: Configuración con el modelo y las opciones de generación.
         messages: Conversación a enviar.
+        schema: JSON Schema que restringe la salida del modelo.
 
     Returns:
         Diccionario listo para serializar como JSON.
@@ -131,6 +137,7 @@ def build_chat_payload(settings: OllamaSettings, messages: Sequence[ChatMessage]
         "model": settings.model,
         "messages": [{"role": str(m.role), "content": m.content} for m in messages],
         "stream": False,
+        "format": schema,
         "options": {"temperature": settings.temperature, "num_ctx": settings.num_ctx},
     }
 

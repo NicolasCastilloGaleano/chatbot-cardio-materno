@@ -41,7 +41,7 @@ src/cardio_materno/
 - Errores explícitos con excepciones de dominio propias; nunca `except:` vacío.
 - Logging estructurado sin datos personales.
 - Inyección de dependencias por constructor, sin singletons globales.
-- Toda lógica nueva lleva **pruebas** (unitarias en `tests/unit`; los flujos conversacionales, en `tests/conversational`).
+- Toda lógica nueva lleva **pruebas** (unitarias en `tests/unit`; los flujos conversacionales, en `tests/conversational`). Los dobles compartidos de los puertos (LLM falso, repositorio en memoria, reloj, ids) viven en `tests/unit/fakes.py`; hay que reutilizarlos antes de crear otros.
 - Hay que preferir cambios pequeños y revisables a cambios grandes.
 
 ## 4. Datos y privacidad (Ley 1581/2012)

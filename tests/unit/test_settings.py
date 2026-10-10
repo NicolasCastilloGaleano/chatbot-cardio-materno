@@ -9,6 +9,7 @@ from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
 from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     ConfigurationError,
+    load_conversation_settings,
     load_ollama_settings,
 )
 
@@ -72,3 +73,25 @@ def test_load_env_file_does_not_override_existing(
     assert os.environ["CM_TEST_A"] == "entorno"
     assert os.environ["CM_TEST_B"] == "archivo"
     monkeypatch.delenv("CM_TEST_B")
+
+
+def test_conversation_settings_defaults(tmp_path: Path) -> None:
+    settings = load_conversation_settings({}, tmp_path)
+
+    assert settings.context_messages == 6
+    assert settings.show_thread_debug is True
+    assert settings.threads_dir == tmp_path / "data" / "threads"
+
+
+def test_conversation_settings_from_environment(tmp_path: Path) -> None:
+    env = {
+        "THREAD_CONTEXT_MESSAGES": "10",
+        "SHOW_THREAD_DEBUG": "false",
+        "THREADS_DIR": str(tmp_path / "otros"),
+    }
+
+    settings = load_conversation_settings(env, tmp_path)
+
+    assert settings.context_messages == 10
+    assert settings.show_thread_debug is False
+    assert settings.threads_dir == tmp_path / "otros"

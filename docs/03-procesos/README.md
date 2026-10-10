@@ -5,5 +5,5 @@
 
 | Proceso | Flujo | BPMN | Estado |
 |---|---|---|---|
-| Atención conversacional general | [flujo-conversacional.md](flujos/flujo-conversacional.md) | TODO | Borrador |
+| Atención conversacional general (incluye el turno con hilos, HU-06) | [flujo-conversacional.md](flujos/flujo-conversacional.md) | TODO: modelar en bpmn.io cuando se estabilice el flujo con consentimiento | Borrador + turno implementado |
 | Gestión de alerta y ruta de atención | TODO | TODO | ⏳ |

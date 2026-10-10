@@ -1,0 +1,81 @@
+"""Pruebas del repositorio de hilos en archivos JSON."""
+
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
+    JsonFileThreadRepository,
+)
+from cardio_materno.domain.conversation import (
+    ChatMessage,
+    Domain,
+    Role,
+    close_thread,
+    open_thread,
+)
+
+NOW = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
+
+
+def make_repo(tmp_path: Path) -> JsonFileThreadRepository:
+    return JsonFileThreadRepository(tmp_path / "threads")
+
+
+def test_saved_thread_can_be_read_back(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    thread = open_thread("t1", Domain.CARDIOVASCULAR, "presión alta", NOW)
+
+    repo.save_thread(thread)
+
+    assert repo.get_thread("t1") == thread
+    assert repo.get_thread("no-existe") is None
+
+
+def test_file_is_readable_json_with_thread_and_messages(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "acidez", NOW))
+    repo.append_message(ChatMessage(Role.USER, "tengo acidez", "t1", NOW))
+
+    data = json.loads((tmp_path / "threads" / "t1.json").read_text(encoding="utf-8"))
+
+    assert data["domain"] == "materno_infantil"
+    assert data["status"] == "abierto"
+    assert data["messages"] == [
+        {
+            "thread_id": "t1",
+            "role": "user",
+            "content": "tengo acidez",
+            "created_at": NOW.isoformat(),
+        }
+    ]
+
+
+def test_updating_thread_keeps_messages(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    thread = open_thread("t1", Domain.NONE, "saludo", NOW)
+    repo.save_thread(thread)
+    repo.append_message(ChatMessage(Role.USER, "hola", "t1", NOW))
+
+    repo.save_thread(close_thread(thread, NOW))
+
+    assert repo.recent_messages("t1", 10)[0].content == "hola"
+    assert repo.get_thread("t1").is_open is False  # type: ignore[union-attr]
+
+
+def test_recent_messages_respects_limit_and_order(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    repo.save_thread(open_thread("t1", Domain.NONE, "s", NOW))
+    for text in ("a", "b", "c"):
+        repo.append_message(ChatMessage(Role.USER, text, "t1", NOW))
+
+    assert [m.content for m in repo.recent_messages("t1", 2)] == ["b", "c"]
+    assert repo.recent_messages("t1", 0) == []
+    assert repo.recent_messages("otro", 2) == []
+
+
+def test_append_to_missing_thread_raises_key_error(tmp_path: Path) -> None:
+    with pytest.raises(KeyError):
+        make_repo(tmp_path).append_message(ChatMessage(Role.USER, "hola", "no-existe", NOW))
