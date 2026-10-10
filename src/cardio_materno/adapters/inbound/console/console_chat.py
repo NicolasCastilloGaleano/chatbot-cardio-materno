@@ -14,6 +14,10 @@ ERROR_PREFIX = "⚠️  "
 SHORT_ID_LENGTH = 8
 THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}{alerts}]"
 ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
+SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
+NO_SYMPTOMS_TEXT = "ninguno"
+AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
+SYMPTOM_SEPARATOR = "; "
 NEW_THREAD_LABEL = "nuevo"
 SAME_THREAD_LABEL = "continúa"
 WELCOME_TEXT = (
@@ -80,6 +84,7 @@ class ConsoleChat:
         self._write(f"{ASSISTANT_LABEL}{result.reply}")
         if self._show_thread_debug:
             self._write(format_thread_debug(result))
+            self._write(format_symptoms_debug(result.reported_symptoms))
 
 
 def format_thread_debug(result: TurnResult) -> str:
@@ -109,3 +114,18 @@ def format_alert_debug(alert: Alert) -> str:
     return ALERT_DEBUG_TEMPLATE.format(
         rule_ids=",".join(alert.rule_ids), severity=alert.severity, origin=alert.origin
     )
+
+
+def format_symptoms_debug(symptoms: tuple[str, ...] | None) -> str:
+    """Línea con los síntomas que reportó el agente (filtro 2), para auditar las alarmas.
+
+    Args:
+        symptoms: Síntomas del agente, o None si no se le consultó.
+
+    Returns:
+        Texto para mostrar en la consola.
+    """
+    if symptoms is None:
+        return AGENT_NOT_CONSULTED_TEXT
+    listed = SYMPTOM_SEPARATOR.join(symptoms) if symptoms else NO_SYMPTOMS_TEXT
+    return SYMPTOMS_DEBUG_TEMPLATE.format(symptoms=listed)

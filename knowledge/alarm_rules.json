@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "updated_at": "2026-10-10",
   "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales.",
   "validated_by": null,
@@ -22,7 +22,10 @@
         "\\bsangrado vaginal\\b",
         "\\bsangre (por|de) (la vagina|abajo|mis partes|mis partes intimas)\\b",
         "\\b(agu\\w*|flujo|liquido) con sangre\\b",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(sangr\\w*|hemorragia|manchad\\w*|manchando|manche)\\b)"
+        "\\b(secrecion|flujo|liquido|agu\\w*) vaginal (rosad\\w*|sanguinolent\\w*|con sangre|roj\\w*)\\b",
+        "\\b(secrecion|flujo|liquido|agu\\w*) (rosad\\w*|sanguinolent\\w*|roj\\w*) (por|de) (la vagina|abajo|mis partes)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(secrecion|flujo|liquido|agu\\w*|sale|salio|saliendo|bota\\w*|mancha\\w*)\\b.{0,30}\\b(rosad\\w*|sanguinolent\\w*|con sangre)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(sangr\\w*|hemorragia|manchad\\w*|manchando|manche)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
@@ -35,9 +38,9 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(cefalea|dolor de cabeza) (intens\\w*|severa|severo|muy fuerte)\\b.{0,40}\\b(embarazo|gestante|posparto)\\b",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(dolor de cabeza|cefalea|me duele (mucho )?la cabeza)\\b.{0,30}\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible)\\b)",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible) dolor de cabeza\\b)",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(vision borrosa|veo (lucecitas|luces|puntos|estrellitas|borroso|nublado)|zumbido en (los )?oidos)\\b)"
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(dolor de cabeza|cefalea|me duele (mucho )?la cabeza)\\b.{0,30}\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(muy fuerte|fuerte|intens\\w*|terrible|insoportable|horrible) dolor de cabeza\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(vision borrosa|veo (lucecitas|luces|puntos|estrellitas|borroso|nublado)|zumbido en (los )?oidos)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
@@ -63,8 +66,8 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(edema|hinchazon) (facial|de (la )?cara|de (las )?manos)\\b.{0,40}\\b(embarazo|gestante)\\b",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(hinchad\\w*|hinchazon|inflamad\\w*|hincho|hincharon|edema)\\b.{0,25}\\b(cara|manos|dedos|parpados)\\b)",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(cara|manos|dedos|parpados) (muy )?(hinchad\\w*|inflamad\\w*)\\b)"
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(hinchad\\w*|hinchazon|inflamad\\w*|hincho|hincharon|edema)\\b.{0,25}\\b(cara|manos|dedos|parpados)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(cara|manos|dedos|parpados) (muy )?(hinchad\\w*|inflamad\\w*)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
@@ -79,7 +82,9 @@
         "\\b(rompi|rompio|se me rompio|se rompio) (la )?fuente\\b",
         "\\b(ruptura|rotura) de (membranas|fuente)\\b",
         "\\bsalida de liquido (amniotico|por la vagina)\\b",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(sale|salio|me sale|me salio|bota\\w*|perdi\\w*|se me (vino|salio)) (mucho |un )?(liquido|agua|aguita)\\b)"
+        "\\bsalida de liquido\\b.{0,30}\\b(vagina|embarazo|gestacion)\\b",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(sale|salio|saliendo|me sale|me salio|bota\\w*|botando|perdi\\w*|perdiendo)\\b.{0,20}\\b(liquido|agua|aguita)\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(sale|salio|me sale|me salio|bota\\w*|perdi\\w*|se me (vino|salio)) (mucho |un )?(liquido|agua|aguita)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
@@ -107,7 +112,7 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bfiebre\\b.{0,30}\\b(en el embarazo|en la gestacion|en el posparto|posparto)\\b",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio)\\b)(?=.*\\b(fiebre|calentura|escalofrios)\\b)"
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(fiebre|calentura|escalofrios)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"

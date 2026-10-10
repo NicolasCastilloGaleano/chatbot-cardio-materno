@@ -7,11 +7,17 @@
         "tengo 30 semanas de embarazo y me salió sangre",
         "me está saliendo como agüita con sangre por abajo",
         "sangrado vaginal en el embarazo",
-        "di a luz hace una semana y tengo una hemorragia"
+        "di a luz hace una semana y tengo una hemorragia",
+        "me está saliendo como agüita rosada por abajo, tengo 7 meses",
+        "secreción rosada por la vagina en el embarazo",
+        "secreción vaginal rosada",
+        "flujo rosado en el embarazo de 7 meses",
+        "salida de líquido rosado por la vagina en el embarazo"
       ],
       "no_debe_activar": [
         "me sangra la nariz",
-        "estoy embarazada y tengo acidez"
+        "estoy embarazada y tengo acidez",
+        "estoy embarazada y me compré ropa rosada"
       ]
     },
     "RN-MI-02": {
@@ -53,10 +59,13 @@
         "creo que se me rompió la fuente",
         "estoy embarazada y me salió mucho líquido",
         "ruptura de membranas",
-        "salida de líquido amniótico"
+        "salida de líquido amniótico",
+        "estoy de 30 semanas y me sale agua",
+        "salida de líquido por la vagina en el embarazo"
       ],
       "no_debe_activar": [
-        "tomo mucha agua durante el embarazo"
+        "tomo mucha agua durante el embarazo",
+        "estoy embarazada y me sale mucha saliva"
       ]
     },
     "RN-MI-06": {
@@ -229,6 +238,11 @@
     "¿es mejor parto natural o cesárea?",
     "quiero dejar de fumar",
     "¿cuánto ejercicio debo hacer a la semana?",
-    "¿cómo preparo el tetero?"
-  ]
+    "¿cómo preparo el tetero?",
+    "mi bebé tiene 7 meses y quiero saber qué darle de comer",
+    "tengo 7 meses de embarazo y quiero saber qué comer"
+  ],
+  "_regresiones": {
+    "2026-10-10": "La frase 'me está saliendo como agüita rosada por abajo, tengo 7 meses' no activaba ninguna regla en ninguno de los dos filtros (catálogo v0.1.0). Corregido en el catálogo v0.2.0 + prompt v4."
+  }
 }

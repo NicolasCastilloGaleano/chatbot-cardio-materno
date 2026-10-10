@@ -280,3 +280,38 @@ def test_agent_can_escalate_priority_to_urgent() -> None:
 
     assert result.reply == URGENT_MESSAGE
     assert [a.origin for a in result.alerts] == [AlertOrigin.USER, AlertOrigin.AGENT]
+
+
+# --- Registro de los síntomas reportados por el agente (incidente 2026-10-10) ---
+
+
+def test_reported_symptoms_are_stored_in_assistant_message_and_result() -> None:
+    repo = InMemoryThreadRepository()
+    turn = agent_json("r1", reported_symptoms=["secrecion vaginal rosada en el embarazo"])
+
+    result = make_service(ScriptedLanguageModel(turn), repo).send("me sale agüita rosada")
+
+    user_message, assistant_message = repo.messages["hilo-1"]
+    assert result.reported_symptoms == ("secrecion vaginal rosada en el embarazo",)
+    assert assistant_message.reported_symptoms == ("secrecion vaginal rosada en el embarazo",)
+    assert user_message.reported_symptoms is None
+
+
+def test_empty_reported_symptoms_are_stored_as_empty_list() -> None:
+    repo = InMemoryThreadRepository()
+
+    result = make_service(ScriptedLanguageModel(agent_json("r1")), repo).send("hola")
+
+    assert result.reported_symptoms == ()
+    assert repo.messages["hilo-1"][1].reported_symptoms == ()
+
+
+def test_alarm_only_turn_marks_agent_as_not_consulted() -> None:
+    repo = InMemoryThreadRepository()
+
+    result = make_service(ScriptedLanguageModel(), repo, policy=make_alarm_policy()).send(
+        "tengo sangrado vaginal"
+    )
+
+    assert result.reported_symptoms is None
+    assert repo.messages["hilo-1"][1].reported_symptoms is None

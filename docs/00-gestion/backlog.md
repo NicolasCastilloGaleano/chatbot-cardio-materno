@@ -36,3 +36,4 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 - Hoy el agente escribe `reported_symptoms` en texto libre y las mismas regex lo revisan (filtro 2, ADR 0007).
 - Evolución: el catálogo define un código por signo, el JSON Schema restringe `reported_symptoms` a esos códigos y el cruce con las reglas pasa a ser exacto, sin depender de la redacción del agente.
 - Se retoma si el origen `agente` muestra fallos de cobertura o falsos positivos frecuentes.
+- **Evidencia (2026-10-10):** el agente describió un sangrado como "secreción rosada por la vagina" y ningún patrón lo cubría. Se corrigió ampliando los patrones, pero confirma la fragilidad del texto libre. Prioridad sugerida: subir a Alta después de la demo.

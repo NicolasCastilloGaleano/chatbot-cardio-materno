@@ -120,3 +120,20 @@ def test_alarm_is_shown_with_alert_in_debug_line() -> None:
         "[hilo hilo-1 | materno_infantil | abierto | nuevo"
         " | ⚠️ T-URG urgencia_inmediata (usuario)]" in output
     )
+
+
+def test_debug_shows_symptoms_reported_by_agent() -> None:
+    model = ScriptedLanguageModel(agent_json(reported_symptoms=["fiebre", "tos"]), agent_json())
+
+    output = run_console(["a", "b", "salir"], model, show_thread_debug=True)
+
+    assert "[síntomas reportados por el agente: fiebre; tos]" in output
+    assert "[síntomas reportados por el agente: ninguno]" in output
+
+
+def test_debug_says_agent_was_not_consulted_on_urgency() -> None:
+    output = run_console(
+        ["tengo sangrado vaginal", "salir"], ScriptedLanguageModel(), show_thread_debug=True
+    )
+
+    assert "[agente no consultado: urgencia detectada en el mensaje]" in output

@@ -38,3 +38,12 @@ Desde la HU-00 el prototipo conversaba libremente con el LLM sin detección de a
 - ⚠️ Las reglas son **PROVISIONALES** (borrador generado con IA a partir de signos de alarma públicos) hasta su validación clínica: [solicitud de validación](../../01-especificacion/solicitud-validacion-alarmas.md). Riesgo R-09.
 - ⚠️ Los patrones nunca cubrirán todas las formas de expresión, y el criterio conservador generará falsos positivos (p. ej., con negaciones).
 - ⚠️ El mensaje fijo remite a urgencias o al 123 de forma genérica hasta tener las rutas por municipio (HU-05, DTS Caldas).
+
+## Actualización 2026-10-10: observabilidad y cobertura
+- **Hallazgo de la verificación humana:** una descripción coloquial de un sangrado no activó ninguna regla. Además, como `reported_symptoms` no se registraba, no se podía saber qué había reportado el agente.
+- **Ajustes:**
+  1. `reported_symptoms` se guarda en cada respuesta del asistente: `[]` si no hubo síntomas; el campo no aparece si el agente no fue consultado. También se muestra en la línea de depuración.
+  2. Catálogo v0.2.0 con patrones menos literales.
+  3. Prompt v4: síntomas literales y completos.
+  4. Cada fallo detectado se agrega como frase de regresión en `alarm_phrases.json`.
+- La dependencia de que el agente redacte el síntoma de una forma que los patrones cubran sigue existiendo. La solución de fondo es B-015 (códigos cerrados).

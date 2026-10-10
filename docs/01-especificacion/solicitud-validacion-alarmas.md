@@ -1,6 +1,6 @@
 # Solicitud de validación clínica: reglas de alarma (borrador PROVISIONAL)
 
-*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.1.0 · Generado el 2026-10-10*
+*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.2.0 · Generado el 2026-10-10*
 
 **Para:** Dra. Dolly Magnolia González Hoyos y equipo clínico del proyecto.
 **De:** equipo de desarrollo (Nicolas Castillo Galeano).
@@ -36,8 +36,8 @@ Este borrador lo redactó el equipo con apoyo de IA a partir de signos de alarma
 ### RN-MI-01: Sangrado vaginal en el embarazo o el posparto
 - **Población:** gestante/posparto · **Severidad propuesta:** 🚨 Urgencia inmediata · **Mensaje:** `urgencia_embarazo`
 - **Fuente sugerida:** Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)
-- **Frases que la activan (ejemplos):** “Estoy embarazada de 5 meses y estoy sangrando”; “tengo 30 semanas de embarazo y me salió sangre”; “me está saliendo como agüita con sangre por abajo”; “sangrado vaginal en el embarazo”; “di a luz hace una semana y tengo una hemorragia”
-- **Frases que NO deben activarla:** “me sangra la nariz”; “estoy embarazada y tengo acidez”
+- **Frases que la activan (ejemplos):** “Estoy embarazada de 5 meses y estoy sangrando”; “tengo 30 semanas de embarazo y me salió sangre”; “me está saliendo como agüita con sangre por abajo”; “sangrado vaginal en el embarazo”; “di a luz hace una semana y tengo una hemorragia”; “me está saliendo como agüita rosada por abajo, tengo 7 meses”; “secreción rosada por la vagina en el embarazo”; “secreción vaginal rosada”; “flujo rosado en el embarazo de 7 meses”; “salida de líquido rosado por la vagina en el embarazo”
+- **Frases que NO deben activarla:** “me sangra la nariz”; “estoy embarazada y tengo acidez”; “estoy embarazada y me compré ropa rosada”
 - [ ] Aprobar · [ ] Corregir · [ ] Eliminar
 - Fuente clínica: ______________________ · Severidad correcta: [ ] Sí [ ] No → ______
 - Otras frases de la comunidad: ____________________________________________
@@ -72,8 +72,8 @@ Este borrador lo redactó el equipo con apoyo de IA a partir de signos de alarma
 ### RN-MI-05: Salida de líquido por la vagina (ruptura de membranas)
 - **Población:** gestante · **Severidad propuesta:** 🚨 Urgencia inmediata · **Mensaje:** `urgencia_embarazo`
 - **Fuente sugerida:** Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)
-- **Frases que la activan (ejemplos):** “creo que se me rompió la fuente”; “estoy embarazada y me salió mucho líquido”; “ruptura de membranas”; “salida de líquido amniótico”
-- **Frases que NO deben activarla:** “tomo mucha agua durante el embarazo”
+- **Frases que la activan (ejemplos):** “creo que se me rompió la fuente”; “estoy embarazada y me salió mucho líquido”; “ruptura de membranas”; “salida de líquido amniótico”; “estoy de 30 semanas y me sale agua”; “salida de líquido por la vagina en el embarazo”
+- **Frases que NO deben activarla:** “tomo mucha agua durante el embarazo”; “estoy embarazada y me sale mucha saliva”
 - [ ] Aprobar · [ ] Corregir · [ ] Eliminar
 - Fuente clínica: ______________________ · Severidad correcta: [ ] Sí [ ] No → ______
 - Otras frases de la comunidad: ____________________________________________

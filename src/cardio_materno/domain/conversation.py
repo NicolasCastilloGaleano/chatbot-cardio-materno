@@ -37,12 +37,15 @@ class ChatMessage:
         content: Texto del mensaje.
         thread_id: Hilo al que pertenece (None para mensajes de contexto o de sistema).
         created_at: Momento de creación (None si no se persiste).
+        reported_symptoms: En mensajes del asistente, síntomas que el agente identificó
+            (filtro 2, ADR 0007). None si el agente no fue consultado o no aplica.
     """
 
     role: Role
     content: str
     thread_id: str | None = None
     created_at: datetime | None = None
+    reported_symptoms: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)

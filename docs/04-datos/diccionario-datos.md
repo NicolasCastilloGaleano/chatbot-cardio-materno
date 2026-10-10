@@ -27,6 +27,7 @@ Clase: `domain/conversation.py::ChatMessage`. Se guarda dentro de `messages` del
 | `role` | enum | No | `user` (persona) o `assistant` (agente) | No | `user` |
 | `content` | string | No | Texto original completo del mensaje | **Sí, puede contener datos personales y de salud** | `Tengo mucha acidez` |
 | `created_at` | string ISO 8601 (UTC) | Sí | Momento en que se registró el turno | No | `2026-10-10T17:07:37.171542+00:00` |
+| `reported_symptoms` | lista de string | Sí (solo en mensajes `assistant` cuando el agente fue consultado; ausente si no se le consultó) | Síntomas que el agente identificó en el turno (filtro 2, ADR 0007); `[]` si no hubo | **Sí: datos de salud** | `["secreción vaginal rosada en el embarazo de 7 meses"]` |
 
 ### Entidad: `ALERT` (alerta por signo de alarma, HU-03/HU-04)
 Clase: `domain/alarms.py::Alert`. Se guarda dentro de `alerts` del hilo.

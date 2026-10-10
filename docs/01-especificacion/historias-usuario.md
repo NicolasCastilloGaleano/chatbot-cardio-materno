@@ -110,6 +110,15 @@ Escenario: Alarma detectada en los síntomas que reporta el agente
   Entonces se descarta la respuesta del agente y se muestra solo el mensaje fijo de urgencia
   Y la alerta queda registrada con origen "agente"
 
+Escenario: Descripción coloquial de un sangrado (regresión del 2026-10-10)
+  Cuando escribo "me está saliendo como agüita rosada por abajo, tengo 7 meses"
+  Entonces se activa RN-MI-01 y el asistente responde solo con el mensaje fijo de urgencia
+
+Escenario: Los síntomas reportados por el agente quedan registrados
+  Cuando el agente responde un mensaje
+  Entonces su respuesta en el JSON del hilo incluye "reported_symptoms" (lista vacía si no hubo síntomas)
+  Y la línea de depuración muestra los síntomas reportados o indica que el agente no fue consultado
+
 Escenario: Los consejos del agente no generan alarmas
   Dado que pregunto "¿qué signos de alarma hay en el embarazo?"
   Cuando el agente menciona el sangrado como signo de alarma en su respuesta o en su resumen

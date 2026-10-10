@@ -2,7 +2,7 @@
 
 Formato de `<directorio>/<thread_id>.json`:
     {"id", "domain", "summary", "status", "created_at", "updated_at",
-     "messages": [{"thread_id", "role", "content", "created_at"}],
+     "messages": [{"thread_id", "role", "content", "created_at", ["reported_symptoms"]}],
      "alerts": [{"rule_ids", "severity", "origin", "created_at"}]}
 
 Es una solución para el prototipo de un solo proceso (consola). Para Telegram,
@@ -131,20 +131,30 @@ def thread_from_dict(data: dict[str, Any]) -> ConversationThread:
 
 
 def message_to_dict(message: ChatMessage) -> dict[str, Any]:
-    """Serializa un mensaje con el identificador de su hilo."""
+    """Serializa un mensaje; incluye `reported_symptoms` solo si el agente fue consultado."""
     created_at = message.created_at.isoformat() if message.created_at else None
-    return {
+    data: dict[str, Any] = {
         "thread_id": message.thread_id,
         "role": str(message.role),
         "content": message.content,
         "created_at": created_at,
     }
+    if message.reported_symptoms is not None:
+        data["reported_symptoms"] = list(message.reported_symptoms)
+    return data
 
 
 def message_from_dict(data: dict[str, Any]) -> ChatMessage:
     """Reconstruye un mensaje desde su forma serializada."""
     created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
-    return ChatMessage(Role(data["role"]), data["content"], data.get("thread_id"), created_at)
+    symptoms = data.get("reported_symptoms")
+    return ChatMessage(
+        Role(data["role"]),
+        data["content"],
+        data.get("thread_id"),
+        created_at,
+        tuple(symptoms) if symptoms is not None else None,
+    )
 
 
 def alert_to_dict(alert: Alert) -> dict[str, Any]:

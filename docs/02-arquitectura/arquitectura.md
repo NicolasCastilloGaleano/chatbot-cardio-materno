@@ -98,7 +98,7 @@ flowchart LR
 - Contrato del agente (`application/agent_turn.py`): `{thread_action: continuar|nuevo, domain, summary, reply, reported_symptoms}`.
 - Alarmas ([ADR 0007](adr/0007-alarmas-deterministas-doble-filtro.md), [flujo](../03-procesos/flujos/gestion-alerta.md)): el filtro 1 corre antes del LLM (si hay urgencia inmediata, el LLM no se consulta) y el filtro 2 sobre `reported_symptoms`. Las alertas se guardan en el hilo con su origen.
 - Contexto por turno: prompt v2 + JSON del hilo actual + últimos `THREAD_CONTEXT_MESSAGES` mensajes del hilo + mensaje nuevo. Ver el [flujo](../03-procesos/flujos/flujo-conversacional.md).
-- El prompt de sistema está versionado en `src/cardio_materno/prompts/system_prompt_v3.md` (incluye `reported_symptoms`).
+- El prompt de sistema está versionado en `src/cardio_materno/prompts/system_prompt_v4.md` (`reported_symptoms` literal y completo). Los síntomas del agente se registran en cada respuesta del asistente.
 - Los errores de Ollama o un JSON inválido se traducen a `LanguageModelError`. En ese caso no se guarda nada y la consola sigue funcionando.
 
 ## 5. Stack

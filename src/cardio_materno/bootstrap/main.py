@@ -33,7 +33,7 @@ from cardio_materno.bootstrap.settings import (
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
-SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v3.md"
+SYSTEM_PROMPT_FILE = PACKAGE_DIR / "prompts" / "system_prompt_v4.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 

@@ -106,3 +106,18 @@ def test_alert_on_missing_thread_raises_key_error(tmp_path: Path) -> None:
 
     with pytest.raises(KeyError):
         make_repo(tmp_path).append_alert("no-existe", alert)
+
+
+def test_reported_symptoms_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "s", NOW))
+    repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
+    repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, ("secrecion vaginal rosada",)))
+
+    data = json.loads((tmp_path / "threads" / "t1.json").read_text(encoding="utf-8"))
+    messages = repo.recent_messages("t1", 10)
+
+    assert "reported_symptoms" not in data["messages"][0]
+    assert data["messages"][1]["reported_symptoms"] == ["secrecion vaginal rosada"]
+    assert messages[1].reported_symptoms == ("secrecion vaginal rosada",)
+    assert messages[0].reported_symptoms is None

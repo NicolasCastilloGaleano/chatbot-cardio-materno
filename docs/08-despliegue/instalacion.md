@@ -35,7 +35,8 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 2. `mi papá tiene la presión alta` → mensaje fijo ⚠️ + la orientación del agente, y `RN-CV-06 consulta_prioritaria`
 3. Una frase coloquial que las reglas no captan, p. ej. `me está saliendo como agüita rosada por abajo, tengo 7 meses` → si el agente reporta el síntoma, verás la alerta con origen `(agente)`
 4. Una conversación normal (p. ej., `¿qué puedo comer para la acidez?`) → sin alertas
-5. En `data/threads/<id>.json`, la lista `alerts` registra cada alerta
+5. En `data/threads/<id>.json`, la lista `alerts` registra cada alerta y cada respuesta del asistente incluye `reported_symptoms`
+6. Después de cada respuesta, la consola muestra `[síntomas reportados por el agente: …]` o `[agente no consultado: …]`. Si una frase debería alertar y no lo hace, copia esa línea y el mensaje: así se sabe si falló el filtro 1, el agente o el patrón
 
 | Variable (`.env`) | Por defecto | Para qué |
 |---|---|---|

@@ -11,7 +11,7 @@ En cada turno:
 
 import json
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -71,12 +71,31 @@ class TurnResult:
         thread: Hilo en el que quedó registrado el turno.
         is_new_thread: True si el turno abrió un hilo nuevo.
         alerts: Alertas registradas en el turno (vacío si no hubo alarma).
+        reported_symptoms: Síntomas que identificó el agente (None si no se le consultó).
     """
 
     reply: str
     thread: ConversationThread
     is_new_thread: bool
     alerts: tuple[Alert, ...] = ()
+    reported_symptoms: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class TurnRecord:
+    """Lo que se guarda de un turno (agrupa datos para mantener funciones pequeñas).
+
+    Attributes:
+        user_text: Mensaje del usuario.
+        reply: Respuesta mostrada.
+        decisions: Decisiones de alarma del turno.
+        reported_symptoms: Síntomas del agente (None si no se le consultó).
+    """
+
+    user_text: str
+    reply: str
+    decisions: tuple[AlarmDecision, ...]
+    reported_symptoms: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -180,8 +199,9 @@ class ConversationService:
         decisions = [d for d in (pre, self._post_filter(turn, pre)) if d is not None]
         thread, is_new = self._resolve_thread(current, turn)
         reply = compose_reply(decisions, turn.reply)
-        alerts = self._record_turn(thread.id, user_text, reply, decisions)
-        return TurnResult(reply, thread, is_new, alerts)
+        record = TurnRecord(user_text, reply, tuple(decisions), turn.reported_symptoms)
+        alerts = self._record_turn(thread.id, record)
+        return TurnResult(reply, thread, is_new, alerts, turn.reported_symptoms)
 
     def _post_filter(self, turn: AgentTurn, pre: AlarmDecision | None) -> AlarmDecision | None:
         """Filtro 2: revisa `reported_symptoms` sin repetir las reglas ya detectadas."""
@@ -197,7 +217,7 @@ class ConversationService:
         """Responde solo con el mensaje fijo (sin agente) y registra la alerta."""
         thread, is_new = self._thread_for_alarm(current, decision)
         reply = compose_reply([decision], agent_reply=None)
-        alerts = self._record_turn(thread.id, user_text, reply, [decision])
+        alerts = self._record_turn(thread.id, TurnRecord(user_text, reply, (decision,)))
         return TurnResult(reply, thread, is_new, alerts)
 
     def _thread_for_alarm(
@@ -243,14 +263,16 @@ class ConversationService:
         self._active_thread_id = thread.id
         return thread
 
-    def _record_turn(
-        self, thread_id: str, user_text: str, reply: str, decisions: Sequence[AlarmDecision]
-    ) -> tuple[Alert, ...]:
-        """Guarda los mensajes del turno y sus alertas con el identificador del hilo."""
+    def _record_turn(self, thread_id: str, record: TurnRecord) -> tuple[Alert, ...]:
+        """Guarda los mensajes del turno (con los síntomas del agente) y sus alertas."""
         now = self._clock()
-        self._repository.append_message(ChatMessage(Role.USER, user_text, thread_id, now))
-        self._repository.append_message(ChatMessage(Role.ASSISTANT, reply, thread_id, now))
-        alerts = tuple(Alert(d.rule_ids, d.severity, d.origin, now) for d in decisions)
+        user_message = ChatMessage(Role.USER, record.user_text, thread_id, now)
+        reply_message = ChatMessage(
+            Role.ASSISTANT, record.reply, thread_id, now, record.reported_symptoms
+        )
+        self._repository.append_message(user_message)
+        self._repository.append_message(reply_message)
+        alerts = tuple(Alert(d.rule_ids, d.severity, d.origin, now) for d in record.decisions)
         for alert in alerts:
             self._repository.append_alert(thread_id, alert)
         return alerts
