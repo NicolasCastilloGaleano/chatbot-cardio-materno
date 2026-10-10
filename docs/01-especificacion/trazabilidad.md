@@ -30,4 +30,4 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-04 | La alarma prioritaria se muestra aunque falle el modelo | `conversation_service.py::send` | `test_priority_alarm_survives_agent_failure` | ✅ (automática) |
 | HU-04 | El agente eleva la severidad, nunca la reduce | `_agent_turn`, `compose_reply` | `test_agent_can_escalate_priority_to_urgent`, `test_rule_detected_by_both_filters_is_recorded_once_as_user` | ✅ (automática) |
 | RN-MI-01 … RN-CV-06 | Cada regla activa sus frases de referencia y no las cotidianas | `knowledge/alarm_rules.json` | `tests/conversational/test_alarm_phrases.py` | ✅ (automática); ❌ validación clínica |
-| HU-03 / HU-04 | Comportamiento con el modelo real | prompt v3 | Guion en el PC de pruebas | 🔄 |
+| HU-03 / HU-04 | Comportamiento con el modelo real | prompt v5 + catálogo v0.3.0 | Guion en el PC de pruebas (2026-10-10): urgencias por filtro 1 sin consultar al LLM; prioritaria con mensaje fijo + agente; tres frases coloquiales detectadas por el filtro 2 (origen `agente`); una pregunta educativa que nombra 8 signos sin alerta | ✅ |

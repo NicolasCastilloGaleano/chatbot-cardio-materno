@@ -11,8 +11,8 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-013 | Hilos conversacionales con resumen y respuesta estructurada del agente | HU-06 | Alta | 1 | ✅ Hecho |
 | B-002 | Especificación ejecutable v1 con signos de alarma validados clínicamente | — | Alta | — | ⏳ Esperando la validación clínica ([solicitud](../01-especificacion/solicitud-validacion-alarmas.md)) |
 | B-003 | Flujo conversacional mínimo por consola (saludo → consentimiento → tema → orientación) | HU-01, HU-02 | Alta | — | ⏳ |
-| B-004 | Detección determinista de signos de alarma materno‑infantiles | HU-03 | Alta | 1 | 🔄 En verificación |
-| B-005 | Detección determinista de signos de alarma cardiovasculares | HU-04 | Alta | 1 | 🔄 En verificación |
+| B-004 | Detección determinista de signos de alarma materno‑infantiles | HU-03 | Alta | 1 | ✅ Hecho (técnico); ⏳ validación clínica |
+| B-005 | Detección determinista de signos de alarma cardiovasculares | HU-04 | Alta | 1 | ✅ Hecho (técnico); ⏳ validación clínica |
 | B-006 | Direccionamiento a rutas de atención | HU-05 | Alta | — | ⏳ |
 | B-007 | Integración del LLM para interpretar y redactar (con guardrails) | HU-02 | Media | — | ⏳ |
 | B-008 | RAG sobre la base de conocimiento curada | HU-02 | Media | — | ⏳ |

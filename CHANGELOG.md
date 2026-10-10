@@ -29,6 +29,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 - B-017 registrado en el backlog: intención del mensaje (consulta vs. reporte) para adaptar la respuesta a una alarma sin suprimirla; pregunta agregada a la solicitud de validación clínica.
 
+- HU-03/HU-04 verificadas técnicamente en el PC de pruebas; CI en verde. Las reglas siguen PROVISIONALES hasta la validación clínica.
+
 ### Fixed
 - Alarma no detectada cuando el agente reportó "disminución de los movimientos del bebé" (hallazgo 2 de la prueba manual). Catálogo v0.3.0 con más variantes de RN-MI-06. Puente hacia B-015: el prompt v5 incluye los nombres exactos de los signos del catálogo y cada regla coincide con su propio nombre. B-015 pasa a prioridad Alta como solución definitiva.
 - Alarma no detectada con "me está saliendo como agüita rosada por abajo, tengo 7 meses" (hallazgo de la prueba manual). Catálogo v0.2.0: secreción, flujo o líquido rosado o sanguinolento, contexto de embarazo "tengo N meses/semanas" y salida de líquido más flexible. Prompt v4: los síntomas reportados deben ser literales y completos. Frases de regresión agregadas.

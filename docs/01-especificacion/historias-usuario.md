@@ -130,7 +130,7 @@ Escenario: Los consejos del agente no generan alarmas
   Y no reporta síntomas de la persona
   Entonces no se registra ninguna alerta
 ```
-Estado: 🔄 En verificación (reglas PROVISIONALES pendientes de validación clínica)
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.
@@ -156,7 +156,7 @@ Escenario: El agente puede elevar la severidad, nunca reducirla
   Cuando el agente reporta un síntoma de urgencia inmediata
   Entonces se muestra el mensaje fijo de urgencia y se registran ambas alertas (usuario y agente)
 ```
-Estado: 🔄 En verificación (reglas PROVISIONALES pendientes de validación clínica)
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica
 
 ### HU-05: Ruta de atención
 **Como** usuario con una alerta, **quiero** saber a dónde acudir en mi municipio, **para** recibir atención oportuna.
