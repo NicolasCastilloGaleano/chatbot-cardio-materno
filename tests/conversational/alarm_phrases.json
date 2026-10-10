@@ -25,11 +25,17 @@
         "estoy embarazada y tengo un dolor de cabeza muy fuerte",
         "tengo 7 meses de embarazo y veo lucecitas",
         "cefalea intensa en el embarazo",
-        "estoy embarazada, me duele la cabeza horrible y tengo visión borrosa"
+        "estoy embarazada, me duele la cabeza horrible y tengo visión borrosa",
+        "tengo 7 meses y me duele mucho la cabeza y veo como estrellitas",
+        "estoy embarazada y me duele muchísimo la cabeza",
+        "tengo 30 semanas y estoy viendo como puntitos",
+        "estoy embarazada y se me nubla la vista"
       ],
       "no_debe_activar": [
         "estoy embarazada y me duele un poquito la cabeza",
-        "tengo dolor de cabeza fuerte por el trabajo"
+        "tengo dolor de cabeza fuerte por el trabajo",
+        "estoy embarazada y me duele la cabeza cuando no duermo bien",
+        "tengo 7 meses y veo mucha televisión"
       ]
     },
     "RN-MI-03": {
@@ -249,6 +255,7 @@
   ],
   "_regresiones": {
     "2026-10-10": "La frase 'me está saliendo como agüita rosada por abajo, tengo 7 meses' no activaba ninguna regla en ninguno de los dos filtros (catálogo v0.1.0). Corregido en el catálogo v0.2.0 + prompt v4.",
-    "2026-10-10 (2)": "El agente reportó 'disminución de los movimientos del bebé en el embarazo de 8 meses' y RN-MI-06 solo aceptaba 'movimientos fetales'. Corregido en el catálogo v0.3.0 (más patrones) + prompt v5 (nombres exactos de los signos del catálogo; cada regla coincide con su propio nombre)."
+    "2026-10-10 (2)": "El agente reportó 'disminución de los movimientos del bebé en el embarazo de 8 meses' y RN-MI-06 solo aceptaba 'movimientos fetales'. Corregido en el catálogo v0.3.0 (más patrones) + prompt v5 (nombres exactos de los signos del catálogo; cada regla coincide con su propio nombre).",
+    "2026-10-10 (3)": "'tengo 7 meses y me duele mucho la cabeza y veo como estrellitas' solo alertaba por el filtro 2 (agente): el filtro 1 no aceptaba 'me duele mucho' ni 'veo como estrellitas'. Corregido en el catálogo v0.3.1."
   }
 }

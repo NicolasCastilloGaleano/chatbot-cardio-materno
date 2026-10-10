@@ -1,6 +1,6 @@
 # Solicitud de validación clínica: reglas de alarma (borrador PROVISIONAL)
 
-*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.3.0 · Generado el 2026-10-10*
+*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.3.1 · Generado el 2026-10-10*
 
 **Para:** Dra. Dolly Magnolia González Hoyos y equipo clínico del proyecto.
 **De:** equipo de desarrollo (Nicolas Castillo Galeano).
@@ -45,8 +45,8 @@ Este borrador lo redactó el equipo con apoyo de IA a partir de signos de alarma
 ### RN-MI-02: Dolor de cabeza intenso o alteraciones visuales en el embarazo
 - **Población:** gestante/posparto · **Severidad propuesta:** 🚨 Urgencia inmediata · **Mensaje:** `urgencia_embarazo`
 - **Fuente sugerida:** Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)
-- **Frases que la activan (ejemplos):** “estoy embarazada y tengo un dolor de cabeza muy fuerte”; “tengo 7 meses de embarazo y veo lucecitas”; “cefalea intensa en el embarazo”; “estoy embarazada, me duele la cabeza horrible y tengo visión borrosa”
-- **Frases que NO deben activarla:** “estoy embarazada y me duele un poquito la cabeza”; “tengo dolor de cabeza fuerte por el trabajo”
+- **Frases que la activan (ejemplos):** “estoy embarazada y tengo un dolor de cabeza muy fuerte”; “tengo 7 meses de embarazo y veo lucecitas”; “cefalea intensa en el embarazo”; “estoy embarazada, me duele la cabeza horrible y tengo visión borrosa”; “tengo 7 meses y me duele mucho la cabeza y veo como estrellitas”; “estoy embarazada y me duele muchísimo la cabeza”; “tengo 30 semanas y estoy viendo como puntitos”; “estoy embarazada y se me nubla la vista”
+- **Frases que NO deben activarla:** “estoy embarazada y me duele un poquito la cabeza”; “tengo dolor de cabeza fuerte por el trabajo”; “estoy embarazada y me duele la cabeza cuando no duermo bien”; “tengo 7 meses y veo mucha televisión”
 - [ ] Aprobar · [ ] Corregir · [ ] Eliminar
 - Fuente clínica: ______________________ · Severidad correcta: [ ] Sí [ ] No → ______
 - Otras frases de la comunidad: ____________________________________________
