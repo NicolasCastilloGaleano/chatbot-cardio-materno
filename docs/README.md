@@ -11,7 +11,7 @@ Documentación **viva**: se actualiza en la misma tarea que el código (AGENTS.m
 | [03-procesos](03-procesos/) | BPMN (`.bpmn`) y diagramas de flujo (Mermaid) | Soporte de la especificación y la arquitectura |
 | [04-datos](04-datos/) | Modelo de datos y diccionario de datos | §3.5 Documentación técnica |
 | [05-ia](05-ia/) | Playbook de orquestación de IA, bitácora de verificación, prompts versionados | §3.2 Playbook, §3.3 Bitácora |
-| [06-calidad](06-calidad/) | Estándares de código y estrategia de pruebas | §8 Calidad de código |
+| [06-calidad](06-calidad/) | Estándares de código, estrategia de pruebas y [auditoría de lineamientos](06-calidad/auditoria-lineamientos.md) | §8 Calidad de código |
 | [07-gobernanza](07-gobernanza/) | Riesgos de IA, sesgos, protección de datos | §3.6 Informe de gobernanza ética |
 | [08-despliegue](08-despliegue/) | Instalación, despliegue y operación | §3.5 Guía de instalación |
 

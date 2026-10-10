@@ -12,7 +12,10 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
 from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
     JsonFileThreadRepository,
 )
-from cardio_materno.application.conversation_service import ConversationService
+from cardio_materno.application.conversation_service import (
+    ConversationConfig,
+    ConversationService,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.settings import (
@@ -72,8 +75,7 @@ def _build_service(
     return ConversationService(
         language_model,
         JsonFileThreadRepository(settings.threads_dir),
-        _read_system_prompt(),
-        settings.context_messages,
+        ConversationConfig(_read_system_prompt(), settings.context_messages),
     )
 
 

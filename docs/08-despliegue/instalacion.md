@@ -55,5 +55,5 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 pytest            # pruebas unitarias (usan dobles; no llaman a Ollama)
 ruff check .      # estilo, complejidad y docstrings
-mypy src          # tipos (modo estricto)
+mypy src tests    # tipos (modo estricto)
 ```

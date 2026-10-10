@@ -25,7 +25,7 @@ Documenta cómo el equipo usa agentes de IA en el desarrollo: qué se delega, co
 
 ## 3. Protocolo de verificación
 1. Todo artefacto de IA queda como **"pendiente de verificación"** en la bitácora.
-2. Código: pruebas automatizadas, revisión por un integrante y ruff/mypy.
+2. Código: pruebas automatizadas, CI en verde, ruff/mypy y revisión humana. Mientras Nicolas sea el único desarrollador activo, su verificación basta para fusionar; cuando se unan más integrantes, revisa alguien distinto a quien generó el cambio.
 3. Contenido clínico: validación por el equipo clínico contra la fuente citada.
 4. Documentación: seguir los pasos en un entorno limpio.
 5. Se registra el resultado (aceptado, aceptado con ajustes o rechazado), con fecha y responsable.
@@ -34,7 +34,8 @@ Documenta cómo el equipo usa agentes de IA en el desarrollo: qué se delega, co
 | Uso | Herramienta |
 |---|---|
 | Codificación, pruebas y documentación | Claude Code (con AGENTS.md + hooks) |
-| LLM del producto | TODO: ADR pendiente |
+| LLM del producto | Ollama local con `mistral-small3.1:24b` (ADR 0005) |
+| Integración continua | GitHub Actions: ruff, mypy, pytest (`.github/workflows/ci.yml`) |
 
 ## 5. Incidentes
 Si un agente introduce un riesgo (secretos expuestos, una regla clínica alterada, PII en los logs), se descarta el artefacto, se registra el incidente en la bitácora, se revisa el prompt y se comenta en la retrospectiva.

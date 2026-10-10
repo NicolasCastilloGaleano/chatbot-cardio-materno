@@ -6,6 +6,7 @@ import pytest
 
 from cardio_materno.application.conversation_service import (
     NO_THREAD_CONTEXT,
+    ConversationConfig,
     ConversationService,
 )
 from cardio_materno.application.errors import LanguageModelError
@@ -23,7 +24,9 @@ def make_service(
     model: ScriptedLanguageModel, repo: InMemoryThreadRepository, context_messages: int = 6
 ) -> ConversationService:
     return ConversationService(
-        model, repo, "SYS", context_messages, clock=FakeClock(), new_id=SequentialIds()
+        model,
+        repo,
+        ConversationConfig("SYS", context_messages, FakeClock(), SequentialIds()),
     )
 
 

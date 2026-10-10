@@ -70,6 +70,9 @@ El hook `.claude/hooks/check_docs.py` **bloquea** el cierre si hay cambios en `s
 - Ramas: `feat/…`, `fix/…`, `docs/…`, `chore/…`. `main` siempre debe estar estable.
 - Commits en formato [Conventional Commits](https://www.conventionalcommits.org/es/), en español (`feat(domain): agrega regla de alarma de preeclampsia`).
 - No se hace commit ni push sin que el usuario lo pida.
+- **Flujo actual (un solo desarrollador activo):** rama → verificación del usuario (en el PC de pruebas si aplica) → fusión directa a `main` cuando el usuario la apruebe. Cuando se unan más integrantes: PR revisado por alguien distinto a quien generó el cambio.
+- La CI (`.github/workflows/ci.yml`: ruff, mypy sobre `src` y `tests`, pytest) debe pasar en la rama antes de fusionar.
+- En cada Sprint Review se ejecuta `/auditar-lineamientos`.
 
 ## 8. Mantenimiento de este archivo
 Si una tarea introduce una convención nueva (carpeta, patrón o herramienta), hay que **actualizar este AGENTS.md** en la misma tarea.

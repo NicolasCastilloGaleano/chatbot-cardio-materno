@@ -5,7 +5,10 @@ from cardio_materno.adapters.inbound.console.console_chat import (
     WELCOME_TEXT,
     ConsoleChat,
 )
-from cardio_materno.application.conversation_service import ConversationService
+from cardio_materno.application.conversation_service import (
+    ConversationConfig,
+    ConversationService,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ThreadStatus
 from tests.unit.fakes import (
@@ -34,7 +37,9 @@ def run_console(
             raise EOFError from None
 
     service = ConversationService(
-        model, repo or InMemoryThreadRepository(), "sys", clock=FakeClock(), new_id=SequentialIds()
+        model,
+        repo or InMemoryThreadRepository(),
+        ConversationConfig("sys", clock=FakeClock(), new_id=SequentialIds()),
     )
     ConsoleChat(service, show_thread_debug, read=read, write=output.append).run()
     return output
@@ -56,7 +61,7 @@ def test_empty_lines_are_ignored() -> None:
 
 
 def test_model_error_is_shown_and_chat_continues() -> None:
-    model = ScriptedLanguageModel(LanguageModelError("Ollama tardó demasiado"), agent_json("eco"))  # type: ignore[arg-type]
+    model = ScriptedLanguageModel(LanguageModelError("Ollama tardó demasiado"), agent_json("eco"))
 
     output = run_console(["falla", "hola", "salir"], model)
 

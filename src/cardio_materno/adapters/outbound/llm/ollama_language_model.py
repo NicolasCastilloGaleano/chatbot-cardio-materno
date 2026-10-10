@@ -7,8 +7,7 @@ estándar, para no requerir dependencias en el PC de pruebas.
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from http.client import HTTPResponse
-from typing import Any
+from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -32,7 +31,24 @@ MSG_HTTP_ERROR = "Ollama respondió con error HTTP {code}: {detail}"
 MSG_INVALID_RESPONSE = "Ollama devolvió una respuesta inesperada o vacía."
 MSG_MODEL_MISSING = "El modelo '{model}' no está instalado. Descárgalo con: ollama pull {model}"
 
-Opener = Callable[..., HTTPResponse]
+
+class HttpResponse(Protocol):
+    """Respuesta HTTP mínima que usa el adaptador (la cumple la de `urlopen`)."""
+
+    def read(self) -> bytes:
+        """Devuelve el cuerpo completo de la respuesta."""
+        ...
+
+    def __enter__(self) -> "HttpResponse":
+        """Permite usar la respuesta con `with`."""
+        ...
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        """Libera la conexión al salir del bloque `with`."""
+        ...
+
+
+Opener = Callable[..., HttpResponse]
 
 
 @dataclass(frozen=True)

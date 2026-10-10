@@ -37,4 +37,7 @@ def detect_alarm_signs(symptoms: list[Symptom]) -> list[AlarmSign]:
 - Logging estructurado (clave‑valor o JSON), **sin PII**.
 
 ## Herramientas
-`ruff check`, `ruff format`, `mypy --strict` y `pytest`. La configuración está en `pyproject.toml`.
+`ruff check`, `ruff format`, `mypy --strict` (sobre `src` y `tests`) y `pytest`. La configuración está en `pyproject.toml` y se ejecuta en la CI (`.github/workflows/ci.yml`).
+
+## Constructores con muchas dependencias
+Si un constructor supera los 5 parámetros, se agrupan los de configuración en una `@dataclass(frozen=True)` (p. ej., `ConversationConfig`). No se usa `# noqa: PLR0913`.

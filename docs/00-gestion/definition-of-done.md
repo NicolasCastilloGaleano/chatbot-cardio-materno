@@ -23,5 +23,9 @@ Un ítem está **terminado** solo si cumple **todo** lo siguiente:
 - [ ] README actualizado si cambió el estado o la forma de ejecutar.
 
 ## Revisión
-- [ ] Revisión humana del código generado por IA (en lo posible por alguien distinto a quien escribió el prompt).
-- [ ] Merge a `main` mediante un PR con la plantilla diligenciada.
+- [ ] Revisión humana del código generado por IA, por un integrante del equipo. Cuando haya más de un desarrollador activo, por alguien distinto a quien generó el cambio.
+- [ ] CI de GitHub Actions en verde en la rama.
+- [ ] Fusión a `main` aprobada por el responsable. Hoy: verificación de Nicolas y fusión directa; con más integrantes, PR con la plantilla diligenciada.
+
+## Auditoría periódica
+- [ ] En cada Sprint Review se ejecuta `/auditar-lineamientos` ([auditoría](../06-calidad/auditoria-lineamientos.md)).

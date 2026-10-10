@@ -1,3 +1,3 @@
 # adapter outbound: persistence
 
-Implementa ConversationRepository y los repositorios relacionados. Primero en memoria (consola); luego una base de datos (ADR pendiente). Ver docs/04-datos/.
+Implementa el puerto `ThreadRepository`. Hoy: `JsonFileThreadRepository`, un archivo JSON por hilo en `data/threads/` (ADR 0006). Antes de Telegram se migrará a una base de datos. Ver docs/04-datos/.

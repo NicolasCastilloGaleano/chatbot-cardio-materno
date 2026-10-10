@@ -62,34 +62,45 @@ class TurnResult:
     is_new_thread: bool
 
 
+@dataclass(frozen=True)
+class ConversationConfig:
+    """Parámetros del caso de uso (agrupados para mantener constructores pequeños).
+
+    Attributes:
+        system_prompt: Instrucciones de sistema del agente.
+        context_messages: Cuántos mensajes recientes del hilo se envían como contexto.
+        clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
+        new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
+    """
+
+    system_prompt: str
+    context_messages: int = DEFAULT_CONTEXT_MESSAGES
+    clock: Clock = utc_now
+    new_id: IdGenerator = new_uuid
+
+
 class ConversationService:
     """Coordina el agente y el repositorio de hilos para una sesión de un usuario."""
 
-    def __init__(  # noqa: PLR0913 (dependencias inyectadas; reloj e id son para pruebas)
+    def __init__(
         self,
         language_model: LanguageModel,
         repository: ThreadRepository,
-        system_prompt: str,
-        context_messages: int = DEFAULT_CONTEXT_MESSAGES,
-        clock: Clock = utc_now,
-        new_id: IdGenerator = new_uuid,
+        config: ConversationConfig,
     ) -> None:
         """Crea el servicio.
 
         Args:
             language_model: Implementación del puerto de LLM.
             repository: Implementación del repositorio de hilos.
-            system_prompt: Instrucciones de sistema del agente.
-            context_messages: Cuántos mensajes recientes del hilo se envían como contexto.
-            clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
-            new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
+            config: Prompt de sistema, tamaño del contexto, reloj y generador de ids.
         """
         self._language_model = language_model
         self._repository = repository
-        self._system_message = ChatMessage(Role.SYSTEM, system_prompt)
-        self._context_messages = context_messages
-        self._clock = clock
-        self._new_id = new_id
+        self._system_message = ChatMessage(Role.SYSTEM, config.system_prompt)
+        self._context_messages = config.context_messages
+        self._clock = config.clock
+        self._new_id = config.new_id
         self._active_thread_id: str | None = None
 
     def send(self, user_text: str) -> TurnResult:
