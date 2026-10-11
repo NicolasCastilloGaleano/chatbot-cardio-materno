@@ -39,6 +39,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 - HU-03/HU-04 verificadas técnicamente en el PC de pruebas; CI en verde. Las reglas siguen PROVISIONALES hasta la validación clínica.
 
+- HU-02/HU-07: `pytest -m live` en verde en el PC de pruebas (17/17, sonda RAG 16/16). Se registraron vacíos temáticos de la base (ACV, TVP, diabetes gestacional) para decisión clínica. Queda pendiente el guion manual.
+
 ### Fixed
 - Un saludo o agradecimiento dentro de un hilo ya no cambia el dominio del caso a `ninguno`.
 - RAG: un registro hallado solo por BM25 podía pasar el umbral cuando este era 0 (sonda de calibración) y causar `KeyError`; ahora solo califican los registros con similitud vectorial (hallazgo de `pytest -m live`).
