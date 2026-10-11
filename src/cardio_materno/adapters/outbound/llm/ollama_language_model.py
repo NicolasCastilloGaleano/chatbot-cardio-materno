@@ -19,6 +19,7 @@ from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
 
 CHAT_ENDPOINT = "/api/chat"
+DEFAULT_KEEP_ALIVE = "30m"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,8 @@ class OllamaSettings:
         timeout_seconds: Tiempo máximo de espera por solicitud.
         temperature: Aleatoriedad de la generación (0 = determinista).
         num_ctx: Tamaño de la ventana de contexto en tokens.
+        keep_alive: Tiempo que Ollama mantiene el modelo cargado tras cada solicitud
+            (p. ej., "30m"); evita recargarlo en cada turno.
     """
 
     base_url: str
@@ -38,6 +41,7 @@ class OllamaSettings:
     timeout_seconds: float
     temperature: float
     num_ctx: int
+    keep_alive: str = DEFAULT_KEEP_ALIVE
 
 
 class OllamaLanguageModel:
@@ -105,6 +109,7 @@ def build_chat_payload(
         "messages": [{"role": str(m.role), "content": m.content} for m in messages],
         "stream": False,
         "format": schema,
+        "keep_alive": settings.keep_alive,
         "options": {"temperature": settings.temperature, "num_ctx": settings.num_ctx},
     }
 

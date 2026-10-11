@@ -195,3 +195,45 @@ Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PR
 ### HU-05: Ruta de atención
 **Como** usuario con una alerta, **quiero** saber a dónde acudir en mi municipio, **para** recibir atención oportuna.
 Estado: ⏳ Borrador. TODO: criterios (dependen de RN-RUTA).
+
+### HU-07: Control de alcance de la conversación
+**Como** responsable del servicio, **quiero** que el asistente solo atienda consultas de salud cardiovascular y materno-infantil, **para** que no se use para otros temas, sin descartar consultas reales que mencionen otros temas como contexto.
+
+Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo si todo el mensaje** es ajeno al servicio. Notas técnicas: ADR 0009.
+
+```gherkin
+Escenario: Mensaje completamente ajeno
+  Cuando escribo "¿qué opinas del fútbol?"
+  Entonces el asistente responde con el mensaje fijo de alcance del servicio
+  Y no busca evidencia ni hace la llamada de respuesta
+  Y no se registra nada en el hilo
+
+Escenario: Otro tema mencionado solo como contexto
+  Cuando escribo "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?"
+  Entonces el mensaje se atiende como consulta de salud materna, con evidencia
+
+Escenario: Mensaje mixto
+  Cuando escribo "¿quién ganó el partido? ah, y tengo la presión alta"
+  Entonces el asistente responde solo la parte de salud y dice con amabilidad que sobre lo demás no puede ayudar
+
+Escenario: Seguimiento dentro de un hilo
+  Dado un hilo sobre la fiebre de mi bebé en el que el asistente preguntó desde cuándo
+  Cuando escribo "sí, desde ayer"
+  Entonces el mensaje se atiende dentro del mismo hilo
+
+Escenario: Mensaje ajeno en medio de una consulta
+  Dado un hilo abierto sobre acidez en el embarazo
+  Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
+  Entonces el primer mensaje recibe el mensaje fijo y no se registra
+  Y el segundo continúa el mismo hilo
+
+Escenario: Saludo o agradecimiento
+  Cuando escribo "hola" o "gracias"
+  Entonces el asistente responde con amabilidad y presenta el servicio, sin buscar evidencia
+  Y si hay un hilo activo, su dominio no cambia
+
+Escenario: Las alarmas tienen prioridad sobre el alcance
+  Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
+  Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
+```
+Estado: 🔄 En verificación (falta `pytest -m live` y el guion en el PC de pruebas)

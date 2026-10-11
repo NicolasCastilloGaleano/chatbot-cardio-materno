@@ -17,6 +17,8 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "evidence_ids": list(trace.cited_evidence),
         "uncited_reply": trace.uncited,
         "timings": {timing.stage: timing.seconds for timing in trace.timings},
+        "scope": trace.scope,
+        "scope_reason": trace.scope_reason,
     }
 
 
@@ -32,6 +34,8 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         timings=tuple(
             StageTiming(stage, seconds) for stage, seconds in data.get("timings", {}).items()
         ),
+        scope=data.get("scope"),
+        scope_reason=data.get("scope_reason", ""),
     )
 
 

@@ -119,6 +119,8 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         retrieval_status=RetrievalStatus.SUFFICIENT,
         best_score=0.71,
         timings=(StageTiming("análisis", 1.2), StageTiming("respuesta", 3.4)),
+        scope="en_alcance",
+        scope_reason="consulta de embarazo",
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))
@@ -135,6 +137,8 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         "evidence_ids": ["E1"],
         "uncited_reply": False,
         "timings": {"análisis": 1.2, "respuesta": 3.4},
+        "scope": "en_alcance",
+        "scope_reason": "consulta de embarazo",
     }
     assert messages[1].trace == trace
     assert messages[0].trace is None

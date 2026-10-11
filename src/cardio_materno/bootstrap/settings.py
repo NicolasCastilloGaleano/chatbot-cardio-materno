@@ -16,6 +16,7 @@ DEFAULT_SHOW_THREAD_DEBUG = "true"
 DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 DEFAULT_RAG_ENABLED = "true"
+DEFAULT_KEEP_ALIVE = "30m"
 DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
 DEFAULT_EMBED_TIMEOUT_SECONDS = "120"
 DEFAULT_EMBED_BATCH_SIZE = "16"
@@ -60,6 +61,8 @@ class RagSettings:
         entries_file: Base de conocimiento versionada (`entries.jsonl`).
         index_dir: Carpeta del índice vectorial (derivado, no versionado).
         policy_file: Política de evidencia (umbral, top-k, instrucción de consulta).
+        keep_alive: Tiempo que Ollama mantiene cargado el modelo de embeddings.
+        embed_num_gpu: Capas del embedder en GPU (0 = CPU; None = decide Ollama).
     """
 
     enabled: bool
@@ -69,6 +72,8 @@ class RagSettings:
     entries_file: Path
     index_dir: Path
     policy_file: Path
+    keep_alive: str = DEFAULT_KEEP_ALIVE
+    embed_num_gpu: int | None = None
 
 
 def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings:
@@ -89,6 +94,8 @@ def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings
         policy_file=_get_path(
             env, "EVIDENCE_POLICY_FILE", DEFAULT_EVIDENCE_POLICY_FILE, project_root
         ),
+        keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
+        embed_num_gpu=_get_optional_int(env, "OLLAMA_EMBED_NUM_GPU"),
     )
 
 
@@ -149,6 +156,7 @@ def load_ollama_settings(env: Mapping[str, str]) -> OllamaSettings:
         timeout_seconds=_get_float(env, "OLLAMA_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS),
         temperature=_get_float(env, "OLLAMA_TEMPERATURE", DEFAULT_TEMPERATURE),
         num_ctx=_get_int(env, "OLLAMA_NUM_CTX", DEFAULT_NUM_CTX),
+        keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
     )
 
 
@@ -181,3 +189,11 @@ def _get_path(env: Mapping[str, str], name: str, default: str, project_root: Pat
     """Lee una ruta; si es relativa, se resuelve desde la raíz del proyecto."""
     path = Path(_get(env, name, default))
     return path if path.is_absolute() else project_root / path
+
+
+def _get_optional_int(env: Mapping[str, str], name: str) -> int | None:
+    """Lee una variable entera opcional (None si está vacía)."""
+    raw = env.get(name, "").strip()
+    if not raw:
+        return None
+    return _get_int(env, name, raw)

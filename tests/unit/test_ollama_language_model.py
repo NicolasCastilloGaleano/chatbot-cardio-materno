@@ -70,6 +70,7 @@ def test_complete_json_sends_schema_and_returns_parsed_object() -> None:
     assert payload["model"] == "mistral-small3.1:24b"
     assert payload["stream"] is False
     assert payload["format"] == SCHEMA
+    assert payload["keep_alive"] == "30m"
     assert payload["messages"] == [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hola"},

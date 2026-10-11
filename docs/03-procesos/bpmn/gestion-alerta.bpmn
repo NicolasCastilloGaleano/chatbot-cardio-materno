@@ -63,8 +63,20 @@
       <bpmn:incoming>f12</bpmn:incoming>
       <bpmn:outgoing>f16</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:task id="T_Normal" name="RAG + llamada 2: respuesta con evidencia citada">
+    <bpmn:exclusiveGateway id="G_Alcance" name="Alcance del mensaje (sin alarma)">
       <bpmn:incoming>f13</bpmn:incoming>
+      <bpmn:outgoing>f21</bpmn:outgoing>
+      <bpmn:outgoing>f22</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="T_FueraAlcance" name="Mensaje fijo de alcance (sin RAG, sin llamada 2)">
+      <bpmn:incoming>f22</bpmn:incoming>
+      <bpmn:outgoing>f23</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_FueraAlcance" name="Respuesta entregada; no se registra en el hilo">
+      <bpmn:incoming>f23</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="T_Normal" name="RAG + llamada 2: respuesta con evidencia (sin RAG si es conversacional)">
+      <bpmn:incoming>f21</bpmn:incoming>
       <bpmn:outgoing>f19</bpmn:outgoing>
     </bpmn:task>
     <bpmn:task id="T_RegistrarAlerta" name="Registrar alerta en el hilo (rule_ids, severity, origin)">
@@ -95,7 +107,10 @@
     <bpmn:sequenceFlow id="f10" sourceRef="T_Filtro2" targetRef="G_Severidad" />
     <bpmn:sequenceFlow id="f11" name="urgencia_inmediata" sourceRef="G_Severidad" targetRef="T_UrgenciaDescarta" />
     <bpmn:sequenceFlow id="f12" name="consulta_prioritaria" sourceRef="G_Severidad" targetRef="T_Prioritaria" />
-    <bpmn:sequenceFlow id="f13" name="ninguna" sourceRef="G_Severidad" targetRef="T_Normal" />
+    <bpmn:sequenceFlow id="f13" name="ninguna" sourceRef="G_Severidad" targetRef="G_Alcance" />
+    <bpmn:sequenceFlow id="f21" name="en alcance / conversacional" sourceRef="G_Alcance" targetRef="T_Normal" />
+    <bpmn:sequenceFlow id="f22" name="fuera de alcance (todo el mensaje es ajeno)" sourceRef="G_Alcance" targetRef="T_FueraAlcance" />
+    <bpmn:sequenceFlow id="f23" sourceRef="T_FueraAlcance" targetRef="End_FueraAlcance" />
     <bpmn:sequenceFlow id="f14" sourceRef="T_UrgenciaSinLLM" targetRef="T_RegistrarAlerta" />
     <bpmn:sequenceFlow id="f15" sourceRef="T_UrgenciaDescarta" targetRef="T_RegistrarAlerta" />
     <bpmn:sequenceFlow id="f16" sourceRef="T_Prioritaria" targetRef="T_RegistrarAlerta" />
@@ -120,7 +135,10 @@
       <bpmndi:BPMNShape id="G_Severidad_di" bpmnElement="G_Severidad" isMarkerVisible="true"><dc:Bounds x="870" y="193" width="50" height="50" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="T_UrgenciaDescarta_di" bpmnElement="T_UrgenciaDescarta"><dc:Bounds x="970" y="60" width="120" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="T_Prioritaria_di" bpmnElement="T_Prioritaria"><dc:Bounds x="970" y="178" width="120" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="T_Normal_di" bpmnElement="T_Normal"><dc:Bounds x="970" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Alcance_di" bpmnElement="G_Alcance" isMarkerVisible="true"><dc:Bounds x="960" y="315" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_Normal_di" bpmnElement="T_Normal"><dc:Bounds x="1060" y="300" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T_FueraAlcance_di" bpmnElement="T_FueraAlcance"><dc:Bounds x="1060" y="500" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_FueraAlcance_di" bpmnElement="End_FueraAlcance"><dc:Bounds x="1230" y="522" width="36" height="36" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="T_RegistrarAlerta_di" bpmnElement="T_RegistrarAlerta"><dc:Bounds x="1140" y="60" width="120" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="T_RegistrarMensajes_di" bpmnElement="T_RegistrarMensajes"><dc:Bounds x="1310" y="178" width="120" height="80" /></bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="End_di" bpmnElement="End"><dc:Bounds x="1480" y="200" width="36" height="36" /></bpmndi:BPMNShape>
@@ -137,13 +155,16 @@
       <bpmndi:BPMNEdge id="f10_di" bpmnElement="f10"><di:waypoint x="820" y="218" /><di:waypoint x="870" y="218" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f11_di" bpmnElement="f11"><di:waypoint x="895" y="193" /><di:waypoint x="895" y="100" /><di:waypoint x="970" y="100" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f12_di" bpmnElement="f12"><di:waypoint x="920" y="218" /><di:waypoint x="970" y="218" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="f13_di" bpmnElement="f13"><di:waypoint x="895" y="243" /><di:waypoint x="895" y="340" /><di:waypoint x="970" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f13_di" bpmnElement="f13"><di:waypoint x="895" y="243" /><di:waypoint x="895" y="340" /><di:waypoint x="960" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f21_di" bpmnElement="f21"><di:waypoint x="1010" y="340" /><di:waypoint x="1060" y="340" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f22_di" bpmnElement="f22"><di:waypoint x="985" y="365" /><di:waypoint x="985" y="540" /><di:waypoint x="1060" y="540" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f23_di" bpmnElement="f23"><di:waypoint x="1180" y="540" /><di:waypoint x="1230" y="540" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f14_di" bpmnElement="f14"><di:waypoint x="490" y="60" /><di:waypoint x="490" y="30" /><di:waypoint x="1200" y="30" /><di:waypoint x="1200" y="60" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f15_di" bpmnElement="f15"><di:waypoint x="1090" y="100" /><di:waypoint x="1140" y="100" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f16_di" bpmnElement="f16"><di:waypoint x="1090" y="218" /><di:waypoint x="1170" y="218" /><di:waypoint x="1170" y="140" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f17_di" bpmnElement="f17"><di:waypoint x="820" y="445" /><di:waypoint x="1220" y="445" /><di:waypoint x="1220" y="140" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f18_di" bpmnElement="f18"><di:waypoint x="1260" y="100" /><di:waypoint x="1370" y="100" /><di:waypoint x="1370" y="178" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="f19_di" bpmnElement="f19"><di:waypoint x="1090" y="340" /><di:waypoint x="1370" y="340" /><di:waypoint x="1370" y="258" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f19_di" bpmnElement="f19"><di:waypoint x="1180" y="340" /><di:waypoint x="1370" y="340" /><di:waypoint x="1370" y="258" /></bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f20_di" bpmnElement="f20"><di:waypoint x="1430" y="218" /><di:waypoint x="1480" y="218" /></bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

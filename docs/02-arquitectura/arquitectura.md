@@ -103,6 +103,8 @@ flowchart LR
 - **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms}`; respuesta `{reply, evidence_ids}`, con `evidence_ids` restringido por `enum` a las etiquetas ofrecidas.
 - **Contexto:** `application/turn_context.py`. El análisis recibe prompt + JSON del hilo + últimos N mensajes; la respuesta recibe prompt + caso analizado + últimos N mensajes + EVIDENCIA. La evidencia nunca entra al análisis (ADR 0008).
 - **Alarmas** ([ADR 0007](adr/0007-alarmas-deterministas-doble-filtro.md)): con urgencia en el filtro 1, no hay llamadas ni RAG; con urgencia en el filtro 2, no hay RAG ni llamada de respuesta.
+- **Alcance** ([ADR 0009](adr/0009-control-de-alcance-por-intencion.md), `application/scope.py`): sin alarma, `fuera_de_alcance` da un mensaje fijo, sin RAG ni respuesta y sin registro; `conversacional` da respuesta sin RAG. Las alarmas y los síntomas reportados de nuestros dominios nunca se descartan.
+- **Latencia:** `OLLAMA_KEEP_ALIVE` y `OLLAMA_EMBED_NUM_GPU` (embedder en CPU) son configurables; ver el diagnóstico en [operacion.md](../08-despliegue/operacion.md).
 - **Prompts:** `prompts/analysis_prompt_v1.md` (con `{{SIGNOS_DE_ALARMA}}`) y `prompts/reply_prompt_v1.md`.
 - **Traza:** cada respuesta guarda `trace` (síntomas, evidencia, citas, estado de la búsqueda y tiempos). Ver el [diccionario de datos](../04-datos/diccionario-datos.md).
 - **Errores:** `LanguageModelError` si fallan el análisis o la respuesta. Sin alarma no se guarda nada; con alarma, se muestra el mensaje fijo. Si el RAG no está disponible, la respuesta se abstiene en salud.

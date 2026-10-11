@@ -21,7 +21,11 @@ from cardio_materno.adapters.outbound.rag.knowledge_files import (
     load_entries,
     load_policy,
 )
-from cardio_materno.adapters.outbound.rag.ollama_embedder import EmbedderSettings, OllamaEmbedder
+from cardio_materno.adapters.outbound.rag.ollama_embedder import (
+    EmbedderSettings,
+    OllamaEmbedder,
+    build_embed_payload,
+)
 from cardio_materno.adapters.outbound.rag.vector_index import (
     IndexManifest,
     VectorIndex,
@@ -163,6 +167,18 @@ def test_lexical_only_match_never_qualifies_as_evidence() -> None:
     assert 0 < result.best_score < 0.99
 
 
+def test_lexical_only_match_never_qualifies_even_with_zero_threshold() -> None:
+    """Regresión 2026-10-10: con umbral 0 (sonda) un hallazgo solo por BM25 causaba KeyError."""
+    index = make_index(ids=("a", "b", "c"))
+    retriever = HybridRetriever(
+        ENTRIES, index, KeywordEmbedder(), EvidencePolicy(min_similarity=0.0, candidate_k=1)
+    )
+
+    result = retriever.retrieve(EvidenceQuery("acidez lactancia presion"))
+
+    assert len(result.items) == 1  # solo el candidato vectorial; los léxicos no califican
+
+
 def test_retriever_reports_unavailable_when_embedder_fails() -> None:
     result = make_retriever(embedder=KeywordEmbedder(fail=True)).retrieve(EvidenceQuery("x"))
 
@@ -291,3 +307,11 @@ def test_export_keeps_latest_version_per_question(tmp_path: Path) -> None:
             "answer": "nueva",
         }
     ]
+
+
+def test_embed_payload_includes_keep_alive_and_num_gpu_only_when_configured() -> None:
+    default = build_embed_payload(EmbedderSettings("http://x", MODEL, 1, 1), ["a"])
+    on_cpu = build_embed_payload(EmbedderSettings("http://x", MODEL, 1, 1, "1h", num_gpu=0), ["a"])
+
+    assert default == {"model": MODEL, "input": ["a"], "keep_alive": "30m"}
+    assert on_cpu["keep_alive"] == "1h" and on_cpu["options"] == {"num_gpu": 0}

@@ -51,6 +51,8 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `evidence_ids` | lista de string | Etiquetas que el agente dijo usar | `["E1"]` |
 | `uncited_reply` | booleano | `true` si había evidencia suficiente y no se citó ninguna (para auditar) | `false` |
 | `timings` | objeto | Segundos por etapa: `análisis`, `RAG`, `respuesta` | `{"análisis": 3.1, "RAG": 0.4, "respuesta": 6.2}` |
+| `scope` | enum o null | Alcance aplicado: `en_alcance`, `conversacional` (los `fuera_de_alcance` no se guardan) | `en_alcance` |
+| `scope_reason` | string | Motivo corto de la decisión de alcance | `consulta de acidez en el embarazo` |
 
 ### Entidad: `KNOWLEDGE_ENTRY` (base de conocimiento, `knowledge/kb/entries.jsonl`)
 Clase: `domain/knowledge.py::KnowledgeEntry`. Contenido versionado en git; el índice vectorial derivado (`data/kb_index/`) no se versiona.
@@ -65,7 +67,7 @@ Clase: `domain/knowledge.py::KnowledgeEntry`. Contenido versionado en git; el í
 | `answer` | string | Respuesta (390–710 caracteres) generada con IA y validada para el prototipo | No | — |
 
 ### Contrato de respuesta del agente (no se persiste; ADR 0006, 0007 y 0008)
-Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms`) y **respuesta** (`reply`, `evidence_ids`).
+Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms` y, desde el ADR 0009, `scope` y `scope_reason`) y **respuesta** (`reply`, `evidence_ids`).
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `thread_action` | `continuar` \| `nuevo` | Si el mensaje sigue el hilo o abre otro |

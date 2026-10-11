@@ -7,6 +7,7 @@ import pytest
 
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import NO_EVIDENCE_TEXT
+from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlertOrigin, Severity
 from cardio_materno.domain.conversation import Domain, Role, ThreadStatus
@@ -23,6 +24,8 @@ from tests.unit.fakes import (
     knowledge_entry,
     make_alarm_policy,
     make_service,
+    scoped,
+    thread_of,
 )
 
 ALARMS: dict[str, Any] = {"alarm_policy": make_alarm_policy()}
@@ -38,10 +41,10 @@ def test_first_message_opens_thread_and_stores_messages_with_thread_id() -> None
     result = make_service(agent, repo).send("tengo acidez")
 
     assert result.is_new_thread
-    assert result.thread.id == "hilo-1"
-    assert result.thread.status is ThreadStatus.OPEN
-    assert result.thread.domain is Domain.MATERNAL_CHILD
-    assert result.thread.summary == "acidez"
+    assert thread_of(result).id == "hilo-1"
+    assert thread_of(result).status is ThreadStatus.OPEN
+    assert thread_of(result).domain is Domain.MATERNAL_CHILD
+    assert thread_of(result).summary == "acidez"
     assert [(m.role, m.content, m.thread_id) for m in repo.messages["hilo-1"]] == [
         (Role.USER, "tengo acidez", "hilo-1"),
         (Role.ASSISTANT, "r1", "hilo-1"),
@@ -71,8 +74,8 @@ def test_new_topic_closes_current_thread_and_opens_another() -> None:
     service.send("tengo acidez")
     result = service.send("mi papá tiene la presión alta")
 
-    assert result.thread.id == "hilo-2"
-    assert result.thread.domain is Domain.CARDIOVASCULAR
+    assert thread_of(result).id == "hilo-2"
+    assert thread_of(result).domain is Domain.CARDIOVASCULAR
     assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED
     assert [m.content for m in repo.messages["hilo-2"]] == ["mi papá tiene la presión alta", "r2"]
 
@@ -112,7 +115,7 @@ def test_end_session_closes_active_thread_and_next_message_opens_new_one() -> No
     result = service.send("otra vez")
 
     assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED
-    assert result.thread.id == "hilo-2"
+    assert thread_of(result).id == "hilo-2"
 
 
 def test_end_session_without_thread_does_nothing() -> None:
@@ -141,7 +144,7 @@ def test_model_failure_without_alarm_saves_nothing_and_keeps_thread(failure: Any
         service.send("m2")
     result = service.send("m3")
 
-    assert result.thread.id == "hilo-1"
+    assert thread_of(result).id == "hilo-1"
     assert [m.content for m in repo.messages["hilo-1"]] == ["m1", "r1", "m3", "r3"]
 
 
@@ -156,7 +159,7 @@ def test_urgent_user_message_skips_agent_and_rag() -> None:
 
     assert agent.analyzer.calls == [] and agent.responder.calls == [] and retriever.queries == []
     assert result.reply == URGENT_MESSAGE
-    assert result.thread.summary == "Alerta: Sangrado vaginal."
+    assert thread_of(result).summary == "Alerta: Sangrado vaginal."
     assert result.trace is None
     alert = repo.alerts["hilo-1"][0]
     assert (alert.rule_ids, alert.severity, alert.origin) == (
@@ -173,7 +176,7 @@ def test_urgent_message_inside_active_thread_stays_in_that_thread() -> None:
     service.send("estoy embarazada")
     result = service.send("ahora tengo sangrado vaginal")
 
-    assert result.thread.id == "hilo-1"
+    assert thread_of(result).id == "hilo-1"
     assert len(repo.alerts["hilo-1"]) == 1
 
 
@@ -197,7 +200,7 @@ def test_priority_alarm_survives_agent_failure(turn: Any) -> None:
     result = make_service(ScriptedAgent(turn), repo, ALARMS).send("tengo la presion alta")
 
     assert result.reply == PRIORITY_MESSAGE
-    assert repo.alerts[result.thread.id][0].rule_ids == ("T-PRI",)
+    assert repo.alerts[thread_of(result).id][0].rule_ids == ("T-PRI",)
 
 
 def test_urgent_symptom_from_analysis_skips_rag_and_reply() -> None:
@@ -351,3 +354,107 @@ def test_user_messages_have_no_trace() -> None:
     make_service(ScriptedAgent(agent_json("r")), repo).send("hola")
 
     assert repo.messages["hilo-1"][0].trace is None
+
+
+# --- Alcance (HU-07, ADR 0009) ------------------------------------------------------------------
+
+
+def test_out_of_scope_message_gets_fixed_reply_without_rag_reply_or_thread_changes() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(scoped(agent_json(), "fuera_de_alcance", "deportes"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, repo, retriever=retriever).send("¿qué opinas del fútbol?")
+
+    assert result.reply == OUT_OF_SCOPE_MESSAGE
+    assert result.out_of_scope and result.thread is None
+    assert retriever.queries == [] and agent.responder.calls == []
+    assert repo.threads == {} and repo.messages == {}
+    assert result.trace is not None and result.trace.scope_reason == "deportes"
+
+
+def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("r1", summary="acidez"),
+        scoped(agent_json(thread_action="nuevo"), "fuera_de_alcance", "deportes"),
+        agent_json("r3", summary="acidez y comida"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("tengo acidez")
+    off_topic = service.send("¿quién ganó el partido?")
+    result = service.send("¿y qué más puedo comer?")
+
+    assert thread_of(off_topic).id == "hilo-1"
+    assert thread_of(result).id == "hilo-1" and not result.is_new_thread
+    assert repo.threads["hilo-1"].status is ThreadStatus.OPEN
+    assert [m.content for m in repo.messages["hilo-1"]] == [
+        "tengo acidez",
+        "r1",
+        "¿y qué más puedo comer?",
+        "r3",
+    ]
+
+
+def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
+    agent = ScriptedAgent(scoped(agent_json("consejos"), "fuera_de_alcance", "habla de fútbol"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, config=ALARMS, retriever=retriever).send(
+        "vengo del partido y tengo la presion alta"
+    )
+
+    assert result.reply == f"{PRIORITY_MESSAGE}\n\nconsejos"
+    assert not result.out_of_scope and len(retriever.queries) == 1
+
+
+def test_urgent_alarm_wins_over_out_of_scope() -> None:
+    agent = ScriptedAgent(
+        scoped(agent_json(reported_symptoms=["sangrado vaginal"]), "fuera_de_alcance")
+    )
+
+    result = make_service(agent, config=ALARMS).send("estaba en el partido y me vino agüita")
+
+    assert result.reply == URGENT_MESSAGE and not result.out_of_scope
+
+
+def test_reported_symptom_overrides_out_of_scope_decision() -> None:
+    agent = ScriptedAgent(
+        scoped(agent_json("r", reported_symptoms=["acidez en el embarazo"]), "fuera_de_alcance")
+    )
+    retriever = FakeRetriever()
+
+    result = make_service(agent, retriever=retriever).send(
+        "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas"
+    )
+
+    assert result.reply == "r" and not result.out_of_scope and len(retriever.queries) == 1
+
+
+def test_conversational_message_replies_without_rag() -> None:
+    greeting = agent_json("¡Hola! Soy un servicio de orientación…", domain="ninguno")
+    agent = ScriptedAgent(scoped(greeting, "conversacional"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, retriever=retriever).send("hola")
+
+    assert retriever.queries == []
+    assert CONVERSATIONAL_CONTEXT in [m.content for m in agent.responder.calls[0]]
+    assert agent.responder.schemas[0]["properties"]["evidence_ids"]["maxItems"] == 0
+    assert result.thread is not None and result.trace is not None
+    assert result.trace.scope == "conversacional" and result.trace.retrieval_status is None
+
+
+def test_greeting_inside_a_thread_keeps_the_thread_domain() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("r1", domain="materno_infantil"),
+        scoped(agent_json("de nada", domain="ninguno"), "conversacional"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("tengo acidez en el embarazo")
+    result = service.send("gracias")
+
+    assert thread_of(result).domain is Domain.MATERNAL_CHILD

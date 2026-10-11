@@ -15,6 +15,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | **Alarmas deterministas** con doble filtro (HU-03/HU-04) | ✅ Hecho (técnico); reglas PROVISIONALES, falta la validación clínica |
 | **Orientación con evidencia (RAG)** y separación análisis/respuesta (HU-02) | 🔄 En verificación |
+| **Control de alcance** por intención (HU-07) | 🔄 En verificación |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |

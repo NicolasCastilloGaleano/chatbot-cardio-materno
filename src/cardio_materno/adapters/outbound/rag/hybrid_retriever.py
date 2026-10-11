@@ -85,7 +85,11 @@ class HybridRetriever:
 
     def _build_result(self, similarities: dict[str, float], fused: list[str]) -> RetrievalResult:
         """Aplica el umbral, etiqueta la evidencia (E1, E2…) y decide el estado."""
-        supported = [i for i in fused if similarities.get(i, 0.0) >= self._policy.min_similarity]
+        # Solo la similitud vectorial certifica: un registro hallado únicamente por BM25 no tiene
+        # similitud y nunca califica, aunque el umbral sea 0 (p. ej., en la sonda de calibración).
+        supported = [
+            i for i in fused if i in similarities and similarities[i] >= self._policy.min_similarity
+        ]
         items = tuple(
             EvidenceItem(
                 LABEL_TEMPLATE.format(number=n), self._entries[i], round(similarities[i], 4)

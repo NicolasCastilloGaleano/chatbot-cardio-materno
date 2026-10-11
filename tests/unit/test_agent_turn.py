@@ -6,6 +6,7 @@ import pytest
 
 from cardio_materno.application.agent_turn import (
     ANALYSIS_SCHEMA,
+    Scope,
     ThreadAction,
     parse_analysis,
     parse_reply,
@@ -21,6 +22,8 @@ def analysis_json(**overrides: Any) -> dict[str, Any]:
         "domain": "materno_infantil",
         "summary": "resumen",
         "reported_symptoms": [],
+        "scope": "en_alcance",
+        "scope_reason": "",
     }
     return base | overrides
 
@@ -71,12 +74,28 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
     assert "reply" not in properties
     assert properties["thread_action"]["enum"] == ["continuar", "nuevo"]
     assert properties["domain"]["enum"] == ["materno_infantil", "cardiovascular", "ninguno"]
+    assert properties["scope"]["enum"] == ["en_alcance", "conversacional", "fuera_de_alcance"]
     assert set(ANALYSIS_SCHEMA["required"]) == {
         "thread_action",
         "domain",
         "summary",
         "reported_symptoms",
+        "scope",
+        "scope_reason",
     }
+
+
+def test_scope_and_reason_are_parsed() -> None:
+    turn = parse_analysis(analysis_json(scope="fuera_de_alcance", scope_reason=" deportes "))
+
+    assert turn.scope is Scope.OUT_OF_SCOPE
+    assert turn.scope_reason == "deportes"
+
+
+@pytest.mark.parametrize(("field", "value"), [("scope", "quizas"), ("scope_reason", 3)])
+def test_invalid_scope_fields_raise_error(field: str, value: Any) -> None:
+    with pytest.raises(LanguageModelError, match=field):
+        parse_analysis(analysis_json(**{field: value}))
 
 
 # --- Respuesta --------------------------------------------------------------------------------

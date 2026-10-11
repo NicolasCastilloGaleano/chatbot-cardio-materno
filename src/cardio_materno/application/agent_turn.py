@@ -23,6 +23,14 @@ class ThreadAction(StrEnum):
     NEW = "nuevo"
 
 
+class Scope(StrEnum):
+    """Alcance del mensaje según su propósito completo (HU-07, ADR 0009)."""
+
+    IN_SCOPE = "en_alcance"
+    CONVERSATIONAL = "conversacional"
+    OUT_OF_SCOPE = "fuera_de_alcance"
+
+
 # JSON Schema de la llamada de análisis.
 ANALYSIS_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -31,8 +39,17 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "domain": {"type": "string", "enum": [d.value for d in Domain]},
         "summary": {"type": "string"},
         "reported_symptoms": {"type": "array", "items": {"type": "string"}},
+        "scope": {"type": "string", "enum": [s.value for s in Scope]},
+        "scope_reason": {"type": "string"},
     },
-    "required": ["thread_action", "domain", "summary", "reported_symptoms"],
+    "required": [
+        "thread_action",
+        "domain",
+        "summary",
+        "reported_symptoms",
+        "scope",
+        "scope_reason",
+    ],
 }
 
 MSG_INVALID_TURN = "El modelo no devolvió la estructura esperada ({detail})."
@@ -47,12 +64,16 @@ class AnalysisTurn:
         domain: Dominio de salud del hilo resultante.
         summary: Resumen del hilo hasta el mensaje actual del usuario.
         reported_symptoms: Síntomas que la persona dice tener o haber tenido (filtro 2, ADR 0007).
+        scope: Alcance del mensaje completo (HU-07, ADR 0009).
+        scope_reason: Motivo corto de la decisión de alcance (para auditar).
     """
 
     thread_action: ThreadAction
     domain: Domain
     summary: str
     reported_symptoms: tuple[str, ...] = ()
+    scope: Scope = Scope.IN_SCOPE
+    scope_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -79,6 +100,8 @@ def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
         domain=_parse_enum(Domain, data, "domain"),
         summary=_required_text(data, "summary"),
         reported_symptoms=_text_list(data, "reported_symptoms"),
+        scope=_parse_enum(Scope, data, "scope"),
+        scope_reason=_optional_text(data, "scope_reason"),
     )
 
 
@@ -116,6 +139,14 @@ def _required_text(data: dict[str, Any], field: str) -> str:
     value = data.get(field)
     if not isinstance(value, str) or not value.strip():
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=f"'{field}' vacío o ausente"))
+    return value.strip()
+
+
+def _optional_text(data: dict[str, Any], field: str) -> str:
+    """Obtiene un texto opcional (vacío si falta)."""
+    value = data.get(field, "")
+    if not isinstance(value, str):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=f"'{field}' debe ser texto"))
     return value.strip()
 
 

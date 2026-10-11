@@ -67,7 +67,14 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 3. Una pregunta fuera de la base (p. ej., `¿qué opinas del fútbol?`) → el asistente dice que no tiene información validada; evidencia `insuficiente`
 4. Anota los `[tiempos …]`: sirven para decidir si conviene un modelo más pequeño en el análisis (`OLLAMA_ANALYSIS_MODEL`)
 
-**Pruebas en vivo (sonda de recuperación y no contaminación):**
+**Alcance (HU-07):**
+1. `¿qué opinas del fútbol?` → mensaje fijo de alcance y `[fuera de alcance: … · no se registra en el hilo]`
+2. `estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?` → respuesta con evidencia (en alcance)
+3. `¿quién ganó el partido? ah, y tengo la presión alta` → responde solo la parte de salud (y la alerta prioritaria RN-CV-06)
+4. `hola` → saludo, `[evidencia: no se buscó (mensaje conversacional)]`
+5. Dentro de un hilo: `tengo acidez en el embarazo` → `¿quién ganó el partido?` → `¿y qué más puedo comer?`: el tercer mensaje continúa el mismo hilo
+
+**Pruebas en vivo (sonda de recuperación, no contaminación y alcance):**
 ```bash
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -m live -s
@@ -95,13 +102,15 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `KB_ENTRIES_FILE` | `knowledge/kb/entries.jsonl` | Base de conocimiento |
 | `KB_INDEX_DIR` | `data/kb_index` | Índice vectorial (derivado) |
 | `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Umbral, top-k e instrucción de consulta |
+| `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
+| `OLLAMA_EMBED_NUM_GPU` | (vacío = automático) | `0` = el embedder corre en CPU y deja la GPU al LLM (ver [operacion.md](operacion.md)) |
 
 ### Problemas frecuentes
 | Mensaje | Solución |
 |---|---|
 | "No se pudo conectar con Ollama…" | `ollama serve` o `sudo systemctl start ollama`; revisa `OLLAMA_BASE_URL` |
 | "El modelo '…' no está instalado…" | Ejecuta el `ollama pull …` que indica el mensaje |
-| "Ollama tardó más de … s…" | Sube `OLLAMA_TIMEOUT_SECONDS` o usa un modelo más pequeño en `OLLAMA_ANALYSIS_MODEL` |
+| "Ollama tardó más de … s…" o turnos muy lentos | Ver el diagnóstico de latencia en [operacion.md](operacion.md) |
 | "⚠️ RAG no disponible: … Índice … ausente" | `.venv/bin/python run_build_kb_index.py` |
 | "… se construyó con '…' y OLLAMA_EMBED_MODEL es '…'" / "La base … cambió" | Reconstruye el índice |
 | `error: externally-managed-environment` al usar pip | Usa el entorno virtual: `.venv/bin/pip …` |

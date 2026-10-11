@@ -49,3 +49,10 @@
 - ⚠️ El contenido fue generado con IA. Su validación para el prototipo es una decisión del líder del proyecto; para usuarios reales se requiere la validación clínica (B-019: columnas Fuente/Validado por/Fecha).
 - ⚠️ El resumen del hilo incorpora cada respuesta un turno después (ver la nota del ADR 0006).
 - El umbral 0,55 viene calibrado del piloto; se verifica con la sonda en vivo (`pytest -m live`).
+
+## Actualización 2026-10-10: latencia medida
+En el PC de pruebas cada turno tardó unos 60 s (análisis 13–23 s, RAG 7,2 s, respuesta 28–38 s). Hipótesis: el LLM de 24B y el embedder de 8B no caben juntos en 8 GB de VRAM y se recargan en cada turno. Se agregan ajustes configurables, sin cambiar el comportamiento por defecto a ciegas:
+- `OLLAMA_KEEP_ALIVE` (30m) en todas las solicitudes;
+- `OLLAMA_EMBED_NUM_GPU` (`0` = embedder en CPU).
+
+El diagnóstico está en `docs/08-despliegue/operacion.md`. Además, los mensajes fuera de alcance y conversacionales ya no buscan evidencia (ADR 0009).

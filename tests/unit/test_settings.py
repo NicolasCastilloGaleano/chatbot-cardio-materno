@@ -131,3 +131,17 @@ def test_stage_timer_records_duration_even_when_action_fails() -> None:
         timer.measure("respuesta", lambda: (_ for _ in ()).throw(ValueError()))
 
     assert [(t.stage, t.seconds) for t in timer.timings] == [("análisis", 1.25), ("respuesta", 0.5)]
+
+
+def test_latency_settings_defaults_and_overrides(tmp_path: Path) -> None:
+    defaults = load_rag_settings({}, tmp_path)
+    custom = load_rag_settings({"OLLAMA_KEEP_ALIVE": "1h", "OLLAMA_EMBED_NUM_GPU": "0"}, tmp_path)
+
+    assert (defaults.keep_alive, defaults.embed_num_gpu) == ("30m", None)
+    assert (custom.keep_alive, custom.embed_num_gpu) == ("1h", 0)
+    assert load_ollama_settings({"OLLAMA_KEEP_ALIVE": "1h"}).keep_alive == "1h"
+
+
+def test_invalid_embed_num_gpu_raises_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="OLLAMA_EMBED_NUM_GPU"):
+        load_rag_settings({"OLLAMA_EMBED_NUM_GPU": "mucho"}, tmp_path)

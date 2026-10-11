@@ -48,6 +48,8 @@ def build_embedder(settings: RagSettings, base_url: str) -> OllamaEmbedder:
             model=settings.embed_model,
             timeout_seconds=settings.embed_timeout_seconds,
             batch_size=settings.embed_batch_size,
+            keep_alive=settings.keep_alive,
+            num_gpu=settings.embed_num_gpu,
         )
     )
 

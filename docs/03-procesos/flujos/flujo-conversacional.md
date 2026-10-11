@@ -41,11 +41,17 @@ sequenceDiagram
         S-->>U: mensaje fijo 🚨 (sin LLM, sin RAG)
     else prioritaria o ninguna
         S->>L1: prompt de análisis + JSON del hilo + últimos N mensajes + mensaje (SIN evidencia)
-        L1-->>S: {thread_action, domain, summary, reported_symptoms}
+        L1-->>S: {thread_action, domain, summary, reported_symptoms, scope, scope_reason}
         S->>A: filtro 2 (reported_symptoms)
         alt urgencia inmediata
             S-->>U: mensaje fijo 🚨 (sin RAG, sin llamada 2)
-        else
+        else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno)
+            S-->>U: mensaje fijo de alcance (sin RAG, sin llamada 2, NO se registra)
+        else sin alarma y scope = conversacional (saludo, gracias)
+            S->>L2: prompt de respuesta + MENSAJE CONVERSACIONAL (sin RAG)
+            L2-->>S: {reply}
+            S-->>U: saludo / presentación del servicio
+        else en alcance (o con alarma prioritaria)
             S->>K: consulta = mensaje + resumen + síntomas (dominio del análisis)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje

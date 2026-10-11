@@ -15,6 +15,7 @@ Incluye términos técnicos, clínicos y **expresiones comunitarias** que el asi
 | Evidencia | Registros de la base que superan el umbral de similitud y se entregan al agente con etiquetas [E1], [E2]… |
 | Embedding | Vector numérico que representa un texto; textos parecidos tienen vectores cercanos |
 | Llamada de análisis / de respuesta | Las dos consultas al agente en cada turno: la primera (sin evidencia) decide hilo, resumen y síntomas; la segunda redacta con evidencia |
+| Alcance | Si un mensaje pertenece al servicio: `en_alcance`, `conversacional` (saludos) o `fuera_de_alcance` (todo el mensaje es ajeno) |
 | Hilo | Conversación sobre una misma consulta o caso, con su resumen (HU-06) |
 | Ruta de atención | Camino institucional para recibir atención (p. ej., RIAS materno‑perinatal) |
 | RIAS | Rutas Integrales de Atención en Salud (MinSalud) |

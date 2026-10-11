@@ -7,8 +7,10 @@ Flujo de cada turno (ADR 0007 y 0008):
    reporta la persona.
 3. **Filtro 2:** las mismas reglas revisan esos síntomas. El agente solo suma alarmas. Si hay
    urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
-4. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas.
-5. **Llamada de respuesta (con evidencia):** redacta y cita la evidencia que usa.
+4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
+   un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia.
+5. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas.
+6. **Llamada de respuesta (con evidencia):** redacta y cita la evidencia que usa.
 
 La evidencia nunca llega a la llamada de análisis, así no puede alterar los síntomas que
 revisan las reglas de alarma. El hilo solo se modifica al final del turno.
@@ -24,6 +26,7 @@ from cardio_materno.application.agent_turn import (
     ANALYSIS_SCHEMA,
     AnalysisTurn,
     ReplyTurn,
+    Scope,
     ThreadAction,
     parse_analysis,
     parse_reply,
@@ -35,6 +38,11 @@ from cardio_materno.application.evidence import build_evidence_query, format_evi
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
+from cardio_materno.application.scope import (
+    CONVERSATIONAL_CONTEXT,
+    OUT_OF_SCOPE_MESSAGE,
+    effective_scope,
+)
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
 from cardio_materno.domain.alarms import Alert, AlertOrigin
@@ -134,17 +142,19 @@ class TurnResult:
 
     Attributes:
         reply: Respuesta para el usuario.
-        thread: Hilo en el que quedó registrado el turno.
+        thread: Hilo del turno (el activo sin cambios, o None, si fue fuera de alcance).
         is_new_thread: True si el turno abrió un hilo nuevo.
         alerts: Alertas registradas en el turno.
         trace: Cómo se produjo la respuesta (None si no se consultó al agente).
+        out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
     """
 
     reply: str
-    thread: ConversationThread
+    thread: ConversationThread | None
     is_new_thread: bool
     alerts: tuple[Alert, ...] = ()
     trace: ReplyTrace | None = None
+    out_of_scope: bool = False
 
 
 @dataclass(frozen=True)
@@ -156,12 +166,14 @@ class TurnOutcome:
         decisions: Decisiones de alarma del turno.
         trace: Traza de la respuesta (None si no se consultó al agente).
         analysis: Resultado del análisis (None si no se hizo).
+        record: False si el turno no debe tocar el hilo (mensaje fuera de alcance).
     """
 
     reply: str
     decisions: tuple[AlarmDecision, ...]
     trace: ReplyTrace | None = None
     analysis: AnalysisTurn | None = None
+    record: bool = True
 
 
 class ConversationService:
@@ -208,7 +220,7 @@ class ConversationService:
     def _consult_agent(
         self, current: ConversationThread | None, turn: TurnInput, pre: AlarmDecision | None
     ) -> TurnOutcome:
-        """Análisis → filtro 2 → (si no hay urgencia) evidencia y respuesta."""
+        """Análisis → filtro 2 → urgencia, alcance o evidencia y respuesta."""
         timer = StageTimer(self._config.timer)
         try:
             analysis = timer.measure(STAGE_ANALYSIS, lambda: self._analyze(current, turn))
@@ -217,10 +229,37 @@ class ConversationService:
                 raise
             return TurnOutcome(compose_reply([pre], None), (pre,))
         decisions = tuple(d for d in (pre, self._post_filter(analysis, pre)) if d is not None)
+        return self._route(analysis, turn, decisions, timer)
+
+    def _route(
+        self,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        decisions: tuple[AlarmDecision, ...],
+        timer: StageTimer,
+    ) -> TurnOutcome:
+        """Elige el camino: urgencia, fuera de alcance, conversacional o respuesta con evidencia.
+
+        Las alarmas tienen prioridad sobre el alcance: con alarma el mensaje nunca se descarta.
+        """
+        scope = Scope.IN_SCOPE if decisions else effective_scope(analysis)
         if any(decision.is_immediate for decision in decisions):
-            trace = ReplyTrace(analysis.reported_symptoms, timings=timer.timings)
+            trace = analysis_trace(analysis, scope, timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
+        if scope is Scope.OUT_OF_SCOPE:
+            trace = analysis_trace(analysis, scope, timer.timings)
+            return TurnOutcome(OUT_OF_SCOPE_MESSAGE, (), trace, analysis, record=False)
+        if scope is Scope.CONVERSATIONAL:
+            return self._converse(analysis, turn, timer)
         return self._answer(analysis, turn, decisions, timer)
+
+    def _converse(self, analysis: AnalysisTurn, turn: TurnInput, timer: StageTimer) -> TurnOutcome:
+        """Saludo, agradecimiento o despedida: llamada de respuesta sin buscar evidencia."""
+        reply = timer.measure(
+            STAGE_REPLY, lambda: self._reply(analysis, turn, CONVERSATIONAL_CONTEXT, ())
+        )
+        trace = analysis_trace(analysis, Scope.CONVERSATIONAL, timer.timings)
+        return TurnOutcome(reply.reply, (), trace, analysis)
 
     def _answer(
         self,
@@ -234,8 +273,11 @@ class ConversationService:
             turn.user_text, analysis.summary, analysis.reported_symptoms, analysis.domain
         )
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
+        evidence_text = format_evidence_context(retrieval, self._config.evidence_item_chars)
         try:
-            reply = timer.measure(STAGE_REPLY, lambda: self._reply(analysis, turn, retrieval))
+            reply = timer.measure(
+                STAGE_REPLY, lambda: self._reply(analysis, turn, evidence_text, retrieval.labels)
+            )
         except LanguageModelError:
             if not decisions:
                 raise
@@ -250,13 +292,12 @@ class ConversationService:
         return parse_analysis(self._ports.analyzer.complete_json(context, ANALYSIS_SCHEMA))
 
     def _reply(
-        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult
+        self, analysis: AnalysisTurn, turn: TurnInput, context_text: str, labels: tuple[str, ...]
     ) -> ReplyTurn:
-        """Llamada de respuesta: con la evidencia recuperada; solo puede citar sus etiquetas."""
-        evidence_text = format_evidence_context(retrieval, self._config.evidence_item_chars)
-        context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
-        data = self._ports.responder.complete_json(context, reply_schema(retrieval.labels))
-        return parse_reply(data, retrieval.labels)
+        """Llamada de respuesta con la evidencia (o el aviso) dada; solo cita esas etiquetas."""
+        context = reply_context(self._config.reply_prompt, analysis, turn, context_text)
+        data = self._ports.responder.complete_json(context, reply_schema(labels))
+        return parse_reply(data, labels)
 
     def _post_filter(
         self, analysis: AnalysisTurn, pre: AlarmDecision | None
@@ -274,6 +315,8 @@ class ConversationService:
         self, current: ConversationThread | None, turn: TurnInput, outcome: TurnOutcome
     ) -> TurnResult:
         """Modifica el hilo y registra el turno (solo cuando el turno terminó bien)."""
+        if not outcome.record:
+            return TurnResult(outcome.reply, current, False, (), outcome.trace, out_of_scope=True)
         if outcome.analysis is not None:
             thread, is_new = self._resolve_thread(current, outcome.analysis)
         else:
@@ -302,7 +345,8 @@ class ConversationService:
         """Aplica la decisión del análisis: actualiza el hilo actual o lo cierra y abre otro."""
         now = self._config.clock()
         if current is not None and analysis.thread_action is ThreadAction.CONTINUE:
-            thread = update_thread(current, analysis.domain, analysis.summary, now)
+            domain = continued_domain(current.domain, analysis.domain)
+            thread = update_thread(current, domain, analysis.summary, now)
             self._ports.repository.save_thread(thread)
             return thread, False
         if current is not None:
@@ -357,4 +401,23 @@ def build_trace(
         retrieval_status=retrieval.status,
         best_score=retrieval.best_score,
         timings=timings,
+        scope=str(Scope.IN_SCOPE),
+        scope_reason=analysis.scope_reason,
     )
+
+
+def analysis_trace(
+    analysis: AnalysisTurn, scope: Scope, timings: tuple[StageTiming, ...]
+) -> ReplyTrace:
+    """Traza de un turno que no buscó evidencia (urgencia, fuera de alcance o conversacional)."""
+    return ReplyTrace(
+        reported_symptoms=analysis.reported_symptoms,
+        timings=timings,
+        scope=str(scope),
+        scope_reason=analysis.scope_reason,
+    )
+
+
+def continued_domain(current: Domain, analyzed: Domain) -> Domain:
+    """Dominio de un hilo que continúa: un mensaje sin dominio ("gracias") no borra el del caso."""
+    return current if analyzed is Domain.NONE else analyzed

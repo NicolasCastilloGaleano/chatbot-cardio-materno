@@ -2,6 +2,7 @@
 
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.domain.alarms import Alert
+from cardio_materno.domain.conversation import ConversationThread
 from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, RetrievalStatus, StageTiming
 
 SHORT_ID_LENGTH = 8
@@ -14,6 +15,10 @@ AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mens
 EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
 EVIDENCE_ITEM_TEMPLATE = "{label} {score:.2f} {category}"
 EVIDENCE_NOT_SEARCHED_TEXT = "[evidencia: no se buscó (urgencia detectada en los síntomas)]"
+EVIDENCE_CONVERSATIONAL_TEXT = "[evidencia: no se buscó (mensaje conversacional)]"
+OUT_OF_SCOPE_TEMPLATE = "[fuera de alcance: {reason} · no se registra en el hilo]"
+NO_REASON_TEXT = "sin motivo"
+CONVERSATIONAL_SCOPE = "conversacional"
 EVIDENCE_INSUFFICIENT_TEMPLATE = "[evidencia: insuficiente (mejor {best:.2f})]"
 EVIDENCE_UNAVAILABLE_TEXT = "[evidencia: no disponible (RAG desactivado o sin índice)]"
 UNCITED_WARNING = " | ⚠️ la respuesta no citó evidencia"
@@ -29,7 +34,9 @@ SAME_THREAD_LABEL = "continúa"
 
 def debug_lines(result: TurnResult) -> list[str]:
     """Todas las líneas de depuración de un turno, en orden."""
-    lines = [format_thread_debug(result), format_symptoms_debug(result.trace)]
+    if result.out_of_scope or result.thread is None:
+        return out_of_scope_lines(result.trace)
+    lines = [format_thread_debug(result, result.thread), format_symptoms_debug(result.trace)]
     if result.trace is not None:
         lines.append(format_evidence_debug(result.trace))
         if result.trace.timings:
@@ -37,12 +44,21 @@ def debug_lines(result: TurnResult) -> list[str]:
     return lines
 
 
-def format_thread_debug(result: TurnResult) -> str:
+def out_of_scope_lines(trace: ReplyTrace | None) -> list[str]:
+    """Líneas de un mensaje descartado por estar fuera de alcance (no se registra en el hilo)."""
+    reason = (trace.scope_reason if trace else "") or NO_REASON_TEXT
+    lines = [OUT_OF_SCOPE_TEMPLATE.format(reason=reason)]
+    if trace is not None and trace.timings:
+        lines.append(format_timings_debug(trace.timings))
+    return lines
+
+
+def format_thread_debug(result: TurnResult, thread: ConversationThread) -> str:
     """Estado del hilo y alertas, p. ej. "[hilo 3f2a91c0 | cardiovascular | abierto | nuevo]"."""
     return THREAD_DEBUG_TEMPLATE.format(
-        id=result.thread.id[:SHORT_ID_LENGTH],
-        domain=result.thread.domain,
-        status=result.thread.status,
+        id=thread.id[:SHORT_ID_LENGTH],
+        domain=thread.domain,
+        status=thread.status,
         change=NEW_THREAD_LABEL if result.is_new_thread else SAME_THREAD_LABEL,
         alerts="".join(format_alert_debug(alert) for alert in result.alerts),
     )
@@ -66,7 +82,8 @@ def format_symptoms_debug(trace: ReplyTrace | None) -> str:
 def format_evidence_debug(trace: ReplyTrace) -> str:
     """Evidencia ofrecida y citada, o por qué no la hubo."""
     if trace.retrieval_status is None:
-        return EVIDENCE_NOT_SEARCHED_TEXT
+        conversational = trace.scope == CONVERSATIONAL_SCOPE
+        return EVIDENCE_CONVERSATIONAL_TEXT if conversational else EVIDENCE_NOT_SEARCHED_TEXT
     if trace.retrieval_status is RetrievalStatus.UNAVAILABLE:
         return EVIDENCE_UNAVAILABLE_TEXT
     if trace.retrieval_status is RetrievalStatus.INSUFFICIENT:

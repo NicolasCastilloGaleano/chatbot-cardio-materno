@@ -6,6 +6,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- HU-07: control de alcance por intención. El análisis devuelve `scope` (`en_alcance` / `conversacional` / `fuera_de_alcance`) y `scope_reason`. Los mensajes completamente ajenos reciben un mensaje fijo, sin RAG ni llamada de respuesta, y no se registran. Los saludos se responden sin RAG. Los temas mencionados como contexto no descartan el mensaje; los síntomas de nuestros dominios y las alarmas siempre tienen prioridad. Prompts `analysis_prompt_v2` y `reply_prompt_v2`, ADR 0009 y riesgo R-11.
+- Latencia: `OLLAMA_KEEP_ALIVE` (30m) en todas las solicitudes y `OLLAMA_EMBED_NUM_GPU` (embedder en CPU); guía de diagnóstico en `docs/08-despliegue/operacion.md`.
+- Pruebas en vivo de alcance (`tests/live/test_live_scope.py`).
 - HU-02: orientación con evidencia (RAG). Base de 1.600 registros versionada en `knowledge/kb/entries.jsonl` (exportada del piloto con `scripts/export_pilot_kb.py`), índice propio con numpy (`run_build_kb_index.py`) y buscador híbrido (coseno + BM25 + RRF + umbral de `knowledge/evidence_policy.json`).
 - Separación del agente en **dos llamadas**: análisis sin evidencia (hilo, resumen y síntomas → filtro 2) y respuesta con evidencia (`reply` + `evidence_ids` restringidos a las etiquetas ofrecidas). Prompts `analysis_prompt_v1` y `reply_prompt_v1`.
 - Traza por respuesta (`trace`: síntomas, evidencia, citas, estado de la búsqueda, tiempos) y nuevas líneas de depuración `[evidencia …]` y `[tiempos …]`.
@@ -37,6 +40,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - HU-03/HU-04 verificadas técnicamente en el PC de pruebas; CI en verde. Las reglas siguen PROVISIONALES hasta la validación clínica.
 
 ### Fixed
+- Un saludo o agradecimiento dentro de un hilo ya no cambia el dominio del caso a `ninguno`.
+- RAG: un registro hallado solo por BM25 podía pasar el umbral cuando este era 0 (sonda de calibración) y causar `KeyError`; ahora solo califican los registros con similitud vectorial (hallazgo de `pytest -m live`).
 - RN-MI-02 no captaba en el filtro 1 "me duele mucho la cabeza" ni "veo como estrellitas" (solo alertaba por el filtro 2). Catálogo v0.3.1 + frases de regresión.
 - Alarma no detectada cuando el agente reportó "disminución de los movimientos del bebé" (hallazgo 2 de la prueba manual). Catálogo v0.3.0 con más variantes de RN-MI-06. Puente hacia B-015: el prompt v5 incluye los nombres exactos de los signos del catálogo y cada regla coincide con su propio nombre. B-015 pasa a prioridad Alta como solución definitiva.
 - Alarma no detectada con "me está saliendo como agüita rosada por abajo, tengo 7 meses" (hallazgo de la prueba manual). Catálogo v0.2.0: secreción, flujo o líquido rosado o sanguinolento, contexto de embarazo "tengo N meses/semanas" y salida de líquido más flexible. Prompt v4: los síntomas reportados deben ser literales y completos. Frases de regresión agregadas.

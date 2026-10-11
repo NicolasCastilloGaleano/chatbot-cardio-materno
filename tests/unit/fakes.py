@@ -9,6 +9,7 @@ from cardio_materno.application.conversation_service import (
     ConversationConfig,
     ConversationPorts,
     ConversationService,
+    TurnResult,
 )
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
@@ -21,7 +22,7 @@ from cardio_materno.domain.knowledge import (
     RetrievalStatus,
 )
 
-ANALYSIS_KEYS = ("thread_action", "domain", "summary", "reported_symptoms")
+ANALYSIS_KEYS = ("thread_action", "domain", "summary", "reported_symptoms", "scope", "scope_reason")
 
 
 def agent_json(
@@ -42,7 +43,14 @@ def agent_json(
         "reported_symptoms": reported_symptoms or [],
         "reply": reply,
         "evidence_ids": [],
+        "scope": "en_alcance",
+        "scope_reason": "",
     }
+
+
+def scoped(turn: dict[str, Any], scope: str, reason: str = "") -> dict[str, Any]:
+    """Guion de turno con el alcance que decidirá el análisis."""
+    return turn | {"scope": scope, "scope_reason": reason}
 
 
 def citing(turn: dict[str, Any], *labels: str) -> dict[str, Any]:
@@ -236,3 +244,9 @@ def make_alarm_policy() -> AlarmPolicy:
         ),
     ]
     return AlarmPolicy(rules, {"urg": URGENT_MESSAGE, "pri": PRIORITY_MESSAGE})
+
+
+def thread_of(result: TurnResult) -> ConversationThread:
+    """Hilo de un turno que sí se registró (falla la prueba si fue fuera de alcance)."""
+    assert result.thread is not None
+    return result.thread

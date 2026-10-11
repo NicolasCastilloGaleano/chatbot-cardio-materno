@@ -19,6 +19,7 @@ from tests.unit.fakes import (
     knowledge_entry,
     make_alarm_policy,
     make_service,
+    scoped,
 )
 
 
@@ -176,3 +177,20 @@ def test_debug_says_evidence_not_searched_when_analysis_finds_urgency() -> None:
     output = run_console(["me sale agüita rosada", "salir"], agent, show_thread_debug=True)
 
     assert "[evidencia: no se buscó (urgencia detectada en los síntomas)]" in output
+
+
+def test_debug_for_out_of_scope_message() -> None:
+    agent = ScriptedAgent(scoped(agent_json(), "fuera_de_alcance", "pregunta sobre deportes"))
+
+    output = run_console(["¿qué opinas del fútbol?", "salir"], agent, show_thread_debug=True)
+
+    assert "[fuera de alcance: pregunta sobre deportes · no se registra en el hilo]" in output
+    assert not any(line.startswith("[hilo") for line in output)
+
+
+def test_debug_for_conversational_message() -> None:
+    agent = ScriptedAgent(scoped(agent_json("hola"), "conversacional"))
+
+    output = run_console(["hola", "salir"], agent, show_thread_debug=True)
+
+    assert "[evidencia: no se buscó (mensaje conversacional)]" in output

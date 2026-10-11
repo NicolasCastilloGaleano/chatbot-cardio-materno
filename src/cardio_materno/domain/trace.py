@@ -57,6 +57,8 @@ class ReplyTrace:
         retrieval_status: Resultado de la búsqueda (None si no se buscó evidencia).
         best_score: Mejor similitud vista en la búsqueda (None si no se buscó).
         timings: Duración de cada etapa.
+        scope: Alcance aplicado al mensaje (en_alcance, conversacional, fuera_de_alcance).
+        scope_reason: Motivo corto de la decisión de alcance.
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -65,6 +67,8 @@ class ReplyTrace:
     retrieval_status: RetrievalStatus | None = None
     best_score: float | None = None
     timings: tuple[StageTiming, ...] = ()
+    scope: str | None = None
+    scope_reason: str = ""
 
     @property
     def uncited(self) -> bool:
