@@ -29,6 +29,7 @@ Los informes de validación (§3.4) y el business case (§3.7) se añadirán com
 | Agrega o modifica un componente, capa, puerto o adaptador | `02-arquitectura/arquitectura.md` |
 | Toma una decisión técnica relevante (librería, proveedor, patrón) | Nuevo ADR en `02-arquitectura/adr/` |
 | Cambia entidades, tablas o esquemas | `04-datos/modelo-datos.md`, `04-datos/diccionario-datos.md` |
+| Cambia la base de conocimiento (`knowledge/kb/entries.jsonl`) o la política de evidencia | `knowledge/kb/README.md` (validación), reconstruir el índice, `tests/live/retrieval_probe.json`, `07-gobernanza/riesgos-ia.md` (R-10) |
 | Cambia prompts del LLM o la configuración del modelo | `05-ia/prompts/` (versionado), `05-ia/playbook-orquestacion-ia.md`, `07-gobernanza/riesgos-ia.md` |
 | Cambia el manejo de datos personales | `07-gobernanza/proteccion-datos.md` |
 | Cambia dependencias, variables de entorno o la forma de ejecutar | `08-despliegue/instalacion.md`, `.env.example`, `README.md` |

@@ -27,7 +27,7 @@ Clase: `domain/conversation.py::ChatMessage`. Se guarda dentro de `messages` del
 | `role` | enum | No | `user` (persona) o `assistant` (agente) | No | `user` |
 | `content` | string | No | Texto original completo del mensaje | **Sí, puede contener datos personales y de salud** | `Tengo mucha acidez` |
 | `created_at` | string ISO 8601 (UTC) | Sí | Momento en que se registró el turno | No | `2026-10-10T17:07:37.171542+00:00` |
-| `reported_symptoms` | lista de string | Sí (solo en mensajes `assistant` cuando el agente fue consultado; ausente si no se le consultó) | Síntomas que el agente identificó en el turno (filtro 2, ADR 0007); `[]` si no hubo | **Sí: datos de salud** | `["secreción vaginal rosada en el embarazo de 7 meses"]` |
+| `trace` | objeto `TRACE` | Sí (solo en mensajes `assistant` cuando se consultó al agente) | Cómo se produjo la respuesta (ver TRACE). Los archivos anteriores con `reported_symptoms` a nivel de mensaje se siguen leyendo | **Sí: datos de salud** | ver TRACE |
 
 ### Entidad: `ALERT` (alerta por signo de alarma, HU-03/HU-04)
 Clase: `domain/alarms.py::Alert`. Se guarda dentro de `alerts` del hilo.
@@ -39,11 +39,40 @@ Clase: `domain/alarms.py::Alert`. Se guarda dentro de `alerts` del hilo.
 | `origin` | enum | No | `usuario` (filtro 1, texto original) o `agente` (filtro 2, `reported_symptoms`) | No | `agente` |
 | `created_at` | string ISO 8601 (UTC) | No | Momento del registro | No | `2026-10-10T19:16:31+00:00` |
 
-### Contrato de respuesta del agente (no se persiste; ADR 0006 y 0007)
+### Objeto: `TRACE` (traza de una respuesta, ADR 0007 y 0008)
+Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
+
+| Campo | Tipo | Descripción | Ejemplo |
+|---|---|---|---|
+| `reported_symptoms` | lista de string | Síntomas que identificó la llamada de análisis (filtro 2); `[]` si no hubo | `["secreción vaginal rosada en el embarazo de 7 meses"]` |
+| `retrieval_status` | enum o null | `suficiente`, `insuficiente`, `no_disponible`; `null` si no se buscó (urgencia en el filtro 2) | `suficiente` |
+| `best_score` | número o null | Mejor similitud coseno vista en la búsqueda | `0.71` |
+| `evidence` | lista | Evidencia ofrecida: `{label, entry_id, score, category}` | `[{"label": "E1", "entry_id": "3f…", "score": 0.71, "category": "Presión arterial…"}]` |
+| `evidence_ids` | lista de string | Etiquetas que el agente dijo usar | `["E1"]` |
+| `uncited_reply` | booleano | `true` si había evidencia suficiente y no se citó ninguna (para auditar) | `false` |
+| `timings` | objeto | Segundos por etapa: `análisis`, `RAG`, `respuesta` | `{"análisis": 3.1, "RAG": 0.4, "respuesta": 6.2}` |
+| `scope` | enum o null | Alcance aplicado: `en_alcance`, `conversacional` (los `fuera_de_alcance` no se guardan) | `en_alcance` |
+| `scope_reason` | string | Motivo corto de la decisión de alcance | `consulta de acidez en el embarazo` |
+
+### Entidad: `KNOWLEDGE_ENTRY` (base de conocimiento, `knowledge/kb/entries.jsonl`)
+Clase: `domain/knowledge.py::KnowledgeEntry`. Contenido versionado en git; el índice vectorial derivado (`data/kb_index/`) no se versiona.
+
+| Campo | Tipo | Descripción | Sensible (PII) | Ejemplo |
+|---|---|---|---|---|
+| `id` | string (SHA-256 del piloto) | Identificador estable | No | `91d3…` |
+| `domain` | enum | `materno_infantil` o `cardiovascular` | No | `cardiovascular` |
+| `category` | string | Una de 8 categorías por dominio | No | `Presión arterial y riesgo cardiovascular` |
+| `focus` | enum | `Indagar` o `Solucionar` | No | `Solucionar` |
+| `question` | string | Pregunta tipo | No | `Tengo hipertensión… ¿por qué necesito controles?` |
+| `answer` | string | Respuesta (390–710 caracteres) generada con IA y validada para el prototipo | No | — |
+
+### Contrato de respuesta del agente (no se persiste; ADR 0006, 0007 y 0008)
+Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms` y, desde el ADR 0009, `scope` y `scope_reason`) y **respuesta** (`reply`, `evidence_ids`).
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `thread_action` | `continuar` \| `nuevo` | Si el mensaje sigue el hilo o abre otro |
 | `domain` | `materno_infantil` \| `cardiovascular` \| `ninguno` | Dominio del hilo resultante |
 | `summary` | string | Resumen actualizado del hilo |
-| `reply` | string | Respuesta para el usuario (se descarta si hay urgencia inmediata) |
+| `reply` | string | (Llamada de respuesta) Texto para el usuario; no se pide si hay urgencia inmediata |
+| `evidence_ids` | lista de string | (Llamada de respuesta) Etiquetas de evidencia usadas; restringidas por `enum` a las ofrecidas |
 | `reported_symptoms` | lista de string | Síntomas que la persona reporta, literales y con contexto. Si corresponden a un signo del catálogo, empiezan por su nombre exacto. Se revisan con las reglas de alarma (filtro 2). En B-015 se complementará con códigos cerrados |

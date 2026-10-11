@@ -1,7 +1,7 @@
 """Lectura de la configuración desde variables de entorno."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
@@ -15,6 +15,16 @@ DEFAULT_THREAD_CONTEXT_MESSAGES = "6"
 DEFAULT_SHOW_THREAD_DEBUG = "true"
 DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
+DEFAULT_RAG_ENABLED = "true"
+DEFAULT_KEEP_ALIVE = "30m"
+DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
+DEFAULT_EMBED_TIMEOUT_SECONDS = "120"
+DEFAULT_EMBED_BATCH_SIZE = "16"
+DEFAULT_KB_ENTRIES_FILE = "knowledge/kb/entries.jsonl"
+DEFAULT_KB_INDEX_DIR = "data/kb_index"
+DEFAULT_EVIDENCE_POLICY_FILE = "knowledge/evidence_policy.json"
+ANALYSIS_MODEL_VARIABLE = "OLLAMA_ANALYSIS_MODEL"
+REPLY_MODEL_VARIABLE = "OLLAMA_REPLY_MODEL"
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 
 
@@ -37,6 +47,69 @@ class ConversationSettings:
     show_thread_debug: bool
     threads_dir: Path
     alarm_rules_file: Path
+
+
+@dataclass(frozen=True)
+class RagSettings:
+    """Configuración de la recuperación de evidencia (HU-02, ADR 0008).
+
+    Attributes:
+        enabled: Si se busca evidencia (si no, el agente se abstiene en temas de salud).
+        embed_model: Modelo de embeddings de Ollama.
+        embed_timeout_seconds: Tiempo máximo por solicitud de embeddings.
+        embed_batch_size: Textos por solicitud al construir el índice.
+        entries_file: Base de conocimiento versionada (`entries.jsonl`).
+        index_dir: Carpeta del índice vectorial (derivado, no versionado).
+        policy_file: Política de evidencia (umbral, top-k, instrucción de consulta).
+        keep_alive: Tiempo que Ollama mantiene cargado el modelo de embeddings.
+        embed_num_gpu: Capas del embedder en GPU (0 = CPU; None = decide Ollama).
+    """
+
+    enabled: bool
+    embed_model: str
+    embed_timeout_seconds: float
+    embed_batch_size: int
+    entries_file: Path
+    index_dir: Path
+    policy_file: Path
+    keep_alive: str = DEFAULT_KEEP_ALIVE
+    embed_num_gpu: int | None = None
+
+
+def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings:
+    """Construye la configuración del RAG a partir de las variables de entorno.
+
+    Raises:
+        ConfigurationError: Si un valor numérico no es válido.
+    """
+    return RagSettings(
+        enabled=_get(env, "RAG_ENABLED", DEFAULT_RAG_ENABLED).lower() in TRUE_VALUES,
+        embed_model=_get(env, "OLLAMA_EMBED_MODEL", DEFAULT_EMBED_MODEL),
+        embed_timeout_seconds=_get_float(
+            env, "OLLAMA_EMBED_TIMEOUT_SECONDS", DEFAULT_EMBED_TIMEOUT_SECONDS
+        ),
+        embed_batch_size=_get_int(env, "EMBED_BATCH_SIZE", DEFAULT_EMBED_BATCH_SIZE),
+        entries_file=_get_path(env, "KB_ENTRIES_FILE", DEFAULT_KB_ENTRIES_FILE, project_root),
+        index_dir=_get_path(env, "KB_INDEX_DIR", DEFAULT_KB_INDEX_DIR, project_root),
+        policy_file=_get_path(
+            env, "EVIDENCE_POLICY_FILE", DEFAULT_EVIDENCE_POLICY_FILE, project_root
+        ),
+        keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
+        embed_num_gpu=_get_optional_int(env, "OLLAMA_EMBED_NUM_GPU"),
+    )
+
+
+def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSettings:
+    """Configuración de Ollama para una etapa (análisis o respuesta).
+
+    Si la variable de modelo de la etapa está vacía, se usa OLLAMA_MODEL.
+
+    Args:
+        env: Variables de entorno.
+        model_variable: Variable del modelo de la etapa (p. ej., OLLAMA_ANALYSIS_MODEL).
+    """
+    base = load_ollama_settings(env)
+    return replace(base, model=_get(env, model_variable, base.model))
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:
@@ -83,6 +156,7 @@ def load_ollama_settings(env: Mapping[str, str]) -> OllamaSettings:
         timeout_seconds=_get_float(env, "OLLAMA_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS),
         temperature=_get_float(env, "OLLAMA_TEMPERATURE", DEFAULT_TEMPERATURE),
         num_ctx=_get_int(env, "OLLAMA_NUM_CTX", DEFAULT_NUM_CTX),
+        keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
     )
 
 
@@ -115,3 +189,11 @@ def _get_path(env: Mapping[str, str], name: str, default: str, project_root: Pat
     """Lee una ruta; si es relativa, se resuelve desde la raíz del proyecto."""
     path = Path(_get(env, name, default))
     return path if path.is_absolute() else project_root / path
+
+
+def _get_optional_int(env: Mapping[str, str], name: str) -> int | None:
+    """Lee una variable entera opcional (None si está vacía)."""
+    raw = env.get(name, "").strip()
+    if not raw:
+        return None
+    return _get_int(env, name, raw)

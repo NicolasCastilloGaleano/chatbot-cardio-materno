@@ -8,10 +8,10 @@ from urllib.request import Request
 
 import pytest
 
+from cardio_materno.adapters.outbound.llm.ollama_http import is_model_installed
 from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
-    is_model_installed,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
@@ -70,6 +70,7 @@ def test_complete_json_sends_schema_and_returns_parsed_object() -> None:
     assert payload["model"] == "mistral-small3.1:24b"
     assert payload["stream"] is False
     assert payload["format"] == SCHEMA
+    assert payload["keep_alive"] == "30m"
     assert payload["messages"] == [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hola"},

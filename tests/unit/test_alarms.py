@@ -102,4 +102,6 @@ def test_render_system_prompt_without_rules_says_so() -> None:
 def test_current_system_prompt_has_the_signs_placeholder() -> None:
     prompts = Path(__file__).resolve().parents[2] / "src" / "cardio_materno" / "prompts"
 
-    assert ALARM_SIGNS_PLACEHOLDER in (prompts / "system_prompt_v5.md").read_text(encoding="utf-8")
+    assert ALARM_SIGNS_PLACEHOLDER in (prompts / "analysis_prompt_v2.md").read_text(
+        encoding="utf-8"
+    )

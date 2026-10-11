@@ -28,3 +28,7 @@ En la HU-00 el contexto era una lista de los últimos 20 mensajes, sin noción d
 - ⚠️ La decisión de hilo y el resumen dependen del LLM (riesgo R-08). Es una decisión **no clínica**, así que no contradice el ADR 0004. Los mensajes originales se conservan completos para que las reglas de alarma futuras operen sobre el texto original.
 - ⚠️ Los archivos JSON no soportan varios procesos a la vez. Antes del adaptador de Telegram se migrará a una base de datos cambiando solo `JsonFileThreadRepository`.
 - Si la calidad de `thread_action` no es suficiente en las pruebas, se pasará a dos llamadas (primera alternativa).
+
+## Actualización 2026-10-10: dos llamadas (ADR 0008)
+- La respuesta estructurada se divide en **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms`) y **respuesta** (`reply`, `evidence_ids`). Era la alternativa "dos llamadas" de este ADR, y la motivó la integración del RAG.
+- **Resumen:** lo escribe el análisis, antes de que exista la respuesta del turno. Cada respuesta queda completa en los mensajes recientes del turno siguiente y entra al resumen en ese turno. Excepción: la última respuesta de un hilo que se cierra no queda en el resumen (sí en `messages`). Si hace falta, se resolverá con un resumen de cierre.

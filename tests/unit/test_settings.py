@@ -5,12 +5,15 @@ from pathlib import Path
 
 import pytest
 
+from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
 from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     ConfigurationError,
     load_conversation_settings,
     load_ollama_settings,
+    load_rag_settings,
+    load_stage_settings,
 )
 
 
@@ -96,3 +99,49 @@ def test_conversation_settings_from_environment(tmp_path: Path) -> None:
     assert settings.context_messages == 10
     assert settings.show_thread_debug is False
     assert settings.threads_dir == tmp_path / "otros"
+
+
+def test_rag_settings_defaults(tmp_path: Path) -> None:
+    settings = load_rag_settings({}, tmp_path)
+
+    assert settings.enabled is True
+    assert settings.embed_model == "qwen3-embedding:8b"
+    assert settings.entries_file == tmp_path / "knowledge" / "kb" / "entries.jsonl"
+    assert settings.index_dir == tmp_path / "data" / "kb_index"
+    assert settings.policy_file == tmp_path / "knowledge" / "evidence_policy.json"
+
+
+def test_rag_can_be_disabled(tmp_path: Path) -> None:
+    assert load_rag_settings({"RAG_ENABLED": "false"}, tmp_path).enabled is False
+
+
+def test_stage_model_falls_back_to_ollama_model() -> None:
+    env = {"OLLAMA_MODEL": "grande:24b", "OLLAMA_ANALYSIS_MODEL": "pequeno:3b"}
+
+    assert load_stage_settings(env, "OLLAMA_ANALYSIS_MODEL").model == "pequeno:3b"
+    assert load_stage_settings(env, "OLLAMA_REPLY_MODEL").model == "grande:24b"
+
+
+def test_stage_timer_records_duration_even_when_action_fails() -> None:
+    ticks = iter([0.0, 1.25, 2.0, 2.5])
+    timer = StageTimer(lambda: next(ticks))
+
+    assert timer.measure("análisis", lambda: "ok") == "ok"
+    with pytest.raises(ValueError):
+        timer.measure("respuesta", lambda: (_ for _ in ()).throw(ValueError()))
+
+    assert [(t.stage, t.seconds) for t in timer.timings] == [("análisis", 1.25), ("respuesta", 0.5)]
+
+
+def test_latency_settings_defaults_and_overrides(tmp_path: Path) -> None:
+    defaults = load_rag_settings({}, tmp_path)
+    custom = load_rag_settings({"OLLAMA_KEEP_ALIVE": "1h", "OLLAMA_EMBED_NUM_GPU": "0"}, tmp_path)
+
+    assert (defaults.keep_alive, defaults.embed_num_gpu) == ("30m", None)
+    assert (custom.keep_alive, custom.embed_num_gpu) == ("1h", 0)
+    assert load_ollama_settings({"OLLAMA_KEEP_ALIVE": "1h"}).keep_alive == "1h"
+
+
+def test_invalid_embed_num_gpu_raises_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="OLLAMA_EMBED_NUM_GPU"):
+        load_rag_settings({"OLLAMA_EMBED_NUM_GPU": "mucho"}, tmp_path)

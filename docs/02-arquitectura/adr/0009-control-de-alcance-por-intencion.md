@@ -1,0 +1,35 @@
+# ADR 0009: Control de alcance por intención en la llamada de análisis
+
+- **Estado:** Aceptado
+- **Fecha:** 2026-10-10
+- **Decisores:** Nicolas Castillo Galeano (criterio de alcance definido por él)
+- **Relacionado:** ADR 0007 (alarmas), ADR 0008 (dos llamadas y RAG)
+
+## Contexto
+En la prueba en el PC de pruebas, "¿qué opinas del fútbol?" recibió una charla sobre fútbol. No había control de alcance y el prompt de respuesta permitía conversar sin evidencia.
+
+El criterio del usuario: se descarta un mensaje **solo si todo el mensaje** es ajeno a la salud cardiovascular o materno-infantil. Las menciones a otros temas que solo dan **contexto** no lo sacan del alcance, como en "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?". Tampoco los mensajes que solo tienen sentido dentro del hilo, ni los que aún no tienen dominio claro pero pueden pertenecer a uno de los dos.
+
+## Decisión
+1. **La llamada de análisis decide el alcance por intención**: `scope` = `en_alcance` | `conversacional` | `fuera_de_alcance`, más un `scope_reason` corto. El prompt (`analysis_prompt_v2.md`) indica evaluar el **propósito del mensaje completo** junto con el hilo, trae una tabla de ejemplos y dice: **ante la duda, `en_alcance`**.
+2. **No se usan palabras clave** para descartar, porque descartarían consultas legítimas con contexto ajeno.
+3. **Reglas deterministas de seguridad** (`application/scope.py`):
+   - si hay `reported_symptoms` **y** el dominio no es `ninguno`, el mensaje es `en_alcance` aunque el modelo diga otra cosa;
+   - **las alarmas tienen prioridad**: el filtro 1 corre antes y el filtro 2 se evalúa antes del alcance. Con cualquier alarma, el mensaje nunca se descarta.
+4. **Fuera de alcance:** mensaje fijo (plantilla), **sin RAG ni llamada de respuesta**. **No se registra** y no abre, cierra ni modifica el hilo, así que un mensaje ajeno en medio de una consulta no corta el caso.
+5. **Conversacional** (saludos, gracias): llamada de respuesta **sin RAG**, solo para saludar y presentar el servicio.
+6. **Defensa en profundidad** (`reply_prompt_v2.md`): nunca hablar de temas ajenos; en mensajes mixtos, responder solo la parte de salud.
+7. Al continuar un hilo, un análisis con dominio `ninguno` (p. ej., "gracias") **no borra** el dominio del caso.
+
+## Alternativas consideradas
+| Alternativa | Pros | Contras |
+|---|---|---|
+| Filtro por palabras clave | Determinista | Descarta consultas con contexto ajeno ("…viendo el partido y me palpita el corazón") |
+| Clasificador antes del filtro de alarmas | Ahorra una etapa | Podría descartar urgencias; contradice el ADR 0007 |
+| Registrar los mensajes fuera de alcance en el hilo | Métrica directa | Mezcla temas ajenos en el caso y puede alterar su resumen |
+| Solo instrucción en el prompt de respuesta | Simple | El modelo ya ignoró instrucciones parecidas (charla de fútbol) |
+
+## Consecuencias
+- ✅ El asistente se mantiene en su propósito sin descartar consultas reales. Además, los mensajes fuera de alcance y los saludos son más rápidos, porque no buscan evidencia y, en el primer caso, tampoco hacen la llamada de respuesta.
+- ⚠️ La clasificación depende del LLM (riesgo R-11), mitigada con "ante la duda, en alcance", la salvaguarda de síntomas, las alarmas primero y el `scope_reason` para auditar.
+- ⚠️ Los mensajes fuera de alcance no quedan registrados. Si se necesitan métricas de uso indebido, se agregará un contador anónimo en el futuro.

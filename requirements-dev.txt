@@ -1,4 +1,5 @@
-# Solo para desarrollo y pruebas. El chat no necesita dependencias para ejecutarse (ADR 0005).
+# Desarrollo y pruebas: incluye las dependencias de ejecución (requirements.txt, ADR 0008).
+-r requirements.txt
 pytest==8.3.5
 ruff==0.11.8
 mypy==1.15.0

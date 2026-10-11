@@ -1,25 +1,16 @@
-"""Chat interactivo por consola (HU-00, HU-06)."""
+"""Chat interactivo por consola (HU-00, HU-06, HU-02)."""
 
 from collections.abc import Callable
 
-from cardio_materno.application.conversation_service import ConversationService, TurnResult
+from cardio_materno.adapters.inbound.console.debug_lines import debug_lines
+from cardio_materno.application.conversation_service import ConversationService
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.domain.alarms import Alert
 
 EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
 USER_PROMPT = "\nTú: "
 ASSISTANT_LABEL = "Asistente: "
 THINKING_TEXT = "(pensando…)"
 ERROR_PREFIX = "⚠️  "
-SHORT_ID_LENGTH = 8
-THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}{alerts}]"
-ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
-SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
-NO_SYMPTOMS_TEXT = "ninguno"
-AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
-SYMPTOM_SEPARATOR = "; "
-NEW_THREAD_LABEL = "nuevo"
-SAME_THREAD_LABEL = "continúa"
 WELCOME_TEXT = (
     "=== Asistente de teleorientación cardio-materno (prototipo técnico) ===\n"
     "Escribe tu mensaje y presiona Enter. Escribe 'salir' para terminar."
@@ -83,49 +74,5 @@ class ConsoleChat:
             return
         self._write(f"{ASSISTANT_LABEL}{result.reply}")
         if self._show_thread_debug:
-            self._write(format_thread_debug(result))
-            self._write(format_symptoms_debug(result.reported_symptoms))
-
-
-def format_thread_debug(result: TurnResult) -> str:
-    """Línea compacta con el estado del hilo.
-
-    Ejemplo:
-        "[hilo 3f2a91c0 | cardiovascular | abierto | nuevo
-          | ⚠️ RN-CV-01 urgencia_inmediata (usuario)]" (en una sola línea).
-
-    Args:
-        result: Resultado del turno.
-
-    Returns:
-        Texto para mostrar en la consola.
-    """
-    return THREAD_DEBUG_TEMPLATE.format(
-        id=result.thread.id[:SHORT_ID_LENGTH],
-        domain=result.thread.domain,
-        status=result.thread.status,
-        change=NEW_THREAD_LABEL if result.is_new_thread else SAME_THREAD_LABEL,
-        alerts="".join(format_alert_debug(alert) for alert in result.alerts),
-    )
-
-
-def format_alert_debug(alert: Alert) -> str:
-    """Fragmento de la línea de depuración que describe una alerta."""
-    return ALERT_DEBUG_TEMPLATE.format(
-        rule_ids=",".join(alert.rule_ids), severity=alert.severity, origin=alert.origin
-    )
-
-
-def format_symptoms_debug(symptoms: tuple[str, ...] | None) -> str:
-    """Línea con los síntomas que reportó el agente (filtro 2), para auditar las alarmas.
-
-    Args:
-        symptoms: Síntomas del agente, o None si no se le consultó.
-
-    Returns:
-        Texto para mostrar en la consola.
-    """
-    if symptoms is None:
-        return AGENT_NOT_CONSULTED_TEXT
-    listed = SYMPTOM_SEPARATOR.join(symptoms) if symptoms else NO_SYMPTOMS_TEXT
-    return SYMPTOMS_DEBUG_TEMPLATE.format(symptoms=listed)
+            for line in debug_lines(result):
+                self._write(line)

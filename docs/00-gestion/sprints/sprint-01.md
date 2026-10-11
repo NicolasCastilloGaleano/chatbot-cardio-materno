@@ -15,7 +15,9 @@
 | B-012 Chat por consola con Ollama | HU-00 | ✅ | Claude Code | Prueba en el PC de pruebas |
 | B-013 Hilos conversacionales con resumen | HU-06 | ✅ | Claude Code | Guion en el PC de pruebas |
 | B-004 / B-005 Alarmas deterministas (doble filtro) | HU-03, HU-04 | ✅ (técnico) | Claude Code (código y borrador PROVISIONAL de reglas) | Pruebas + PC de pruebas; **validación clínica pendiente** |
-| Auditoría de lineamientos + CI | — | ✅ | Claude Code | Revisión de Nicolas |
+| Auditoría de lineamientos + CI | — | ✅ |
+| B-020 Control de alcance por intención | HU-07 | 🔄 | Claude Code (código, prompts v2) | Pruebas + punta a punta simulada; `pytest -m live` en verde (2026-10-10); pendiente: guion manual |
+| B-008 RAG + separación análisis/respuesta | HU-02 | 🔄 | Claude Code (código, exportación de la base, prompts) | Pruebas + punta a punta simulada; `pytest -m live` en verde, sonda 16/16 (2026-10-10); pendiente: guion manual | Claude Code | Revisión de Nicolas |
 
 ## Planning: decisiones del equipo (no delegadas)
 - Stack Python + FastAPI y arquitectura hexagonal (ADR 0001, 0002).

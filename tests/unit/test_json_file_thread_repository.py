@@ -17,6 +17,7 @@ from cardio_materno.domain.conversation import (
     close_thread,
     open_thread,
 )
+from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, RetrievalStatus, StageTiming
 
 NOW = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
 
@@ -108,16 +109,57 @@ def test_alert_on_missing_thread_raises_key_error(tmp_path: Path) -> None:
         make_repo(tmp_path).append_alert("no-existe", alert)
 
 
-def test_reported_symptoms_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
+def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "s", NOW))
+    trace = ReplyTrace(
+        reported_symptoms=("secrecion vaginal rosada",),
+        evidence=(EvidenceRef("E1", "k1", 0.71, "Embarazo"),),
+        cited_evidence=("E1",),
+        retrieval_status=RetrievalStatus.SUFFICIENT,
+        best_score=0.71,
+        timings=(StageTiming("análisis", 1.2), StageTiming("respuesta", 3.4)),
+        scope="en_alcance",
+        scope_reason="consulta de embarazo",
+    )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
-    repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, ("secrecion vaginal rosada",)))
+    repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))
 
     data = json.loads((tmp_path / "threads" / "t1.json").read_text(encoding="utf-8"))
     messages = repo.recent_messages("t1", 10)
 
-    assert "reported_symptoms" not in data["messages"][0]
-    assert data["messages"][1]["reported_symptoms"] == ["secrecion vaginal rosada"]
-    assert messages[1].reported_symptoms == ("secrecion vaginal rosada",)
-    assert messages[0].reported_symptoms is None
+    assert "trace" not in data["messages"][0]
+    assert data["messages"][1]["trace"] == {
+        "reported_symptoms": ["secrecion vaginal rosada"],
+        "retrieval_status": "suficiente",
+        "best_score": 0.71,
+        "evidence": [{"label": "E1", "entry_id": "k1", "score": 0.71, "category": "Embarazo"}],
+        "evidence_ids": ["E1"],
+        "uncited_reply": False,
+        "timings": {"análisis": 1.2, "respuesta": 3.4},
+        "scope": "en_alcance",
+        "scope_reason": "consulta de embarazo",
+    }
+    assert messages[1].trace == trace
+    assert messages[0].trace is None
+
+
+def test_legacy_reported_symptoms_are_read_as_trace(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "s", NOW))
+    path = tmp_path / "threads" / "t1.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["messages"] = [
+        {
+            "thread_id": "t1",
+            "role": "assistant",
+            "content": "r",
+            "created_at": None,
+            "reported_symptoms": ["fiebre"],
+        }
+    ]
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    message = repo.recent_messages("t1", 1)[0]
+
+    assert message.trace == ReplyTrace(reported_symptoms=("fiebre",))

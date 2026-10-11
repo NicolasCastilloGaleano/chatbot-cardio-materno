@@ -39,7 +39,7 @@ Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-10)
 ### HU-06: Hilos conversacionales con resumen
 **Como** persona que consulta al asistente, **quiero** que recuerde de qué estamos hablando en mi consulta actual y que distinga cuando cambio de tema, **para** recibir respuestas coherentes sin que mezcle casos distintos.
 
-Notas técnicas: cada hilo es un JSON (`id`, `domain`, `summary`, `status`) y cada mensaje lleva su `thread_id`. El agente responde en JSON estructurado y decide si el mensaje continúa el hilo o abre uno nuevo. Al agente solo se envía el resumen del hilo actual y sus últimos N mensajes (ADR 0006).
+Notas técnicas: cada hilo es un JSON (`id`, `domain`, `summary`, `status`) y cada mensaje lleva su `thread_id`. **Desde la HU-02 (ADR 0008)** el resumen lo escribe la llamada de análisis, antes de la respuesta del turno: cada respuesta entra al resumen en el turno siguiente (siempre está completa en los mensajes recientes), salvo la última respuesta de un hilo que se cierra. El agente responde en JSON estructurado y decide si el mensaje continúa el hilo o abre uno nuevo. Al agente solo se envía el resumen del hilo actual y sus últimos N mensajes (ADR 0006).
 
 ```gherkin
 Escenario: El primer mensaje crea un hilo
@@ -88,13 +88,47 @@ Escenario: Primer contacto
 ```
 Estado: ⏳ Borrador
 
-### HU-02: Orientación en salud
-**Como** gestante o cuidador, **quiero** hacer preguntas en mis propias palabras, **para** recibir información clara y confiable.
-Estado: ⏳ Borrador. TODO: criterios.
+### HU-02: Orientación en salud con evidencia
+**Como** gestante o cuidador, **quiero** hacer preguntas en mis propias palabras, **para** recibir información clara y confiable, respaldada por la base de conocimiento del proyecto.
+
+Notas técnicas (ADR 0008): búsqueda híbrida sobre `knowledge/kb/entries.jsonl` (1.600 registros, validados para el prototipo por el líder del proyecto). Dos llamadas al agente: **análisis sin evidencia** (hilo, resumen, síntomas → filtro 2) y **respuesta con evidencia**. Solo evidencia para afirmaciones de salud.
+
+```gherkin
+Escenario: Respuesta respaldada por evidencia
+  Dado que la base de conocimiento y su índice están disponibles
+  Cuando pregunto "¿por qué es importante controlar la presión si no me duele nada?"
+  Entonces se recuperan registros con similitud ≥ al umbral de la política
+  Y la respuesta usa solo esa evidencia y cita sus etiquetas en evidence_ids
+  Y la respuesta guarda en el hilo la evidencia ofrecida, la citada y los tiempos de cada etapa
+
+Escenario: Sin evidencia suficiente
+  Cuando pregunto algo que la base no cubre
+  Entonces el asistente dice que no tiene información validada sobre eso y sugiere consultar con el personal de salud
+  Y no cita evidencia
+
+Escenario: La evidencia nunca llega al análisis
+  Cuando el asistente procesa cualquier mensaje
+  Entonces la llamada de análisis (que produce los síntomas del filtro 2) no recibe evidencia
+  Y solo la llamada de respuesta la recibe
+
+Escenario: Urgencias sin búsqueda de evidencia
+  Dado que el filtro 1 o el filtro 2 detectan una urgencia inmediata
+  Entonces no se busca evidencia ni se hace la llamada de respuesta, y se muestra el mensaje fijo
+
+Escenario: Solo se pueden citar las etiquetas ofrecidas
+  Cuando el agente cita una etiqueta de evidencia que no se le ofreció
+  Entonces el turno falla con un error claro y no se guarda nada
+
+Escenario: RAG no disponible
+  Dado que el índice no existe, el modelo de embeddings no coincide o falla
+  Cuando el asistente arranca o responde
+  Entonces avisa que el RAG no está disponible y se abstiene de dar información de salud
+```
+Estado: 🔄 En verificación (falta el guion y la sonda en vivo en el PC de pruebas)
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
-Reglas: `RN-MI-01` a `RN-MI-14` (catálogo PROVISIONAL, ADR 0007).
+Reglas: `RN-MI-01` a `RN-MI-14` (catálogo PROVISIONAL, ADR 0007). Desde la HU-02 (ADR 0008), los `reported_symptoms` del filtro 2 los produce una **llamada de análisis que nunca recibe evidencia del RAG**, para que la base de conocimiento no contamine ni minimice los síntomas.
 ```gherkin
 Escenario: Urgencia materno-infantil en el mensaje del usuario
   Dado que el catálogo de alarmas está cargado
@@ -161,3 +195,45 @@ Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PR
 ### HU-05: Ruta de atención
 **Como** usuario con una alerta, **quiero** saber a dónde acudir en mi municipio, **para** recibir atención oportuna.
 Estado: ⏳ Borrador. TODO: criterios (dependen de RN-RUTA).
+
+### HU-07: Control de alcance de la conversación
+**Como** responsable del servicio, **quiero** que el asistente solo atienda consultas de salud cardiovascular y materno-infantil, **para** que no se use para otros temas, sin descartar consultas reales que mencionen otros temas como contexto.
+
+Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo si todo el mensaje** es ajeno al servicio. Notas técnicas: ADR 0009.
+
+```gherkin
+Escenario: Mensaje completamente ajeno
+  Cuando escribo "¿qué opinas del fútbol?"
+  Entonces el asistente responde con el mensaje fijo de alcance del servicio
+  Y no busca evidencia ni hace la llamada de respuesta
+  Y no se registra nada en el hilo
+
+Escenario: Otro tema mencionado solo como contexto
+  Cuando escribo "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?"
+  Entonces el mensaje se atiende como consulta de salud materna, con evidencia
+
+Escenario: Mensaje mixto
+  Cuando escribo "¿quién ganó el partido? ah, y tengo la presión alta"
+  Entonces el asistente responde solo la parte de salud y dice con amabilidad que sobre lo demás no puede ayudar
+
+Escenario: Seguimiento dentro de un hilo
+  Dado un hilo sobre la fiebre de mi bebé en el que el asistente preguntó desde cuándo
+  Cuando escribo "sí, desde ayer"
+  Entonces el mensaje se atiende dentro del mismo hilo
+
+Escenario: Mensaje ajeno en medio de una consulta
+  Dado un hilo abierto sobre acidez en el embarazo
+  Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
+  Entonces el primer mensaje recibe el mensaje fijo y no se registra
+  Y el segundo continúa el mismo hilo
+
+Escenario: Saludo o agradecimiento
+  Cuando escribo "hola" o "gracias"
+  Entonces el asistente responde con amabilidad y presenta el servicio, sin buscar evidencia
+  Y si hay un hilo activo, su dominio no cambia
+
+Escenario: Las alarmas tienen prioridad sobre el alcance
+  Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
+  Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
+```
+Estado: 🔄 En verificación (falta `pytest -m live` y el guion en el PC de pruebas)

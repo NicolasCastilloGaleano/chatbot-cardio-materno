@@ -2,11 +2,14 @@
 
 Formato de `<directorio>/<thread_id>.json`:
     {"id", "domain", "summary", "status", "created_at", "updated_at",
-     "messages": [{"thread_id", "role", "content", "created_at", ["reported_symptoms"]}],
+     "messages": [{"thread_id", "role", "content", "created_at", ["trace"]}],
      "alerts": [{"rule_ids", "severity", "origin", "created_at"}]}
 
 Es una solución para el prototipo de un solo proceso (consola). Para Telegram,
 con varios usuarios a la vez, se migrará a una base de datos cambiando solo este adaptador.
+
+`trace` (solo en respuestas del asistente cuando se consultó al agente) registra los síntomas
+reportados, la evidencia ofrecida y citada, y los tiempos de cada etapa (`trace_codec.py`).
 """
 
 import json
@@ -14,6 +17,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from cardio_materno.adapters.outbound.persistence.trace_codec import (
+    legacy_trace,
+    trace_from_dict,
+    trace_to_dict,
+)
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import (
     ChatMessage,
@@ -27,6 +35,7 @@ FILE_SUFFIX = ".json"
 TMP_SUFFIX = ".tmp"
 MESSAGES_KEY = "messages"
 ALERTS_KEY = "alerts"
+TRACE_KEY = "trace"
 
 
 class JsonFileThreadRepository:
@@ -131,7 +140,7 @@ def thread_from_dict(data: dict[str, Any]) -> ConversationThread:
 
 
 def message_to_dict(message: ChatMessage) -> dict[str, Any]:
-    """Serializa un mensaje; incluye `reported_symptoms` solo si el agente fue consultado."""
+    """Serializa un mensaje; incluye `trace` solo si el agente fue consultado."""
     created_at = message.created_at.isoformat() if message.created_at else None
     data: dict[str, Any] = {
         "thread_id": message.thread_id,
@@ -139,21 +148,17 @@ def message_to_dict(message: ChatMessage) -> dict[str, Any]:
         "content": message.content,
         "created_at": created_at,
     }
-    if message.reported_symptoms is not None:
-        data["reported_symptoms"] = list(message.reported_symptoms)
+    if message.trace is not None:
+        data[TRACE_KEY] = trace_to_dict(message.trace)
     return data
 
 
 def message_from_dict(data: dict[str, Any]) -> ChatMessage:
     """Reconstruye un mensaje desde su forma serializada."""
     created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
-    symptoms = data.get("reported_symptoms")
+    trace = trace_from_dict(data[TRACE_KEY]) if TRACE_KEY in data else legacy_trace(data)
     return ChatMessage(
-        Role(data["role"]),
-        data["content"],
-        data.get("thread_id"),
-        created_at,
-        tuple(symptoms) if symptoms is not None else None,
+        Role(data["role"]), data["content"], data.get("thread_id"), created_at, trace
     )
 
 

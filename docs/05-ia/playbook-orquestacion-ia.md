@@ -19,6 +19,7 @@ Documenta cómo el equipo usa agentes de IA en el desarrollo: qué se delega, co
 | Pruebas unitarias y conversacionales | Claude Code | Criterios de aceptación en Gherkin | Revisar que las pruebas validen el criterio (no triviales) | TODO |
 | Redacción de documentación técnica | Claude Code | Código + matriz de impacto | Lectura y prueba de las instrucciones en un entorno limpio | TODO |
 | Prompts del LLM del producto | Claude Code (borrador) | Reglas RN-xx + guía de tono cultural | Evaluación con conversaciones de referencia + revisión clínica | TODO |
+| Base de conocimiento del RAG (1.600 registros) | ChatGPT Work (fuera de este repositorio) | Trabajo intensivo por categoría con búsqueda de fuentes | Aceptada por el líder del proyecto (Miguel) como validada **para el prototipo**; validación clínica pendiente para usuarios reales (B-019) | Líder del proyecto |
 | Reglas clínicas y signos de alarma | Claude Code **solo redacta un borrador PROVISIONAL** (patrones y mensajes) a partir de fuentes públicas | Signos de alarma públicos (MinSalud, OPS, AIEPI) | **Validación clínica obligatoria** antes de usar con usuarios ([solicitud](../01-especificacion/solicitud-validacion-alarmas.md)); la decisión final es del equipo clínico | Equipo clínico |
 | Decisiones de arquitectura y stack | **No delegable** (la IA propone opciones) | — | ADR firmado por el equipo | Todo el equipo |
 | Priorización del backlog | **No delegable** | — | Reunión con los aliados | Product Owner |
@@ -36,6 +37,8 @@ Documenta cómo el equipo usa agentes de IA en el desarrollo: qué se delega, co
 | Codificación, pruebas y documentación | Claude Code (con AGENTS.md + hooks) |
 | LLM del producto | Ollama local con `mistral-small3.1:24b` (ADR 0005) |
 | Integración continua | GitHub Actions: ruff, mypy, pytest (`.github/workflows/ci.yml`) |
+| Embeddings del producto (RAG) | Ollama local con `qwen3-embedding:8b` (ADR 0008) |
+| Contenido de la base de conocimiento | ChatGPT Work (generación con búsqueda de fuentes, por categoría); aceptado para el prototipo por el líder del proyecto (Miguel) |
 
 ## 5. Incidentes
 Si un agente introduce un riesgo (secretos expuestos, una regla clínica alterada, PII en los logs), se descarta el artefacto, se registra el incidente en la bitácora, se revisa el prompt y se comenta en la retrospectiva.

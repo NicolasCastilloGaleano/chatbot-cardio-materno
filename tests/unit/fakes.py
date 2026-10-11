@@ -5,42 +5,163 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cardio_materno.application.alarm_policy import AlarmPolicy
+from cardio_materno.application.conversation_service import (
+    ConversationConfig,
+    ConversationPorts,
+    ConversationService,
+    TurnResult,
+)
+from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
+from cardio_materno.domain.knowledge import (
+    EvidenceItem,
+    Focus,
+    KnowledgeEntry,
+    RetrievalResult,
+    RetrievalStatus,
+)
+
+ANALYSIS_KEYS = ("thread_action", "domain", "summary", "reported_symptoms", "scope", "scope_reason")
 
 
 def agent_json(
-    reply: str = "respuesta",
+    reply: str | Exception = "respuesta",
     thread_action: str = "continuar",
     domain: str = "materno_infantil",
     summary: str = "resumen",
     reported_symptoms: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Construye una respuesta JSON válida del agente."""
+    """Guion de un turno: lo que devolverán la llamada de análisis y la de respuesta.
+
+    `reply` puede ser una excepción para simular que falla la llamada de respuesta.
+    """
     return {
         "thread_action": thread_action,
         "domain": domain,
         "summary": summary,
-        "reply": reply,
         "reported_symptoms": reported_symptoms or [],
+        "reply": reply,
+        "evidence_ids": [],
+        "scope": "en_alcance",
+        "scope_reason": "",
     }
 
 
-class ScriptedLanguageModel:
-    """LLM falso que devuelve respuestas predefinidas y registra el contexto recibido."""
+def scoped(turn: dict[str, Any], scope: str, reason: str = "") -> dict[str, Any]:
+    """Guion de turno con el alcance que decidirá el análisis."""
+    return turn | {"scope": scope, "scope_reason": reason}
 
-    def __init__(self, *responses: dict[str, Any] | Exception) -> None:
-        self.responses = list(responses)
+
+def citing(turn: dict[str, Any], *labels: str) -> dict[str, Any]:
+    """Guion de turno cuya respuesta cita las etiquetas de evidencia dadas."""
+    return turn | {"evidence_ids": list(labels)}
+
+
+class ScriptedStage:
+    """Una de las dos llamadas (análisis o respuesta) de `ScriptedAgent`."""
+
+    def __init__(self, agent: "ScriptedAgent", kind: str) -> None:
+        self._agent = agent
+        self._kind = kind
         self.calls: list[list[ChatMessage]] = []
+        self.schemas: list[dict[str, Any]] = []
 
     def complete_json(
         self, messages: Sequence[ChatMessage], schema: dict[str, Any]
     ) -> dict[str, Any]:
         self.calls.append(list(messages))
-        response = self.responses.pop(0)
-        if isinstance(response, Exception):
-            raise response
-        return response
+        self.schemas.append(schema)
+        return self._agent.analysis() if self._kind == "analysis" else self._agent.reply()
+
+
+class ScriptedAgent:
+    """Agente falso de dos llamadas: cada turno guionizado alimenta el análisis y la respuesta.
+
+    Un turno que es una excepción hace fallar la llamada de análisis.
+    """
+
+    def __init__(self, *turns: dict[str, Any] | Exception) -> None:
+        self.turns = list(turns)
+        self.current: dict[str, Any] = {}
+        self.analyzer = ScriptedStage(self, "analysis")
+        self.responder = ScriptedStage(self, "reply")
+
+    @property
+    def calls(self) -> list[list[ChatMessage]]:
+        """Contextos recibidos por la llamada de análisis."""
+        return self.analyzer.calls
+
+    def analysis(self) -> dict[str, Any]:
+        turn = self.turns.pop(0)
+        if isinstance(turn, Exception):
+            raise turn
+        self.current = turn
+        return {key: turn[key] for key in ANALYSIS_KEYS}
+
+    def reply(self) -> dict[str, Any]:
+        if isinstance(self.current["reply"], Exception):
+            raise self.current["reply"]
+        return {"reply": self.current["reply"], "evidence_ids": self.current["evidence_ids"]}
+
+
+class FakeRetriever:
+    """Buscador falso: devuelve un resultado fijo y registra las consultas."""
+
+    def __init__(self, result: RetrievalResult | None = None) -> None:
+        self.result = result or RetrievalResult(RetrievalStatus.INSUFFICIENT)
+        self.queries: list[EvidenceQuery] = []
+
+    def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
+        self.queries.append(query)
+        return self.result
+
+
+def knowledge_entry(
+    entry_id: str = "k1", domain: Domain = Domain.MATERNAL_CHILD, answer: str = "respuesta validada"
+) -> KnowledgeEntry:
+    """Registro de la base para pruebas."""
+    return KnowledgeEntry(entry_id, domain, "Categoría", Focus.SOLVE, "¿Pregunta?", answer)
+
+
+def evidence_result(*entries: KnowledgeEntry) -> RetrievalResult:
+    """Resultado SUFFICIENT con los registros dados etiquetados E1, E2…"""
+    items = tuple(EvidenceItem(f"E{n}", entry, 0.8) for n, entry in enumerate(entries, start=1))
+    return RetrievalResult(RetrievalStatus.SUFFICIENT, items, 0.8)
+
+
+def make_service(
+    agent: "ScriptedAgent",
+    repo: "InMemoryThreadRepository | None" = None,
+    config: dict[str, Any] | None = None,
+    retriever: FakeRetriever | None = None,
+) -> ConversationService:
+    """Servicio con dobles: reloj, ids y tiempos deterministas."""
+    ports = ConversationPorts(
+        agent.analyzer,
+        agent.responder,
+        repo or InMemoryThreadRepository(),
+        retriever or FakeRetriever(),
+    )
+    options: dict[str, Any] = {
+        "clock": FakeClock(),
+        "new_id": SequentialIds(),
+        "timer": FakeTimer(),
+    }
+    return ConversationService(
+        ports, ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {})))
+    )
+
+
+class FakeTimer:
+    """Reloj monotónico que avanza medio segundo en cada lectura."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        self.now += 0.5
+        return self.now
 
 
 class InMemoryThreadRepository:
@@ -123,3 +244,9 @@ def make_alarm_policy() -> AlarmPolicy:
         ),
     ]
     return AlarmPolicy(rules, {"urg": URGENT_MESSAGE, "pri": PRIORITY_MESSAGE})
+
+
+def thread_of(result: TurnResult) -> ConversationThread:
+    """Hilo de un turno que sí se registró (falla la prueba si fue fuera de alcance)."""
+    assert result.thread is not None
+    return result.thread

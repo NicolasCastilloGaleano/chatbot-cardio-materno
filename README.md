@@ -14,6 +14,8 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | ✅ Hecho |
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | **Alarmas deterministas** con doble filtro (HU-03/HU-04) | ✅ Hecho (técnico); reglas PROVISIONALES, falta la validación clínica |
+| **Orientación con evidencia (RAG)** y separación análisis/respuesta (HU-02) | 🔄 En verificación |
+| **Control de alcance** por intención (HU-07) | 🔄 En verificación |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |
@@ -33,15 +35,16 @@ scripts/                Utilidades de desarrollo
 ```
 
 ## Instalación y ejecución
-Chat por consola con Ollama (requiere Python 3.12+ y Ollama; **sin `pip install`**):
-```powershell
-ollama pull mistral-small3.1:24b
-copy .env.example .env
-python run_console.py
+PC de pruebas (Ubuntu + Ollama con `mistral-small3.1:24b` y `qwen3-embedding:8b`):
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp .env.example .env
+.venv/bin/python run_build_kb_index.py   # índice de la base de conocimiento (una vez)
+.venv/bin/python run_console.py
 ```
-⚠️ Es un prototipo técnico: las **reglas de alarma son PROVISIONALES**, no están validadas clínicamente (riesgo R-09). Solo para pruebas del equipo.
+⚠️ Prototipo técnico: las reglas de alarma son PROVISIONALES (R-09) y la base de conocimiento está validada solo para el prototipo (R-10). Solo para pruebas del equipo.
 
-Guía completa, variables y solución de problemas: [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
+Guía completa, variables, guiones de prueba y solución de problemas: [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
 
 ## Cómo contribuir
 1. Leer [AGENTS.md](AGENTS.md). Aplica a personas y a agentes de IA.
