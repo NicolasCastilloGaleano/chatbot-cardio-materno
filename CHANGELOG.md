@@ -6,6 +6,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Changed
+- **ADR 0011 aceptado:** se midió la combinación elegida (análisis `mistral-small3.1:24b` + respuesta `qwen3:8b`): alcance 9/9, filtro 2 16/18, turno p50 de 46,5 s. Se prioriza la seguridad; la meta de 15 s queda como trabajo futuro. B-022 cerrado.
+
+### Changed
 - **Decisión de modelos (ADR 0011, 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento (`.env.example`). Ronda 3 del benchmark registrada; falta medir la latencia de esa combinación exacta.
 - **Umbral del RAG de 0,55 a 0,50** por decisión del equipo (`evidence_policy.json` v1.2.0).
 - **Configuración en `.env`, ordenada por secciones:** cada etapa define su modelo, temperatura, contexto, tiempo de espera, razonamiento y límite de tokens (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`, con respaldo en las generales); los umbrales del RAG y de la verificación (`RAG_MIN_SIMILARITY`, `RAG_TOP_K`, `RAG_CANDIDATE_K`, `GROUNDING_*`) reemplazan a los del archivo de política. La consola muestra el umbral efectivo al arrancar. Convención registrada en AGENTS.md §3 y en `estandares-codigo.md`.

@@ -57,10 +57,7 @@ Para decidir qué modelo usa cada etapa:
    En la salida de la consola, cada turno con texto literal lista sus frases descartadas: sirven para calibrar `min_support`.
 4. Lleva el informe al equipo: la decisión se registra en el ADR 0011 con los criterios que allí se proponen. **El filtro 2 no puede perder detecciones.**
 
-**Decisión vigente (2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50 (ver `.env.example`). Falta medir esa combinación exacta:
-```bash
-OLLAMA_REPLY_THINK=false .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b+qwen3:8b
-```
+**Decisión vigente (ADR 0011, aceptado el 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50 (ver `.env.example`). Medida: alcance 9/9, filtro 2 16/18 y turno p50 de 46,5 s. Para reevaluar (con otro modelo o con otro hardware), repetir la comparación con la combinación nueva frente a esta.
 
 ## Pendiente
 TODO al desplegar: healthcheck, logs, rotación de secretos, actualización de la base de conocimiento y de las reglas clínicas, y respaldo de datos.

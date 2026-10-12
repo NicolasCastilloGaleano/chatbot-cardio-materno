@@ -1,6 +1,6 @@
 # ADR 0011: Modelos por etapa y estrategia de latencia
 
-- **Estado:** **Aceptado (de momento)** por el equipo el 2026-10-12, después de la ronda 3: análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento. Pendiente de confirmar la latencia de esa combinación exacta (ver "Riesgo de la decisión")
+- **Estado:** **Aceptado** por el equipo el 2026-10-12: análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50. Combinación medida (ver "Medición de la combinación elegida"). Se revisará si cambia el hardware o aparece un modelo de análisis más rápido con el mismo filtro 2
 - **Fecha:** 2026-10-11
 - **Decisores:** equipo del proyecto (pendiente). Elegir el modelo no se delega a la IA (AGENTS.md §5)
 - **Relacionado:** ADR 0005 (Ollama local), ADR 0008 (dos llamadas), ADR 0010 (respuesta verificada), B-022
@@ -97,7 +97,16 @@ Opciones que caben en 8 GB con `num_ctx` 4096:
 ```bash
 OLLAMA_REPLY_THINK=false .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b+qwen3:8b
 ```
-Si el intercambio la hace lenta, las alternativas son:
+### Medición de la combinación elegida (2026-10-12)
+| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | Filtro 2 por código | Verificadas | Literal | Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mistral-small3.1:24b | qwen3:8b | 0 | 9/9 | 16/18 | 16/18 | 6 | 1 | 1 | 8 | 46.5 s | 61.1 s | 26.0 s | 9.5 s |
+
+- **Calidad:** la mejor de las medidas (alcance 9/9 y filtro 2 16/18, todo por código; sin errores de JSON).
+- **Latencia:** turno p50 46,5 s, frente a 49,9 s con mistral-small en las dos etapas. La respuesta baja de 36 s a 9,5 s (qwen3 solo tarda 2,8 s; la diferencia es el intercambio de modelos en la VRAM), pero el análisis con 24B (26 s) sigue siendo el cuello de botella.
+- **Se acepta** priorizando la seguridad del filtro 2 sobre la latencia. **La meta de 15 s por turno no se cumple**: queda para trabajo futuro (un modelo de análisis más rápido con el mismo filtro 2, o una GPU con más memoria).
+
+Alternativas que se descartaron con estos datos:
 - `qwen3:8b` en las dos etapas, la más rápida, con un filtro 2 de 15/18;
 - `mistral-small3.1:24b` en las dos, la más segura (unos 50 s por turno).
 

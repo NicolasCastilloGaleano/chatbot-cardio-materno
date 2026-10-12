@@ -17,7 +17,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Orientación con evidencia (RAG)**, separación análisis/respuesta y **respuesta verificada** (HU-02, ADR 0010) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
 | **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
 | **Filtro 2 con códigos cerrados** (B-015, ADR 0012, catálogo v0.5.0) | 🟡 Implementado para la demostración; pendiente de ratificación del equipo |
-| **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | 🔄 Decidido: análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; falta medir esa combinación |
+| **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |

@@ -11,7 +11,7 @@ Lista única de lo que se **implementó para mostrar resultados** o se **propuso
 | 3 | Ratificar el **ADR 0012** (signos como códigos cerrados, en paralelo con el texto libre) | Equipo | [ADR 0012](../02-arquitectura/adr/0012-signos-reportados-como-codigos-cerrados.md) | 🟡 Aceptado provisionalmente por Nicolas e implementado para la demostración; pendiente de ratificación |
 | 4 | **Frases coloquiales de prueba** (18) y la regla que debe activar cada una | Equipo clínico | `tests/live/colloquial_alarm_phrases.json`; pregunta 4 de la solicitud | ⏳ Pendiente |
 | 5 | **Preguntas clínicas:** fiebre en un bebé que no es recién nacido (pregunta 2) y "no quiere" frente a "no puede" comer (pregunta 3) | Equipo clínico | Solicitud de validación | ⏳ Pendiente |
-| 6 | **Modelo de cada etapa** (análisis y respuesta) y umbral del RAG | Equipo | [ADR 0011](../02-arquitectura/adr/0011-modelos-por-etapa-y-latencia.md) con las rondas del benchmark | ✅ Decidido de momento (2026-10-12): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`, umbral 0,50. Falta medir la latencia de esa combinación |
+| 6 | **Modelo de cada etapa** (análisis y respuesta) y umbral del RAG | Equipo | [ADR 0011](../02-arquitectura/adr/0011-modelos-por-etapa-y-latencia.md) con las rondas del benchmark | ✅ Aprobado (2026-10-12, ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`, umbral 0,50; medida (filtro 2 16/18, turno p50 de 46,5 s) |
 | 7 | **Vacíos de la base de conocimiento** (p. ej., alimentación con acidez, diabetes gestacional), que hoy reciben abstención | Equipo clínico y líder del proyecto | B-019 en el [backlog](backlog.md) | ⏳ Pendiente |
 
 ## Cómo se registra una decisión
