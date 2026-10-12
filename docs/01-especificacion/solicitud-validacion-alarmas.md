@@ -228,5 +228,10 @@ Hoy, una **pregunta educativa** que menciona un signo de alarma (p. ej., “¿po
 Propuesta (B-017): mantener siempre la alarma, pero si el asistente identifica que es una consulta general, mostrar un mensaje condicional (“Si esto le está pasando ahora a ti o a alguien, acude de inmediato a urgencias o llama al 123”) seguido de una explicación.
 - [ ] De acuerdo con la propuesta · [ ] Mantener siempre solo el mensaje de urgencia · [ ] Otra: ______________________
 
+### Pregunta 2: fiebre en un bebé que no es recién nacido
+Hoy, la única regla de fiebre infantil es RN-MI-13 (*fiebre o temperatura baja en el recién nacido*). Si alguien escribe "mi bebé tiene fiebre" sin decir la edad, ninguna regla se activa y el asistente responde con la orientación de la base de conocimiento.
+- ¿Debe haber una regla para la fiebre en menores de cierta edad (p. ej., < 3 meses) o con ciertos signos acompañantes? Edad límite: ______ · Signos: ______________________
+- ¿El asistente debe preguntar la edad del bebé antes de orientar? [ ] Sí · [ ] No
+
 ## Validación
 Validado por: ______________________ · Fecha: ________ · Firma: ______________________

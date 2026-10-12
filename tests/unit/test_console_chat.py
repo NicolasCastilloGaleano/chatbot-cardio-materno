@@ -188,9 +188,18 @@ def test_debug_for_out_of_scope_message() -> None:
     assert not any(line.startswith("[hilo") for line in output)
 
 
-def test_debug_for_conversational_message() -> None:
+def test_debug_for_conversational_message_inside_a_thread() -> None:
+    agent = ScriptedAgent(agent_json("r1"), scoped(agent_json("de nada"), "conversacional"))
+
+    output = run_console(["tengo acidez", "gracias", "salir"], agent, show_thread_debug=True)
+
+    assert "[evidencia: no se buscó (mensaje conversacional)]" in output
+
+
+def test_debug_for_conversational_message_without_thread() -> None:
     agent = ScriptedAgent(scoped(agent_json("hola"), "conversacional"))
 
     output = run_console(["hola", "salir"], agent, show_thread_debug=True)
 
-    assert "[evidencia: no se buscó (mensaje conversacional)]" in output
+    assert "[sin hilo: mensaje conversacional · no se registra]" in output
+    assert not any(line.startswith("[hilo") for line in output)

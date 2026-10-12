@@ -5,10 +5,11 @@ Flujo de cada turno (ADR 0007 y 0008):
    se responde con el mensaje fijo, sin consultar al agente ni buscar evidencia.
 2. **Llamada de análisis (sin evidencia):** decide el hilo, resume y lista los síntomas que
    reporta la persona.
-3. **Filtro 2:** las mismas reglas revisan esos síntomas. El agente solo suma alarmas. Si hay
-   urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
+3. **Filtro 2:** las mismas reglas revisan cada síntoma por separado. El agente solo suma
+   alarmas. Si hay urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
 4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
-   un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia.
+   un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia y
+   nunca se abre un hilo.
 5. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas.
 6. **Llamada de respuesta (con evidencia):** redacta y cita la evidencia que usa.
 
@@ -62,7 +63,6 @@ from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, StageTiming
 DEFAULT_CONTEXT_MESSAGES = 6
 DEFAULT_EVIDENCE_ITEM_CHARS = 700
 ALARM_SUMMARY_TEMPLATE = "Alerta: {sign}."
-SYMPTOM_SEPARATOR = "; "
 STAGE_ANALYSIS = "análisis"
 STAGE_RAG = "RAG"
 STAGE_REPLY = "respuesta"
@@ -167,6 +167,7 @@ class TurnOutcome:
         trace: Traza de la respuesta (None si no se consultó al agente).
         analysis: Resultado del análisis (None si no se hizo).
         record: False si el turno no debe tocar el hilo (mensaje fuera de alcance).
+        conversational: True si fue un saludo o agradecimiento (nunca abre un hilo).
     """
 
     reply: str
@@ -174,6 +175,7 @@ class TurnOutcome:
     trace: ReplyTrace | None = None
     analysis: AnalysisTurn | None = None
     record: bool = True
+    conversational: bool = False
 
 
 class ConversationService:
@@ -259,7 +261,7 @@ class ConversationService:
             STAGE_REPLY, lambda: self._reply(analysis, turn, CONVERSATIONAL_CONTEXT, ())
         )
         trace = analysis_trace(analysis, Scope.CONVERSATIONAL, timer.timings)
-        return TurnOutcome(reply.reply, (), trace, analysis)
+        return TurnOutcome(reply.reply, (), trace, analysis, conversational=True)
 
     def _answer(
         self,
@@ -302,12 +304,17 @@ class ConversationService:
     def _post_filter(
         self, analysis: AnalysisTurn, pre: AlarmDecision | None
     ) -> AlarmDecision | None:
-        """Filtro 2: revisa los síntomas reportados sin repetir las reglas ya detectadas."""
+        """Filtro 2: revisa cada síntoma reportado sin repetir las reglas ya detectadas.
+
+        Cada síntoma se evalúa por separado: el contexto de uno ("en el embarazo") no se combina
+        con el signo de otro ("fiebre en el bebé").
+        """
         if not analysis.reported_symptoms:
             return None
-        symptoms = SYMPTOM_SEPARATOR.join(analysis.reported_symptoms)
         exclude = pre.rule_ids if pre is not None else ()
-        return self._config.alarm_policy.evaluate([symptoms], AlertOrigin.AGENT, exclude)
+        return self._config.alarm_policy.evaluate(
+            analysis.reported_symptoms, AlertOrigin.AGENT, exclude
+        )
 
     # --- Hilo y registro --------------------------------------------------------------
 
@@ -317,12 +324,25 @@ class ConversationService:
         """Modifica el hilo y registra el turno (solo cuando el turno terminó bien)."""
         if not outcome.record:
             return TurnResult(outcome.reply, current, False, (), outcome.trace, out_of_scope=True)
+        if outcome.conversational:
+            return self._finish_conversational(current, turn, outcome)
         if outcome.analysis is not None:
             thread, is_new = self._resolve_thread(current, outcome.analysis)
         else:
             thread, is_new = self._thread_for_alarm(current, outcome.decisions[0])
         alerts = self._record(thread.id, turn.user_text, outcome)
         return TurnResult(outcome.reply, thread, is_new, alerts, outcome.trace)
+
+    def _finish_conversational(
+        self, current: ConversationThread | None, turn: TurnInput, outcome: TurnOutcome
+    ) -> TurnResult:
+        """Saludo o agradecimiento: queda en el hilo activo sin cambiarlo; sin hilo no se guarda."""
+        if current is None:
+            return TurnResult(outcome.reply, None, False, (), outcome.trace)
+        thread = update_thread(current, current.domain, current.summary, self._config.clock())
+        self._ports.repository.save_thread(thread)
+        self._record(thread.id, turn.user_text, outcome)
+        return TurnResult(outcome.reply, thread, False, (), outcome.trace)
 
     def _active_thread(self) -> ConversationThread | None:
         """Obtiene el hilo activo de la sesión, si lo hay y sigue abierto."""
@@ -356,9 +376,14 @@ class ConversationService:
     def _thread_for_alarm(
         self, current: ConversationThread | None, decision: AlarmDecision
     ) -> tuple[ConversationThread, bool]:
-        """Usa el hilo activo o abre uno nuevo con un resumen determinista de la alarma."""
-        if current is not None:
+        """Usa el hilo activo si es del dominio de la alarma; si no, abre uno nuevo.
+
+        El resumen del hilo nuevo es determinista (el signo de la regla principal).
+        """
+        if current is not None and current.domain is decision.domain:
             return current, False
+        if current is not None:
+            self._ports.repository.save_thread(close_thread(current, self._config.clock()))
         summary = ALARM_SUMMARY_TEMPLATE.format(sign=decision.primary_rule.sign)
         return self._open_new_thread(decision.domain, summary), True
 

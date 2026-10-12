@@ -163,6 +163,17 @@ Escenario: Los consejos del agente no generan alarmas
   Cuando el agente menciona el sangrado como signo de alarma en su respuesta o en su resumen
   Y no reporta síntomas de la persona
   Entonces no se registra ninguna alerta
+
+Escenario: Cada síntoma reportado se revisa por separado (regresión del 2026-10-11)
+  Dado que el agente reporta "acidez en el embarazo" y "fiebre en el bebé"
+  Cuando se revisan los síntomas reportados
+  Entonces no se activa RN-MI-07 (fiebre en el embarazo), porque el contexto de un síntoma no se combina con el signo de otro
+
+Escenario: La urgencia queda en un hilo de su dominio (regresión del 2026-10-11)
+  Dado un hilo materno-infantil activo
+  Cuando escribo un signo de alarma cardiovascular ("se me torció la boca y no puedo mover el brazo")
+  Entonces se cierra ese hilo y la alerta queda en un hilo nuevo cardiovascular
+  Y si la alarma es del mismo dominio del hilo activo, queda en ese hilo
 ```
 Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica
 
@@ -230,7 +241,9 @@ Escenario: Mensaje ajeno en medio de una consulta
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"
   Entonces el asistente responde con amabilidad y presenta el servicio, sin buscar evidencia
-  Y si hay un hilo activo, su dominio no cambia
+  Y un mensaje conversacional nunca abre un hilo (regresión del 2026-10-11)
+  Y si hay un hilo activo, el mensaje queda en ese hilo sin cambiar su dominio ni su resumen
+  Y si no hay hilo activo, no se registra
 
 Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema

@@ -1,6 +1,6 @@
 # Flujo conversacional general (borrador)
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-10-11*
 
 Este flujo corresponde a la máquina de estados que se implementará en `application/`. Cualquier cambio en los estados o las transiciones debe reflejarse aquí **y** en el BPMN (`../bpmn/`).
 
@@ -42,7 +42,7 @@ sequenceDiagram
     else prioritaria o ninguna
         S->>L1: prompt de análisis + JSON del hilo + últimos N mensajes + mensaje (SIN evidencia)
         L1-->>S: {thread_action, domain, summary, reported_symptoms, scope, scope_reason}
-        S->>A: filtro 2 (reported_symptoms)
+        S->>A: filtro 2 (cada síntoma de reported_symptoms por separado)
         alt urgencia inmediata
             S-->>U: mensaje fijo 🚨 (sin RAG, sin llamada 2)
         else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno)
@@ -50,7 +50,7 @@ sequenceDiagram
         else sin alarma y scope = conversacional (saludo, gracias)
             S->>L2: prompt de respuesta + MENSAJE CONVERSACIONAL (sin RAG)
             L2-->>S: {reply}
-            S-->>U: saludo / presentación del servicio
+            S-->>U: saludo / presentación del servicio (nunca abre un hilo; sin hilo activo NO se registra)
         else en alcance (o con alarma prioritaria)
             S->>K: consulta = mensaje + resumen + síntomas (dominio del análisis)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
@@ -59,6 +59,6 @@ sequenceDiagram
             S-->>U: (mensaje fijo ⚠️ si prioritaria) + reply
         end
     end
-    S->>R: actualizar o abrir hilo · mensajes con thread_id y trace · alertas
+    S->>R: actualizar o abrir hilo · mensajes con thread_id y trace · alertas (una urgencia de otro dominio abre un hilo de su dominio)
     Note over U,S: "salir" → se cierra el hilo activo
 ```

@@ -18,6 +18,7 @@ EVIDENCE_NOT_SEARCHED_TEXT = "[evidencia: no se buscó (urgencia detectada en lo
 EVIDENCE_CONVERSATIONAL_TEXT = "[evidencia: no se buscó (mensaje conversacional)]"
 OUT_OF_SCOPE_TEMPLATE = "[fuera de alcance: {reason} · no se registra en el hilo]"
 NO_REASON_TEXT = "sin motivo"
+UNRECORDED_CONVERSATIONAL_TEXT = "[sin hilo: mensaje conversacional · no se registra]"
 CONVERSATIONAL_SCOPE = "conversacional"
 EVIDENCE_INSUFFICIENT_TEMPLATE = "[evidencia: insuficiente (mejor {best:.2f})]"
 EVIDENCE_UNAVAILABLE_TEXT = "[evidencia: no disponible (RAG desactivado o sin índice)]"
@@ -34,8 +35,10 @@ SAME_THREAD_LABEL = "continúa"
 
 def debug_lines(result: TurnResult) -> list[str]:
     """Todas las líneas de depuración de un turno, en orden."""
-    if result.out_of_scope or result.thread is None:
+    if result.out_of_scope:
         return out_of_scope_lines(result.trace)
+    if result.thread is None:
+        return unrecorded_lines(result.trace)
     lines = [format_thread_debug(result, result.thread), format_symptoms_debug(result.trace)]
     if result.trace is not None:
         lines.append(format_evidence_debug(result.trace))
@@ -48,6 +51,14 @@ def out_of_scope_lines(trace: ReplyTrace | None) -> list[str]:
     """Líneas de un mensaje descartado por estar fuera de alcance (no se registra en el hilo)."""
     reason = (trace.scope_reason if trace else "") or NO_REASON_TEXT
     lines = [OUT_OF_SCOPE_TEMPLATE.format(reason=reason)]
+    if trace is not None and trace.timings:
+        lines.append(format_timings_debug(trace.timings))
+    return lines
+
+
+def unrecorded_lines(trace: ReplyTrace | None) -> list[str]:
+    """Líneas de un mensaje conversacional sin hilo activo (no se registra)."""
+    lines = [UNRECORDED_CONVERSATIONAL_TEXT]
     if trace is not None and trace.timings:
         lines.append(format_timings_debug(trace.timings))
     return lines

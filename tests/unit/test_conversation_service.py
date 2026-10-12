@@ -5,11 +5,12 @@ from typing import Any
 
 import pytest
 
+from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import NO_EVIDENCE_TEXT
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
-from cardio_materno.domain.alarms import AlertOrigin, Severity
+from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
 from cardio_materno.domain.conversation import Domain, Role, ThreadStatus
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
 from tests.unit.fakes import (
@@ -178,6 +179,40 @@ def test_urgent_message_inside_active_thread_stays_in_that_thread() -> None:
 
     assert thread_of(result).id == "hilo-1"
     assert len(repo.alerts["hilo-1"]) == 1
+
+
+def test_urgent_message_of_another_domain_opens_a_thread_of_that_domain() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(agent_json("r1", domain="cardiovascular"))
+    service = make_service(agent, repo, ALARMS)
+
+    service.send("me duele el pecho")
+    result = service.send("ahora tengo sangrado vaginal")
+
+    assert thread_of(result).id == "hilo-2" and result.is_new_thread
+    assert thread_of(result).domain is Domain.MATERNAL_CHILD
+    assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED
+    assert "hilo-1" not in repo.alerts and len(repo.alerts["hilo-2"]) == 1
+
+
+def test_each_reported_symptom_is_checked_on_its_own() -> None:
+    context_rule = AlarmRule(
+        "T-CTX",
+        Domain.MATERNAL_CHILD,
+        "gestante",
+        "Fiebre en el embarazo",
+        Severity.IMMEDIATE,
+        (compile_pattern(r"^(?=.*embarazo)(?=.*fiebre)"),),
+        "urg",
+        "prueba",
+    )
+    policy = AlarmPolicy([context_rule], {"urg": URGENT_MESSAGE})
+    symptoms = ["acidez en el embarazo de 34 semanas", "fiebre en el bebé"]
+    agent = ScriptedAgent(agent_json("r", "nuevo", reported_symptoms=symptoms))
+
+    result = make_service(agent, config={"alarm_policy": policy}).send("mi bebé tiene fiebre")
+
+    assert result.alerts == () and result.reply == "r"
 
 
 def test_priority_user_message_shows_fixed_notice_then_agent_reply() -> None:
@@ -442,8 +477,18 @@ def test_conversational_message_replies_without_rag() -> None:
     assert retriever.queries == []
     assert CONVERSATIONAL_CONTEXT in [m.content for m in agent.responder.calls[0]]
     assert agent.responder.schemas[0]["properties"]["evidence_ids"]["maxItems"] == 0
-    assert result.thread is not None and result.trace is not None
+    assert result.trace is not None
     assert result.trace.scope == "conversacional" and result.trace.retrieval_status is None
+
+
+def test_conversational_message_without_thread_is_not_recorded() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(scoped(agent_json("¡Hola!", "nuevo", "ninguno"), "conversacional"))
+
+    result = make_service(agent, repo).send("hola")
+
+    assert result.thread is None and not result.is_new_thread and not result.out_of_scope
+    assert repo.threads == {} and repo.messages == {}
 
 
 def test_greeting_inside_a_thread_keeps_the_thread_domain() -> None:
@@ -458,3 +503,23 @@ def test_greeting_inside_a_thread_keeps_the_thread_domain() -> None:
     result = service.send("gracias")
 
     assert thread_of(result).domain is Domain.MATERNAL_CHILD
+
+
+def test_greeting_never_opens_a_thread_nor_changes_the_active_one() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("r1", domain="cardiovascular", summary="presión"),
+        scoped(agent_json("¡Hola!", "nuevo", "ninguno", "saludo"), "conversacional"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("tengo la presión alta")
+    result = service.send("hola")
+
+    assert thread_of(result).id == "hilo-1" and not result.is_new_thread
+    assert repo.threads["hilo-1"].status is ThreadStatus.OPEN
+    assert (repo.threads["hilo-1"].domain, repo.threads["hilo-1"].summary) == (
+        Domain.CARDIOVASCULAR,
+        "presión",
+    )
+    assert [m.content for m in repo.messages["hilo-1"]][-2:] == ["hola", "¡Hola!"]

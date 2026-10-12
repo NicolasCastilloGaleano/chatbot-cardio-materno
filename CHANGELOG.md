@@ -5,6 +5,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- Filtro 2: cada síntoma reportado se revisa por separado. Antes se unían en un solo texto, y "acidez en el embarazo" + "fiebre en el bebé" activaba RN-MI-07 (fiebre en el embarazo) con el mensaje para gestantes.
+- Una urgencia detectada por el filtro 1 queda en el hilo activo solo si es del mismo dominio; si no, se abre un hilo con el dominio de la regla (antes un ACV quedaba en el hilo materno de la fiebre de un bebé).
+- Los saludos y agradecimientos nunca abren un hilo: con hilo activo quedan en él sin cambiar su dominio ni su resumen, y sin hilo no se registran (línea de depuración `[sin hilo: mensaje conversacional · no se registra]`).
+
 ### Added
 - Guion de verificación manual de HU-02/HU-07 actualizado en `docs/08-despliegue/instalacion.md` (abstención con una pregunta dentro del dominio, traza en el JSON del hilo, RAG no disponible y medición de latencia); B-021 en el backlog.
 - HU-07: control de alcance por intención. El análisis devuelve `scope` (`en_alcance` / `conversacional` / `fuera_de_alcance`) y `scope_reason`. Los mensajes completamente ajenos reciben un mensaje fijo, sin RAG ni llamada de respuesta, y no se registran. Los saludos se responden sin RAG. Los temas mencionados como contexto no descartan el mensaje; los síntomas de nuestros dominios y las alarmas siempre tienen prioridad. Prompts `analysis_prompt_v2` y `reply_prompt_v2`, ADR 0009 y riesgo R-11.
