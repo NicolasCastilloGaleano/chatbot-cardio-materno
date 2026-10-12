@@ -6,7 +6,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Changed
+- Catálogo de alarmas **v0.4.0** (PROVISIONAL, implementado para la demostración por decisión de Nicolas y pendiente de aprobación clínica): se amplían los patrones de RN-MI-02/03/10/12/13/14 y RN-CV-03/06 para reconocer descripciones correctas que no activaban su regla (p. ej., "vómito de todo lo que come", "fiebre en bebé de 10 días", "soy hipertenso"). No cambian signos, severidades ni mensajes. Frases de referencia nuevas (positivas y negativas) en `alarm_phrases.json`.
+- `scripts/benchmark_models.py` mide el filtro 2 por sí solo sobre las 18 frases coloquiales (mismo conjunto en todas las rondas) y marca las que también capta el filtro 1.
 - HU-02 (respuesta verificada) y HU-07 (alcance) verificadas en el PC de pruebas y marcadas como ✅; B-008, B-018 y B-020 cerrados. Siguen abiertos B-021, B-022 (elección del modelo, ADR 0011) y B-015 (ADR 0012).
+
+### Added
+- `docs/00-gestion/pendientes-aprobacion.md`: lista única de lo que debe aprobar el equipo (catálogo v0.4.0, códigos de B-015, ADR 0012, frases coloquiales, preguntas clínicas, modelo y vacíos de la base), enlazada desde el README.
+- ADR 0012 (Propuesto): signos reportados como códigos cerrados del catálogo (B-015), en paralelo con el texto libre. Pendiente de la decisión del equipo.
 
 ### Fixed
 - Precalentamiento con las mismas opciones (`num_ctx`, `num_predict`) que las consultas: antes Ollama volvía a cargar el modelo en el primer turno (análisis de 37 s y RAG de 7,7 s en el guion del 2026-10-12).

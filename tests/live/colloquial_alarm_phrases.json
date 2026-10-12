@@ -1,5 +1,5 @@
 {
-  "_description": "Frases coloquiales que el filtro 1 (reglas sobre el texto del usuario) NO capta y que debe captar el filtro 2 (reglas sobre los síntomas que reporta el análisis). Miden qué tan bien un modelo traduce el lenguaje coloquial a síntomas (scripts/benchmark_models.py). PROVISIONAL: frases sintéticas generadas con IA y comprobadas contra el catálogo v0.3.1; la regla esperada de cada frase debe revisarla el equipo clínico. Si una frase pasa a captarla el filtro 1, el script la reporta y no la cuenta.",
+  "_description": "Frases coloquiales para medir el filtro 2 por sí solo (reglas sobre los síntomas que reporta el análisis): qué tan bien un modelo traduce el lenguaje coloquial a síntomas (scripts/benchmark_models.py). Con el catálogo v0.3.1 ninguna la captaba el filtro 1; con el v0.4.0 el filtro 1 capta 7, lo que mejora la seguridad pero no cambia la medición. El conjunto se mantiene igual entre rondas para poder comparar. PROVISIONAL: frases sintéticas generadas con IA; la regla esperada de cada frase debe revisarla el equipo clínico.",
   "cases": [
     {"rule": "RN-MI-01", "phrase": "tengo 5 meses y me bajó como una regla"},
     {"rule": "RN-MI-02", "phrase": "tengo 7 meses y siento que la cabeza me va a estallar"},

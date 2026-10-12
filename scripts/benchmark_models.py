@@ -5,8 +5,9 @@ usa el proyecto:
 
 - **Alcance:** aciertos en `tests/live/scope_cases.json`.
 - **Filtro 2:** reglas de alarma que se activan con los síntomas que reporta el análisis, con
-  las frases coloquiales de `tests/live/colloquial_alarm_phrases.json`, que el filtro 1 no capta
-  (ahí es donde el modelo importa para la seguridad). Las que sí capta se reportan y no cuentan.
+  las frases coloquiales de `tests/live/colloquial_alarm_phrases.json`. Se mide el filtro 2 por
+  sí solo (cuánto entiende el modelo el lenguaje coloquial), con el mismo conjunto en todas las
+  rondas; las frases que también capta el filtro 1 se marcan en la consola.
 - **Turnos completos:** las consultas de `tests/live/retrieval_probe.json` con el asistente
   armado como en producción: respuestas verificadas, con texto literal o con abstención, y
   tiempos por etapa.
@@ -177,18 +178,20 @@ def measure_scope(analyzer: OllamaLanguageModel, prompt: str, result: ComboResul
 def measure_alarms(
     analyzer: OllamaLanguageModel, prompt: str, policy: AlarmPolicy, result: ComboResult
 ) -> None:
-    """Reglas que capta el filtro 2 en frases coloquiales que el filtro 1 no capta."""
+    """Reglas que capta el filtro 2 por sí solo en las frases coloquiales."""
     for case in read_json(COLLOQUIAL_PHRASES_FILE)["cases"]:
         rule_id, phrase = case["rule"], case["phrase"]
-        if triggers(policy, [phrase], AlertOrigin.USER, rule_id):
-            print(f"  filtro 2 (no cuenta: la capta el filtro 1) {rule_id}: {phrase[:50]}")
-            continue
         analysis = analyze(analyzer, prompt, phrase, result)
         symptoms = analysis.reported_symptoms if analysis else ()
         hit = triggers(policy, symptoms, AlertOrigin.AGENT, rule_id)
         result.alarm_total += 1
         result.alarm_hits += hit
-        print(f"  filtro 2 {'✅' if hit else '❌'} {rule_id}: {phrase[:50]} → {list(symptoms)}")
+        also = (
+            " (también filtro 1)" if triggers(policy, [phrase], AlertOrigin.USER, rule_id) else ""
+        )
+        print(
+            f"  filtro 2 {'✅' if hit else '❌'}{also} {rule_id}: {phrase[:50]} → {list(symptoms)}"
+        )
 
 
 def triggers(policy: AlarmPolicy, texts: Sequence[str], origin: AlertOrigin, rule_id: str) -> bool:

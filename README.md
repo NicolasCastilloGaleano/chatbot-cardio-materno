@@ -21,6 +21,8 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |
 
+**Pendientes de aprobación del equipo** (contenido clínico PROVISIONAL implementado para la demostración, ADR propuestos y elección del modelo): [docs/00-gestion/pendientes-aprobacion.md](docs/00-gestion/pendientes-aprobacion.md).
+
 ## Arquitectura en una línea
 Monolito modular en **Python + FastAPI** con **arquitectura hexagonal (puertos y adaptadores)**. Los canales (consola, Telegram, WhatsApp) son adaptadores de entrada intercambiables. Las reglas clínicas de alarma son deterministas y el LLM solo interpreta y redacta. Ver [docs/02-arquitectura/arquitectura.md](docs/02-arquitectura/arquitectura.md).
 

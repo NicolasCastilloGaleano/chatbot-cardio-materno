@@ -29,13 +29,16 @@
         "tengo 7 meses y me duele mucho la cabeza y veo como estrellitas",
         "estoy embarazada y me duele muchísimo la cabeza",
         "tengo 30 semanas y estoy viendo como puntitos",
-        "estoy embarazada y se me nubla la vista"
+        "estoy embarazada y se me nubla la vista",
+        "tengo 7 meses y siento que la cabeza me va a estallar",
+        "estoy embarazada y la cabeza me va a explotar"
       ],
       "no_debe_activar": [
         "estoy embarazada y me duele un poquito la cabeza",
         "tengo dolor de cabeza fuerte por el trabajo",
         "estoy embarazada y me duele la cabeza cuando no duermo bien",
-        "tengo 7 meses y veo mucha televisión"
+        "tengo 7 meses y veo mucha televisión",
+        "la cabeza me va a estallar con tanto ruido"
       ]
     },
     "RN-MI-03": {
@@ -43,10 +46,13 @@
         "mi bebé está convulsionando",
         "tuvo una convulsión hace un rato",
         "convulsiones en gestante",
-        "se puso rígido y temblaba todo"
+        "se puso rígido y temblaba todo",
+        "al niño se le pusieron los ojos en blanco y temblaba todo",
+        "a la bebé le dio un ataque y se puso rígida"
       ],
       "no_debe_activar": [
-        "tengo un temblor en las manos por el frío"
+        "tengo un temblor en las manos por el frío",
+        "le dio un ataque de tos"
       ]
     },
     "RN-MI-04": {
@@ -127,10 +133,13 @@
       "debe_activar": [
         "el niño vomita todo lo que come",
         "todo lo devuelve, no retiene nada",
-        "vómito persistente"
+        "vómito persistente",
+        "el niño devuelve hasta el agua",
+        "vómito de todo lo que come o bebe"
       ],
       "no_debe_activar": [
-        "vomitó una vez después del almuerzo"
+        "vomitó una vez después del almuerzo",
+        "el cajero me devuelve el cambio"
       ]
     },
     "RN-MI-11": {
@@ -147,7 +156,9 @@
       "debe_activar": [
         "mi bebé respira muy rápido",
         "al niño se le hunden las costillas al respirar",
-        "dificultad respiratoria en el bebé"
+        "dificultad respiratoria en el bebé",
+        "respira rápido en el bebé",
+        "respira con dificultad el recién nacido"
       ],
       "no_debe_activar": [
         "mi bebé respira tranquilo"
@@ -157,20 +168,26 @@
       "debe_activar": [
         "mi recién nacido tiene fiebre",
         "el bebé de 10 días está muy frío",
-        "fiebre en recién nacido"
+        "fiebre en recién nacido",
+        "mi bebé de 10 días está muy calientico",
+        "fiebre en bebé de 10 días"
       ],
       "no_debe_activar": [
-        "el recién nacido está tranquilo y come bien"
+        "el recién nacido está tranquilo y come bien",
+        "mi bebé de 3 meses tiene fiebre"
       ]
     },
     "RN-MI-14": {
       "debe_activar": [
         "mi bebé está muy amarillo",
         "el niño tiene los labios morados",
-        "ictericia en el recién nacido"
+        "ictericia en el recién nacido",
+        "piel muy amarilla en el bebé",
+        "ojos amarillos en el recién nacido"
       ],
       "no_debe_activar": [
-        "le compré un vestido amarillo a la bebé"
+        "le compré un vestido amarillo a la bebé",
+        "el bebé tiene una camiseta amarilla"
       ]
     },
     "RN-CV-01": {
@@ -200,10 +217,13 @@
         "mi mamá está hablando enredado",
         "no puede mover el brazo derecho",
         "creo que le dio un derrame cerebral",
-        "signos de ACV"
+        "signos de ACV",
+        "a mi papá se le durmió medio cuerpo de repente",
+        "parálisis repentina en la mitad del cuerpo"
       ],
       "no_debe_activar": [
-        "me duele el brazo de cargar al bebé"
+        "me duele el brazo de cargar al bebé",
+        "se me durmió el brazo por dormir encima"
       ]
     },
     "RN-CV-04": {
@@ -231,7 +251,9 @@
       "debe_activar": [
         "mi papá tiene la presión alta",
         "tengo hipertensión",
-        "me tomaron la presión y salió en 150"
+        "me tomaron la presión y salió en 150",
+        "el médico me dijo que soy hipertenso",
+        "mi mamá es hipertensa"
       ],
       "no_debe_activar": [
         "tengo la presión normal",
@@ -256,6 +278,7 @@
   "_regresiones": {
     "2026-10-10": "La frase 'me está saliendo como agüita rosada por abajo, tengo 7 meses' no activaba ninguna regla en ninguno de los dos filtros (catálogo v0.1.0). Corregido en el catálogo v0.2.0 + prompt v4.",
     "2026-10-10 (2)": "El agente reportó 'disminución de los movimientos del bebé en el embarazo de 8 meses' y RN-MI-06 solo aceptaba 'movimientos fetales'. Corregido en el catálogo v0.3.0 (más patrones) + prompt v5 (nombres exactos de los signos del catálogo; cada regla coincide con su propio nombre).",
-    "2026-10-10 (3)": "'tengo 7 meses y me duele mucho la cabeza y veo como estrellitas' solo alertaba por el filtro 2 (agente): el filtro 1 no aceptaba 'me duele mucho' ni 'veo como estrellitas'. Corregido en el catálogo v0.3.1."
+    "2026-10-10 (3)": "'tengo 7 meses y me duele mucho la cabeza y veo como estrellitas' solo alertaba por el filtro 2 (agente): el filtro 1 no aceptaba 'me duele mucho' ni 'veo como estrellitas'. Corregido en el catálogo v0.3.1.",
+    "2026-10-12": "En la comparación de modelos, descripciones correctas no activaban su regla por diferencias de redacción: 'Vómito de todo lo que come o bebe' (RN-MI-10), 'fiebre en bebé de 10 días' (RN-MI-13), 'Parálisis repentina en la mitad del cuerpo' (RN-CV-03), 'soy hipertenso' (RN-CV-06, también en el filtro 1), 'ojos en blanco y temblores' (RN-MI-03), 'la cabeza me va a estallar' en el embarazo (RN-MI-02), 'respira rápido en el bebé' (RN-MI-12) y 'piel muy amarilla en el bebé' (RN-MI-14). Catálogo v0.4.0, PROVISIONAL hasta la aprobación clínica. Solución de fondo: B-015 (ADR 0012, propuesto)."
   }
 }
