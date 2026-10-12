@@ -15,15 +15,15 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-005 | Detección determinista de signos de alarma cardiovasculares | HU-04 | Alta | 1 | ✅ Hecho (técnico); ⏳ validación clínica |
 | B-006 | Direccionamiento a rutas de atención | HU-05 | Alta | — | ⏳ |
 | B-007 | Integración del LLM para interpretar y redactar (con guardrails) | HU-02 | Media | — | ⏳ |
-| B-008 | RAG sobre la base de conocimiento (híbrido, índice propio) + separación análisis/respuesta | HU-02 | Alta | 1 | 🔄 En verificación |
+| B-008 | RAG sobre la base de conocimiento (híbrido, índice propio) + separación análisis/respuesta | HU-02 | Alta | 1 | ✅ Hecho (2026-10-12) |
 | B-009 | Adaptador Telegram (multiusuario) | — | Media | — | ⏳ |
 | B-010 | Adaptador WhatsApp | — | Media | — | ⏳ |
 | B-011 | Panel o registro de métricas anonimizadas | — | Baja | — | ⏳ |
 | B-014 | Foco actual del hilo: campo `current_focus` en el JSON del agente, separado del `summary` (ver nota) | HU-06 | Media | — | ⏳ Diferido |
 | B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza. **Propuesta: ADR 0012** (códigos en paralelo con el texto libre, cruce exacto en `domain/`); se recomienda antes de elegir el modelo (ADR 0011) | HU-03, HU-04 | **Alta** | Pendiente de la decisión del equipo | 📝 Propuesto |
-| B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (implementación propia, ADR 0010: `domain/grounding.py`, abstención sin LLM y texto literal) | HU-02 | Alta | 1 | 🔄 En verificación |
+| B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (implementación propia, ADR 0010: `domain/grounding.py`, abstención sin LLM y texto literal) | HU-02 | Alta | 1 | ✅ Hecho (2026-10-12) |
 | B-019 | Traer `kb_sync` (Google Sheets → `entries.jsonl`) y agregar a la hoja las columnas Fuente / Validado por / Fecha | HU-02 | Media | — | ⏳ |
-| B-020 | Control de alcance por intención (fuera de alcance / conversacional) | HU-07 | Alta | 1 | 🔄 En verificación |
+| B-020 | Control de alcance por intención (fuera de alcance / conversacional) | HU-07 | Alta | 1 | ✅ Hecho (2026-10-12) |
 | B-022 | Latencia: embedder en CPU por defecto, precalentamiento, límite de tokens por etapa, `OLLAMA_THINK` y `scripts/benchmark_models.py` para comparar modelos (ADR 0011, propuesto). Ronda 1 hecha (2026-10-12): se descartan la mixta qwen3 + mistral y llama3.1. Ronda 2 con frases coloquiales, `mistral-nemo:12b` y `qwen3:8b` sin razonamiento. Falta que el equipo elija el modelo de cada etapa con los datos | HU-02 | Alta | 1 | 🔄 En verificación |
 | B-021 | Calidad de recuperación con frases coloquiales o mixtas. **Corrección (2026-10-11):** la sonda ya exigía la categoría esperada en el top-3 (el reporte solo imprimía la primera); el problema real es que, en ACV, TVP y el mensaje mixto de la presión, la categoría correcta no queda primera ni supera el umbral de producción, y el caso termina en abstención. Paso 1 (hecho): la sonda reporta top-1 y "útil con el umbral real"; el análisis v3 reformula la consulta (`search_query`) sin el contexto ajeno y la traza la registra. Paso 2 (según la medición en vivo): ajustar la instrucción de consulta, los pesos o el umbral | HU-02 | Por definir (equipo) | 1 | 🔄 En verificación |
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |

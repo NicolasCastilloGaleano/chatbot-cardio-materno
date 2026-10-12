@@ -1,7 +1,7 @@
 {
   "version": "0.4.0",
   "updated_at": "2026-10-12",
-  "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales.",
+  "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales. La v0.4.0 (patrones ampliados) se implementó para la demostración por decisión de Nicolas Castillo Galeano (2026-10-12) y está pendiente de aprobación clínica (ver docs/00-gestion/pendientes-aprobacion.md).",
   "validated_by": null,
   "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09). Además de sus patrones, cada regla se activa si el texto contiene su nombre (campo sign) normalizado: el prompt le pide al agente usar esos nombres en reported_symptoms (puente hacia B-015).",
   "messages": {

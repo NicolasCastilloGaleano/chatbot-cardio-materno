@@ -16,8 +16,8 @@
 | B-013 Hilos conversacionales con resumen | HU-06 | ✅ | Claude Code | Guion en el PC de pruebas |
 | B-004 / B-005 Alarmas deterministas (doble filtro) | HU-03, HU-04 | ✅ (técnico) | Claude Code (código y borrador PROVISIONAL de reglas) | Pruebas + PC de pruebas; **validación clínica pendiente** |
 | Auditoría de lineamientos + CI | — | ✅ |
-| B-020 Control de alcance por intención | HU-07 | 🔄 | Claude Code (código, prompts v2) | Pruebas + punta a punta simulada; `pytest -m live` en verde (2026-10-10); pendiente: guion manual |
-| B-008 RAG + separación análisis/respuesta | HU-02 | 🔄 | Claude Code (código, exportación de la base, prompts) | Pruebas + punta a punta simulada; `pytest -m live` en verde, sonda 16/16 (2026-10-10); pendiente: guion manual | Claude Code | Revisión de Nicolas |
+| B-020 Control de alcance por intención | HU-07 | ✅ | Claude Code (código, prompts v2) | Pruebas + punta a punta simulada; `pytest -m live` en verde (2026-10-10); guion manual en el PC de pruebas (2026-10-11/12) ✅ |
+| B-008 RAG + separación análisis/respuesta | HU-02 | ✅ | Claude Code (código, exportación de la base, prompts) | Pruebas + punta a punta simulada; `pytest -m live` en verde, sonda 16/16 (2026-10-10); respuesta verificada (ADR 0010), `pytest -m live` 24/24 y guion (2026-10-12) ✅ | Claude Code | Revisión de Nicolas |
 
 ## Planning: decisiones del equipo (no delegadas)
 - Stack Python + FastAPI y arquitectura hexagonal (ADR 0001, 0002).

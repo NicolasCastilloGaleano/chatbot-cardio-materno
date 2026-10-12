@@ -148,7 +148,7 @@ Escenario: RAG no disponible
   Entonces avisa al arrancar que el RAG no está disponible
   Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
 ```
-Estado: 🔄 En verificación (sonda en vivo ✅; el guion del 2026-10-11 mostró respuestas sin respaldo, corregidas con el ADR 0010; falta repetir el guion)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
@@ -279,4 +279,4 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: 🔄 En verificación (falta `pytest -m live` y el guion en el PC de pruebas)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema)

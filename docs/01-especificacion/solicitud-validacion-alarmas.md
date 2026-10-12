@@ -236,7 +236,7 @@ Hoy, la única regla de fiebre infantil es RN-MI-13 (*fiebre o temperatura baja 
 ### Pregunta 3: "no quiere comer" frente a "no puede comer"
 En la comparación de modelos del 2026-10-12, varios modelos describieron "el bebé **no quiere** comer", y RN-MI-09 dice "**No puede** comer, beber o tomar el pecho". ¿Que un bebé no quiera comer debe activar la alerta, o solo cuando no puede? [ ] Ambos · [ ] Solo "no puede" · Comentario: ______________________
 
-### Cambios de la versión 0.4.0 (pendientes de aprobación)
+### Cambios de la versión 0.4.0 (implementados para la demostración; pendientes de aprobación)
 Descripciones correctas que no activaban su regla por diferencias de redacción. Se ampliaron los patrones **sin cambiar el signo, la severidad ni el mensaje** de ninguna regla:
 
 | Regla | Ahora también reconoce | Frases que NO deben activarla |
