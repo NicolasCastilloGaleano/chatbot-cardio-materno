@@ -38,3 +38,6 @@ Thumbs.db
 
 # Claude Code (configuración local personal)
 .claude/settings.local.json
+
+# Informes de comparación de modelos (scripts/benchmark_models.py)
+data/benchmarks/

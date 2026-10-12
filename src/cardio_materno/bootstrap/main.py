@@ -95,10 +95,11 @@ def build_service(settings: ConversationSettings) -> ConversationService:
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:
-    """Crea el adaptador de Ollama de una etapa y verifica que el modelo esté instalado."""
+    """Crea el adaptador de una etapa, verifica el modelo y lo carga en memoria."""
     print(f"Conectando con Ollama en {settings.base_url} ({stage}: {settings.model})…")
     language_model = OllamaLanguageModel(settings)
     language_model.verify_ready()
+    language_model.warm_up()
     return language_model
 
 

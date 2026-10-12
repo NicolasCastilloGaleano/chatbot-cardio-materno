@@ -3,6 +3,7 @@
 Ejecutar en el PC de pruebas: `pytest -m live -s`.
 """
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -18,22 +19,16 @@ from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_p
 from cardio_materno.application.scope import effective_scope
 from cardio_materno.application.turn_context import TurnInput, analysis_context
 from cardio_materno.domain.conversation import ChatMessage, Domain, Role, open_thread
+from tests.live.conftest import LIVE_DIR
 
 pytestmark = pytest.mark.live
 
-IN_SCOPE_WITH_FOREIGN_CONTEXT = [
-    "estaba cocinando unos frijoles y empecé a sentir acidez en el estómago, "
-    "tengo 34 semanas de embarazo, ¿es normal?",
-    "estaba viendo el partido y el corazón me empezó a latir muy rápido",
-    "¿quién ganó el partido? ah, y tengo la presión alta",
-    "¿es malo comer mucha sal?",
-]
-OUT_OF_SCOPE = [
-    "¿qué opinas del fútbol?",
-    "ayúdame con la tarea de matemáticas",
-    "¿por quién debería votar en las elecciones?",
-]
-CONVERSATIONAL = ["hola", "muchas gracias"]
+SCOPE_CASES: dict[str, list[str]] = json.loads(
+    (LIVE_DIR / "scope_cases.json").read_text(encoding="utf-8")
+)
+IN_SCOPE_WITH_FOREIGN_CONTEXT = SCOPE_CASES["en_alcance"]
+OUT_OF_SCOPE = SCOPE_CASES["fuera_de_alcance"]
+CONVERSATIONAL = SCOPE_CASES["conversacional"]
 
 
 def analyze(

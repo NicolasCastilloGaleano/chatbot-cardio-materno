@@ -74,9 +74,10 @@ def setup_rag(settings: RagSettings, base_url: str) -> RagSetup:
 def _build_retriever(
     settings: RagSettings, base_url: str, policy: EvidencePolicy
 ) -> tuple[HybridRetriever, int]:
-    """Carga la base y el índice, verifica el modelo y crea el buscador híbrido."""
+    """Carga la base y el índice, verifica y precalienta el modelo y crea el buscador."""
     entries = load_entries(settings.entries_file)
     index = load_index(settings.index_dir)
     embedder = build_embedder(settings, base_url)
     embedder.verify_ready()
+    embedder.warm_up()
     return HybridRetriever(entries, index, embedder, policy), len(entries)

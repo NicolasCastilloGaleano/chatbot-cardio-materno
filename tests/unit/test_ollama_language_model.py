@@ -2,6 +2,7 @@
 
 import io
 import json
+from dataclasses import replace
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
@@ -12,6 +13,7 @@ from cardio_materno.adapters.outbound.llm.ollama_http import is_model_installed
 from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
+    build_chat_payload,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
@@ -131,3 +133,23 @@ def test_verify_ready_reports_missing_model_with_pull_command() -> None:
 def test_model_without_tag_matches_latest() -> None:
     assert is_model_installed("llama3", {"llama3:latest"})
     assert not is_model_installed("llama3", {"llama3:8b"})
+
+
+def test_token_limit_and_think_are_sent_only_when_configured() -> None:
+    default = build_chat_payload(SETTINGS, USER_MESSAGE, SCHEMA)
+    tuned = build_chat_payload(
+        replace(SETTINGS, num_predict=500, think=False), USER_MESSAGE, SCHEMA
+    )
+
+    assert "num_predict" not in default["options"] and "think" not in default
+    assert tuned["options"]["num_predict"] == 500 and tuned["think"] is False
+
+
+def test_warm_up_loads_the_model_without_messages() -> None:
+    opener = FakeOpener({"model": "mistral-small3.1:24b", "done": True, "done_reason": "load"})
+
+    make_model(opener).warm_up()
+
+    payload = json.loads(opener.requests[0].data)  # type: ignore[arg-type]
+    assert opener.requests[0].full_url == "http://ollama.test:11434/api/chat"
+    assert payload == {"model": "mistral-small3.1:24b", "messages": [], "keep_alive": "30m"}

@@ -6,6 +6,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- Latencia (B-022, ADR 0011 propuesto): precalentamiento de los modelos de análisis, respuesta y embeddings al arrancar; límite de tokens por etapa (`OLLAMA_ANALYSIS_NUM_PREDICT`=600, `OLLAMA_REPLY_NUM_PREDICT`=500); `OLLAMA_THINK` opcional.
+- `scripts/benchmark_models.py`: compara combinaciones de modelos (alcance, filtro 2, respaldo y tiempos p50/p90) y guarda el informe en `data/benchmarks/`. Los casos de alcance pasan a `tests/live/scope_cases.json`, compartido con `test_live_scope.py`.
+
+### Changed
+- `OLLAMA_EMBED_NUM_GPU` vale `0` por defecto (embedder en CPU); `auto` deja decidir a Ollama.
+
+### Added
 - Análisis v3 (`analysis_prompt_v3`): nunca agregar datos que la persona no escribió; ejemplos con marcadores [N] en lugar de datos copiables; sin arrastre de síntomas a un hilo nuevo; campo `search_query` (consulta de salud reformulada sin el contexto ajeno) que pasa a ser la consulta de búsqueda (B-021).
 - Marca de datos no dichos: `domain/grounding.py::unstated_details` registra en la traza (`unstated_symptoms`) los síntomas con números que la persona no escribió, con la línea `[⚠️ datos que la persona no escribió: …]`; la consulta usada queda en la traza (`search_query`) y en la línea `[búsqueda: …]`.
 - Pruebas en vivo `tests/live/test_live_analysis.py` (incidentes de "34 semanas" y del arrastre, búsqueda antes vs. ahora) y sonda con métricas top-1 y "útil con el umbral real".

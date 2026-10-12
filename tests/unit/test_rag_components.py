@@ -333,3 +333,12 @@ def test_embed_payload_includes_keep_alive_and_num_gpu_only_when_configured() ->
 
     assert default == {"model": MODEL, "input": ["a"], "keep_alive": "30m"}
     assert on_cpu["keep_alive"] == "1h" and on_cpu["options"] == {"num_gpu": 0}
+
+
+def test_embedder_warm_up_embeds_a_short_text() -> None:
+    opener = EmbedOpener(max_batch=4)
+    embedder = OllamaEmbedder(EmbedderSettings("http://x", MODEL, 1, batch_size=4), opener)
+
+    embedder.warm_up()
+
+    assert opener.batches == [1]

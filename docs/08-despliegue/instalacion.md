@@ -67,7 +67,7 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 3. Abstención: `tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?` → mensaje fijo "No tengo información validada…", `[evidencia: insuficiente …]`, `[respaldo: abstención sin LLM …]` y **sin** tiempo de `respuesta` en `[tiempos …]`
 4. `salir` y abre el JSON más reciente de `data/threads/`: la respuesta del paso 1 tiene `trace` con la evidencia ofrecida, la citada, `grounding` (frases mostradas, total, `literal`, `dropped`) y los tiempos
 5. RAG no disponible: `KB_INDEX_DIR=data/no-existe .venv/bin/python run_console.py` → al arrancar aparece "⚠️ RAG no disponible…"; repite el paso 1: mensaje fijo de abstención y `[evidencia: no disponible …]`
-6. Latencia: repite los pasos 1 y 2 con `OLLAMA_EMBED_NUM_GPU=0` (el primer turno tras arrancar carga los modelos: no lo cuentes) y anota los `[tiempos …]`
+6. Latencia: anota los `[tiempos …]` de los pasos 1 y 2. El embedder ya corre en CPU por defecto y los modelos se cargan al arrancar, así que el primer turno ya no debería ser más lento
 7. Si una respuesta muestra el texto literal, copia la línea `[respaldo …]` y el `grounding.dropped` del JSON: sirven para calibrar `min_support`
 
 **Alcance (HU-07):**
@@ -116,7 +116,10 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `KB_INDEX_DIR` | `data/kb_index` | Índice vectorial (derivado) |
 | `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Umbral, top-k e instrucción de consulta |
 | `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
-| `OLLAMA_EMBED_NUM_GPU` | (vacío = automático) | `0` = el embedder corre en CPU y deja la GPU al LLM (ver [operacion.md](operacion.md)) |
+| `OLLAMA_EMBED_NUM_GPU` | `0` | Capas del embedder en GPU: `0` = CPU (deja la GPU al LLM), `auto` = decide Ollama (ver [operacion.md](operacion.md)) |
+| `OLLAMA_ANALYSIS_NUM_PREDICT` | `600` | Máximo de tokens de la llamada de análisis (`auto` = sin límite) |
+| `OLLAMA_REPLY_NUM_PREDICT` | `500` | Máximo de tokens de la llamada de respuesta (`auto` = sin límite) |
+| `OLLAMA_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 |
 
 ### Problemas frecuentes
 | Mensaje | Solución |
