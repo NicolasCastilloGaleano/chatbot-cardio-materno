@@ -21,7 +21,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-011 | Panel o registro de métricas anonimizadas | — | Baja | — | ⏳ |
 | B-014 | Foco actual del hilo: campo `current_focus` en el JSON del agente, separado del `summary` (ver nota) | HU-06 | Media | — | ⏳ Diferido |
 | B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza | HU-03, HU-04 | **Alta** | Siguiente tras la demo | ⏳ |
-| B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (portar `safety/grounding.py` del piloto) | HU-02 | Alta | — | ⏳ |
+| B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (implementación propia, ADR 0010: `domain/grounding.py`, abstención sin LLM y texto literal) | HU-02 | Alta | 1 | 🔄 En verificación |
 | B-019 | Traer `kb_sync` (Google Sheets → `entries.jsonl`) y agregar a la hoja las columnas Fuente / Validado por / Fecha | HU-02 | Media | — | ⏳ |
 | B-020 | Control de alcance por intención (fuera de alcance / conversacional) | HU-07 | Alta | 1 | 🔄 En verificación |
 | B-021 | Calidad de recuperación con frases coloquiales: en ACV y TVP la sonda pasa por puntaje, pero recupera una categoría equivocada aunque la base los cubre. Propuesta: que la sonda verifique la categoría esperada y luego ajustar la búsqueda (instrucción de consulta, pesos de BM25 o reformulación) | HU-02 | Por definir (equipo) | — | ⏳ |

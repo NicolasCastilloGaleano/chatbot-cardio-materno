@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from cardio_materno.application.agent_turn import NO_CITATION
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.conversation_service import (
     ConversationConfig,
@@ -11,7 +12,10 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
     TurnResult,
 )
-from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
+from cardio_materno.application.ports.knowledge_retriever import (
+    EvidenceQuery,
+    KnowledgeRetriever,
+)
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
@@ -72,7 +76,7 @@ class ScriptedStage:
     ) -> dict[str, Any]:
         self.calls.append(list(messages))
         self.schemas.append(schema)
-        return self._agent.analysis() if self._kind == "analysis" else self._agent.reply()
+        return self._agent.analysis() if self._kind == "analysis" else self._agent.reply(schema)
 
 
 class ScriptedAgent:
@@ -99,10 +103,28 @@ class ScriptedAgent:
         self.current = turn
         return {key: turn[key] for key in ANALYSIS_KEYS}
 
-    def reply(self) -> dict[str, Any]:
+    @property
+    def reply_text(self) -> str:
+        """Texto guionizado de la respuesta del turno actual ("" si la respuesta falla)."""
+        reply = self.current.get("reply", "")
+        return reply if isinstance(reply, str) else ""
+
+    def reply(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """Respuesta simple (saludos) o frase por frase (con evidencia), según el esquema.
+
+        Con evidencia, el texto guionizado es una sola frase que cita la primera etiqueta de
+        `evidence_ids` o, si no hay, la primera etiqueta ofrecida. `sentences` en el guion
+        reemplaza esa frase.
+        """
         if isinstance(self.current["reply"], Exception):
             raise self.current["reply"]
-        return {"reply": self.current["reply"], "evidence_ids": self.current["evidence_ids"]}
+        if "sentences" not in schema["properties"]:
+            return {"reply": self.current["reply"], "evidence_ids": self.current["evidence_ids"]}
+        if "sentences" in self.current:
+            return {"sentences": self.current["sentences"]}
+        offered = schema["properties"]["sentences"]["items"]["properties"]["evidence_id"]["enum"]
+        label = (self.current["evidence_ids"] or [*offered[:-1], NO_CITATION])[0]
+        return {"sentences": [{"text": self.current["reply"], "evidence_id": label}]}
 
 
 class FakeRetriever:
@@ -115,6 +137,21 @@ class FakeRetriever:
     def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
         self.queries.append(query)
         return self.result
+
+
+class BackingRetriever:
+    """Buscador por defecto: un registro que respalda exactamente la respuesta guionizada.
+
+    Así, las pruebas que no tratan sobre la evidencia ven la respuesta del agente tal cual.
+    """
+
+    def __init__(self, agent: "ScriptedAgent") -> None:
+        self._agent = agent
+        self.queries: list[EvidenceQuery] = []
+
+    def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
+        self.queries.append(query)
+        return evidence_result(knowledge_entry(answer=self._agent.reply_text or "respuesta"))
 
 
 def knowledge_entry(
@@ -134,14 +171,17 @@ def make_service(
     agent: "ScriptedAgent",
     repo: "InMemoryThreadRepository | None" = None,
     config: dict[str, Any] | None = None,
-    retriever: FakeRetriever | None = None,
+    retriever: KnowledgeRetriever | None = None,
 ) -> ConversationService:
-    """Servicio con dobles: reloj, ids y tiempos deterministas."""
+    """Servicio con dobles: reloj, ids y tiempos deterministas.
+
+    Sin `retriever`, la evidencia respalda la respuesta guionizada (`BackingRetriever`).
+    """
     ports = ConversationPorts(
         agent.analyzer,
         agent.responder,
         repo or InMemoryThreadRepository(),
-        retriever or FakeRetriever(),
+        retriever or BackingRetriever(agent),
     )
     options: dict[str, Any] = {
         "clock": FakeClock(),

@@ -91,20 +91,38 @@ Estado: ⏳ Borrador
 ### HU-02: Orientación en salud con evidencia
 **Como** gestante o cuidador, **quiero** hacer preguntas en mis propias palabras, **para** recibir información clara y confiable, respaldada por la base de conocimiento del proyecto.
 
-Notas técnicas (ADR 0008): búsqueda híbrida sobre `knowledge/kb/entries.jsonl` (1.600 registros, validados para el prototipo por el líder del proyecto). Dos llamadas al agente: **análisis sin evidencia** (hilo, resumen, síntomas → filtro 2) y **respuesta con evidencia**. Solo evidencia para afirmaciones de salud.
+Notas técnicas (ADR 0008 y 0010): búsqueda híbrida sobre `knowledge/kb/entries.jsonl` (1.600 registros, validados para el prototipo por el líder del proyecto). Dos llamadas al agente: **análisis sin evidencia** (hilo, resumen, síntomas → filtro 2) y **respuesta con evidencia**. Solo evidencia para afirmaciones de salud.
 
 ```gherkin
 Escenario: Respuesta respaldada por evidencia
   Dado que la base de conocimiento y su índice están disponibles
   Cuando pregunto "¿por qué es importante controlar la presión si no me duele nada?"
   Entonces se recuperan registros con similitud ≥ al umbral de la política
-  Y la respuesta usa solo esa evidencia y cita sus etiquetas en evidence_ids
-  Y la respuesta guarda en el hilo la evidencia ofrecida, la citada y los tiempos de cada etapa
+  Y cada frase de salud de la respuesta cita el registro que la respalda
+  Y la respuesta guarda en el hilo la evidencia ofrecida, la citada, la verificación del respaldo y los tiempos de cada etapa
 
-Escenario: Sin evidencia suficiente
-  Cuando pregunto algo que la base no cubre
-  Entonces el asistente dice que no tiene información validada sobre eso y sugiere consultar con el personal de salud
-  Y no cita evidencia
+Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
+  Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
+  Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Y no se llama al modelo de lenguaje para redactar
+  Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
+
+Escenario: Cada frase de salud está respaldada por el registro que cita (regresión del 2026-10-11)
+  Dado que la evidencia ofrecida es un registro que no habla de alimentación
+  Cuando el agente redacta "Come yogur, avena, almendras y nueces" citando ese registro
+  Entonces la verificación determinista rechaza la frase
+  Y se muestra el texto literal del registro en lugar de la redacción del agente
+  Y la traza registra la frase descartada y el uso del texto literal
+
+Escenario: Los avisos no se suavizan
+  Dado que el registro dice "necesita atención obstétrica inmediata"
+  Cuando el agente lo redacta como "es importante que hables con tu médico"
+  Entonces la frase no está respaldada y se muestra el texto literal del registro
+
+Escenario: Frases sin cita
+  Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
+  Entonces se conservan (máximo 2)
+  Y una frase sin cita con información de salud ("Toma infusiones de manzanilla") se descarta
 
 Escenario: La evidencia nunca llega al análisis
   Cuando el asistente procesa cualquier mensaje
@@ -122,9 +140,10 @@ Escenario: Solo se pueden citar las etiquetas ofrecidas
 Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
-  Entonces avisa que el RAG no está disponible y se abstiene de dar información de salud
+  Entonces avisa al arrancar que el RAG no está disponible
+  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
 ```
-Estado: 🔄 En verificación (falta el guion y la sonda en vivo en el PC de pruebas)
+Estado: 🔄 En verificación (sonda en vivo ✅; el guion del 2026-10-11 mostró respuestas sin respaldo, corregidas con el ADR 0010; falta repetir el guion)
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.

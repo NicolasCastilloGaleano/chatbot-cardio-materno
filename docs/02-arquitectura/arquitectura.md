@@ -80,7 +80,7 @@ sequenceDiagram
 | `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
 
 ## 4.1 Estado implementado (HU-00, HU-06, HU-03/04, HU-02; prototipo técnico)
-Camino actual: consola → `ConversationService` → filtro 1 → **llamada de análisis (sin evidencia)** → filtro 2 → **RAG** → **llamada de respuesta (con evidencia)**. Reglas de alarma PROVISIONALES (R-09); grounding léxico pendiente (R-10).
+Camino actual: consola → `ConversationService` → filtro 1 → **llamada de análisis (sin evidencia)** → filtro 2 → **RAG** → **llamada de respuesta (con evidencia)** → **verificación determinista del respaldo**. Sin evidencia suficiente no hay llamada de respuesta (abstención fija). Reglas de alarma PROVISIONALES (R-09).
 ```mermaid
 flowchart LR
     U[Usuario en consola] --> CC[ConsoleChat + debug_lines]
@@ -91,6 +91,8 @@ flowchart LR
     CS --> KR{{KnowledgeRetriever}}
     CS --> RE{{LanguageModel<br/>respuesta}}
     CS --> TR{{ThreadRepository}}
+    CS --> GR[grounded_reply<br/>verificación + literal]
+    GR --> DG[domain/grounding.py]
     AN -.-> OL1[OllamaLanguageModel<br/>OLLAMA_ANALYSIS_MODEL]
     RE -.-> OL2[OllamaLanguageModel<br/>OLLAMA_REPLY_MODEL]
     KR -.-> HR[HybridRetriever<br/>coseno numpy + BM25 + RRF]
@@ -100,14 +102,15 @@ flowchart LR
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```
-- **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms}`; respuesta `{reply, evidence_ids}`, con `evidence_ids` restringido por `enum` a las etiquetas ofrecidas.
+- **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms}`; respuesta con evidencia `{sentences: [{text, evidence_id}]}`, con `evidence_id` restringido por `enum` a las etiquetas ofrecidas o `"ninguna"`; respuesta conversacional `{reply, evidence_ids: []}`.
+- **Respaldo** ([ADR 0010](adr/0010-respuesta-verificada-y-abstencion-determinista.md), `application/grounded_reply.py` + `domain/grounding.py`): sin evidencia suficiente, `ABSTENTION_TEXT` sin llamar al LLM; con evidencia, cada frase citada debe estar respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números); si una falla, se muestra el texto literal del registro.
 - **Contexto:** `application/turn_context.py`. El análisis recibe prompt + JSON del hilo + últimos N mensajes; la respuesta recibe prompt + caso analizado + últimos N mensajes + EVIDENCIA. La evidencia nunca entra al análisis (ADR 0008).
 - **Alarmas** ([ADR 0007](adr/0007-alarmas-deterministas-doble-filtro.md)): con urgencia en el filtro 1, no hay llamadas ni RAG; con urgencia en el filtro 2, no hay RAG ni llamada de respuesta.
 - **Alcance** ([ADR 0009](adr/0009-control-de-alcance-por-intencion.md), `application/scope.py`): sin alarma, `fuera_de_alcance` da un mensaje fijo, sin RAG ni respuesta y sin registro; `conversacional` da respuesta sin RAG. Las alarmas y los síntomas reportados de nuestros dominios nunca se descartan.
 - **Latencia:** `OLLAMA_KEEP_ALIVE` y `OLLAMA_EMBED_NUM_GPU` (embedder en CPU) son configurables; ver el diagnóstico en [operacion.md](../08-despliegue/operacion.md).
-- **Prompts:** `prompts/analysis_prompt_v1.md` (con `{{SIGNOS_DE_ALARMA}}`) y `prompts/reply_prompt_v1.md`.
-- **Traza:** cada respuesta guarda `trace` (síntomas, evidencia, citas, estado de la búsqueda y tiempos). Ver el [diccionario de datos](../04-datos/diccionario-datos.md).
-- **Errores:** `LanguageModelError` si fallan el análisis o la respuesta. Sin alarma no se guarda nada; con alarma, se muestra el mensaje fijo. Si el RAG no está disponible, la respuesta se abstiene en salud.
+- **Prompts:** `prompts/analysis_prompt_v2.md` (con `{{SIGNOS_DE_ALARMA}}`) y `prompts/reply_prompt_v3.md`.
+- **Traza:** cada respuesta guarda `trace` (síntomas, evidencia, citas, estado de la búsqueda, tiempos y verificación del respaldo `grounding`). Ver el [diccionario de datos](../04-datos/diccionario-datos.md).
+- **Errores:** `LanguageModelError` si fallan el análisis o la respuesta. Sin alarma no se guarda nada; con alarma, se muestra el mensaje fijo. Si el RAG no está disponible, se muestra la abstención fija.
 
 ## 5. Stack
 Python 3.12+, FastAPI (previsto), pytest, ruff, mypy. LLM: Ollama local ([ADR 0005](adr/0005-ollama-local-como-llm.md)). RAG: índice propio con **numpy** ([ADR 0008](adr/0008-rag-evidencia-y-dos-llamadas.md)); `numpy` es la única dependencia de ejecución (`requirements.txt`).

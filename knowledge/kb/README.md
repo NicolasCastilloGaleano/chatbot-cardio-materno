@@ -20,6 +20,11 @@ El índice se genera desde este archivo y **no se sube a git** (`data/kb_index/`
 ```
 Usa `OLLAMA_EMBED_MODEL` (por defecto `qwen3-embedding:8b`). Si este archivo o el modelo cambian, el asistente avisa al arrancar y hay que reconstruir el índice.
 
+## Política de evidencia y verificación del respaldo
+`knowledge/evidence_policy.json` define la búsqueda (umbral, `top_k`…) y, desde el ADR 0010, la verificación determinista de cada frase: `min_support` (0,6), `max_free_sentences` (2) y `max_free_words` (20). Cambiar estos valores no obliga a reconstruir el índice, pero sí a repetir `pytest -m live` (`test_live_grounding.py` mide cuántas respuestas terminan en texto literal).
+
+**Efecto de la verificación:** una pregunta que la base no cubre (p. ej., qué comer con acidez o la dosis de insulina en la diabetes gestacional) recibe la abstención o el texto literal de un registro *Indagar*. Llenar esos vacíos es contenido clínico (B-019).
+
 ## Modificar la base
 1. Editar `entries.jsonl` (o reexportar desde la hoja cuando exista B-019).
 2. Reconstruir el índice.

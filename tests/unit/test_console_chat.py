@@ -146,14 +146,36 @@ def test_debug_shows_evidence_citations_and_timings() -> None:
 def test_debug_warns_when_evidence_was_not_cited() -> None:
     retriever = FakeRetriever(evidence_result(knowledge_entry()))
 
-    output = run_console(
-        ["x", "salir"], ScriptedAgent(agent_json()), retriever=retriever, show_thread_debug=True
-    )
+    question = [{"text": "¿Desde cuándo?", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": question})
+
+    output = run_console(["x", "salir"], agent, retriever=retriever, show_thread_debug=True)
 
     assert (
         "[evidencia: E1 0.80 Categoría | citadas: ninguna | ⚠️ la respuesta no citó evidencia]"
         in output
     )
+    assert "[respaldo: 1/1 frases]" in output
+
+
+def test_debug_shows_literal_fallback_and_abstention() -> None:
+    claim = [{"text": "Toma manzanilla.", "evidence_id": "E1"}]
+    literal_agent = ScriptedAgent(agent_json() | {"sentences": claim})
+    with_evidence = FakeRetriever(evidence_result(knowledge_entry()))
+    without_evidence = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT))
+
+    literal = run_console(
+        ["x", "salir"], literal_agent, retriever=with_evidence, show_thread_debug=True
+    )
+    abstention = run_console(
+        ["x", "salir"],
+        ScriptedAgent(agent_json()),
+        retriever=without_evidence,
+        show_thread_debug=True,
+    )
+
+    assert "[respaldo: 0/1 frases · texto literal del registro]" in literal
+    assert "[respaldo: abstención sin LLM (sin evidencia suficiente)]" in abstention
 
 
 def test_debug_explains_insufficient_or_unavailable_evidence() -> None:

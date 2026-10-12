@@ -10,8 +10,11 @@ Flujo de cada turno (ADR 0007 y 0008):
 4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
    un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia y
    nunca se abre un hilo.
-5. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas.
-6. **Llamada de respuesta (con evidencia):** redacta y cita la evidencia que usa.
+5. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas. Sin evidencia
+   suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
+6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
+   respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
+   no está respaldada, se muestra el texto literal del registro (ADR 0010).
 
 La evidencia nunca llega a la llamada de análisis, así no puede alterar los síntomas que
 revisan las reglas de alarma. El hilo solo se modifica al final del turno.
@@ -26,16 +29,20 @@ from datetime import UTC, datetime
 from cardio_materno.application.agent_turn import (
     ANALYSIS_SCHEMA,
     AnalysisTurn,
+    DraftSentence,
     ReplyTurn,
     Scope,
     ThreadAction,
+    grounded_reply_schema,
     parse_analysis,
+    parse_grounded_reply,
     parse_reply,
     reply_schema,
 )
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, compose_grounded_reply
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -56,8 +63,9 @@ from cardio_materno.domain.conversation import (
     open_thread,
     update_thread,
 )
+from cardio_materno.domain.grounding import GroundingPolicy
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
-from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, StageTiming
+from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace, StageTiming
 
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
 DEFAULT_CONTEXT_MESSAGES = 6
@@ -121,6 +129,7 @@ class ConversationConfig:
         context_messages: Mensajes recientes del hilo que se envían como contexto.
         alarm_policy: Reglas de alarma y mensajes fijos.
         evidence_item_chars: Longitud máxima de cada respuesta de evidencia mostrada.
+        grounding: Parámetros de la verificación del respaldo (ADR 0010).
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -131,6 +140,7 @@ class ConversationConfig:
     context_messages: int = DEFAULT_CONTEXT_MESSAGES
     alarm_policy: AlarmPolicy = field(default_factory=no_alarm_policy)
     evidence_item_chars: int = DEFAULT_EVIDENCE_ITEM_CHARS
+    grounding: GroundingPolicy = field(default_factory=GroundingPolicy)
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -257,9 +267,7 @@ class ConversationService:
 
     def _converse(self, analysis: AnalysisTurn, turn: TurnInput, timer: StageTimer) -> TurnOutcome:
         """Saludo, agradecimiento o despedida: llamada de respuesta sin buscar evidencia."""
-        reply = timer.measure(
-            STAGE_REPLY, lambda: self._reply(analysis, turn, CONVERSATIONAL_CONTEXT, ())
-        )
+        reply = timer.measure(STAGE_REPLY, lambda: self._conversational_reply(analysis, turn))
         trace = analysis_trace(analysis, Scope.CONVERSATIONAL, timer.timings)
         return TurnOutcome(reply.reply, (), trace, analysis, conversational=True)
 
@@ -270,36 +278,58 @@ class ConversationService:
         decisions: tuple[AlarmDecision, ...],
         timer: StageTimer,
     ) -> TurnOutcome:
-        """Busca evidencia y pide la respuesta; con alarma, un fallo deja el mensaje fijo."""
+        """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
         query = build_evidence_query(
             turn.user_text, analysis.summary, analysis.reported_symptoms, analysis.domain
         )
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
-        evidence_text = format_evidence_context(retrieval, self._config.evidence_item_chars)
+        if retrieval.status is not RetrievalStatus.SUFFICIENT:
+            trace = build_trace(analysis, retrieval, (), timer.timings)
+            reply = compose_reply(decisions, None) if decisions else ABSTENTION_TEXT
+            return TurnOutcome(reply, decisions, trace, analysis)
+        return self._grounded_answer(analysis, turn, decisions, retrieval, timer)
+
+    def _grounded_answer(
+        self,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        decisions: tuple[AlarmDecision, ...],
+        retrieval: RetrievalResult,
+        timer: StageTimer,
+    ) -> TurnOutcome:
+        """Pide la redacción con evidencia y la verifica; con alarma, si falla, el mensaje fijo."""
         try:
-            reply = timer.measure(
-                STAGE_REPLY, lambda: self._reply(analysis, turn, evidence_text, retrieval.labels)
-            )
+            draft = timer.measure(STAGE_REPLY, lambda: self._draft(analysis, turn, retrieval))
         except LanguageModelError:
             if not decisions:
                 raise
             trace = build_trace(analysis, retrieval, (), timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
-        trace = build_trace(analysis, retrieval, reply.evidence_ids, timer.timings)
-        return TurnOutcome(compose_reply(decisions, reply.reply), decisions, trace, analysis)
+        grounded = compose_grounded_reply(
+            draft, retrieval.items, turn.user_text, self._config.grounding
+        )
+        trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
+        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
         context = analysis_context(self._config.analysis_prompt, current, turn)
         return parse_analysis(self._ports.analyzer.complete_json(context, ANALYSIS_SCHEMA))
 
-    def _reply(
-        self, analysis: AnalysisTurn, turn: TurnInput, context_text: str, labels: tuple[str, ...]
-    ) -> ReplyTurn:
-        """Llamada de respuesta con la evidencia (o el aviso) dada; solo cita esas etiquetas."""
-        context = reply_context(self._config.reply_prompt, analysis, turn, context_text)
-        data = self._ports.responder.complete_json(context, reply_schema(labels))
-        return parse_reply(data, labels)
+    def _conversational_reply(self, analysis: AnalysisTurn, turn: TurnInput) -> ReplyTurn:
+        """Llamada de respuesta sin evidencia (saludos): texto simple, sin citas."""
+        context = reply_context(self._config.reply_prompt, analysis, turn, CONVERSATIONAL_CONTEXT)
+        data = self._ports.responder.complete_json(context, reply_schema(()))
+        return parse_reply(data, ())
+
+    def _draft(
+        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult
+    ) -> tuple[DraftSentence, ...]:
+        """Llamada de respuesta con evidencia: frases que solo pueden citar las etiquetas dadas."""
+        evidence_text = format_evidence_context(retrieval.items, self._config.evidence_item_chars)
+        context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
+        data = self._ports.responder.complete_json(context, grounded_reply_schema(retrieval.labels))
+        return parse_grounded_reply(data, retrieval.labels)
 
     def _post_filter(
         self, analysis: AnalysisTurn, pre: AlarmDecision | None
@@ -413,6 +443,7 @@ def build_trace(
     retrieval: RetrievalResult,
     cited: tuple[str, ...],
     timings: tuple[StageTiming, ...],
+    grounding: GroundingCheck | None = None,
 ) -> ReplyTrace:
     """Traza de una respuesta que pasó por análisis y búsqueda de evidencia."""
     evidence = tuple(
@@ -428,6 +459,7 @@ def build_trace(
         timings=timings,
         scope=str(Scope.IN_SCOPE),
         scope_reason=analysis.scope_reason,
+        grounding=grounding,
     )
 
 

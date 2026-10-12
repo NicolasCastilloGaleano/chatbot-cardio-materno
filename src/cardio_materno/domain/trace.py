@@ -47,6 +47,23 @@ class StageTiming:
 
 
 @dataclass(frozen=True)
+class GroundingCheck:
+    """Resultado de verificar el respaldo de una respuesta en la evidencia (ADR 0010).
+
+    Attributes:
+        supported: Frases que se mostraron (respaldadas o permitidas sin cita).
+        total: Frases que redactó el agente.
+        literal: True si se mostró el texto literal del registro en lugar de la redacción.
+        dropped: Frases descartadas (para auditar).
+    """
+
+    supported: int
+    total: int
+    literal: bool = False
+    dropped: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ReplyTrace:
     """Lo que se registra de una respuesta del asistente cuando se consultó al agente.
 
@@ -59,6 +76,7 @@ class ReplyTrace:
         timings: Duración de cada etapa.
         scope: Alcance aplicado al mensaje (en_alcance, conversacional, fuera_de_alcance).
         scope_reason: Motivo corto de la decisión de alcance.
+        grounding: Verificación del respaldo (None si no hubo redacción con evidencia).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -69,6 +87,7 @@ class ReplyTrace:
     timings: tuple[StageTiming, ...] = ()
     scope: str | None = None
     scope_reason: str = ""
+    grounding: GroundingCheck | None = None
 
     @property
     def uncited(self) -> bool:

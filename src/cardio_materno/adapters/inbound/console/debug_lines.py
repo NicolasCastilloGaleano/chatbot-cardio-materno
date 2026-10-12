@@ -3,7 +3,13 @@
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import ConversationThread
-from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, RetrievalStatus, StageTiming
+from cardio_materno.domain.trace import (
+    EvidenceRef,
+    GroundingCheck,
+    ReplyTrace,
+    RetrievalStatus,
+    StageTiming,
+)
 
 SHORT_ID_LENGTH = 8
 CATEGORY_MAX_CHARS = 32
@@ -23,6 +29,9 @@ CONVERSATIONAL_SCOPE = "conversacional"
 EVIDENCE_INSUFFICIENT_TEMPLATE = "[evidencia: insuficiente (mejor {best:.2f})]"
 EVIDENCE_UNAVAILABLE_TEXT = "[evidencia: no disponible (RAG desactivado o sin índice)]"
 UNCITED_WARNING = " | ⚠️ la respuesta no citó evidencia"
+GROUNDING_DEBUG_TEMPLATE = "[respaldo: {supported}/{total} frases{literal}]"
+GROUNDING_LITERAL_TEXT = " · texto literal del registro"
+ABSTENTION_DEBUG_TEXT = "[respaldo: abstención sin LLM (sin evidencia suficiente)]"
 TIMINGS_DEBUG_TEMPLATE = "[tiempos: {timings}]"
 TIMING_TEMPLATE = "{stage} {seconds:.1f} s"
 NONE_TEXT = "ninguna"
@@ -42,6 +51,9 @@ def debug_lines(result: TurnResult) -> list[str]:
     lines = [format_thread_debug(result, result.thread), format_symptoms_debug(result.trace)]
     if result.trace is not None:
         lines.append(format_evidence_debug(result.trace))
+        grounding = format_grounding_debug(result.trace)
+        if grounding:
+            lines.append(grounding)
         if result.trace.timings:
             lines.append(format_timings_debug(result.trace.timings))
     return lines
@@ -103,6 +115,26 @@ def format_evidence_debug(trace: ReplyTrace) -> str:
         items=ITEM_SEPARATOR.join(format_evidence_item(ref) for ref in trace.evidence),
         cited=",".join(trace.cited_evidence) or NONE_TEXT,
         warning=UNCITED_WARNING if trace.uncited else "",
+    )
+
+
+def format_grounding_debug(trace: ReplyTrace) -> str:
+    """Resultado de la verificación del respaldo, o "" si no aplica (ADR 0010)."""
+    if trace.grounding is not None:
+        return format_grounding_check(trace.grounding)
+    searched_without_evidence = trace.retrieval_status in (
+        RetrievalStatus.INSUFFICIENT,
+        RetrievalStatus.UNAVAILABLE,
+    )
+    return ABSTENTION_DEBUG_TEXT if searched_without_evidence else ""
+
+
+def format_grounding_check(check: GroundingCheck) -> str:
+    """Frases mostradas de las redactadas y si se usó el texto literal del registro."""
+    return GROUNDING_DEBUG_TEMPLATE.format(
+        supported=check.supported,
+        total=check.total,
+        literal=GROUNDING_LITERAL_TEXT if check.literal else "",
     )
 
 

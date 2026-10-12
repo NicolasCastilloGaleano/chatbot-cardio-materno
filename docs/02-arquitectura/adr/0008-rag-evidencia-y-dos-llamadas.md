@@ -24,7 +24,7 @@
    - **Respuesta (con evidencia):** solo si no hubo urgencia; texto + `evidence_ids`.
 
    La evidencia **nunca** llega al análisis, así no puede alterar el filtro de seguridad. Las urgencias detectadas por el filtro 2 ya no buscan evidencia ni redactan una respuesta para descartarla.
-5. **Solo evidencia para afirmaciones de salud:**
+5. **Solo evidencia para afirmaciones de salud** (*actualizado por el [ADR 0010](0010-respuesta-verificada-y-abstencion-determinista.md): la abstención ya no depende del prompt y cada frase se verifica de forma determinista*):
    - el prompt de respuesta exige usar únicamente la EVIDENCIA y citar sus etiquetas;
    - el JSON Schema restringe `evidence_ids` a las etiquetas ofrecidas (`enum`) y la aplicación lo valida;
    - sin evidencia, el agente lo dice y remite al personal de salud;

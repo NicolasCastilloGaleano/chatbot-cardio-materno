@@ -5,6 +5,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- Respuesta verificada (ADR 0010, B-018): el LLM redacta frase por frase (`reply_prompt_v3`, `sentences: [{text, evidence_id}]`) y `domain/grounding.py` comprueba de forma determinista que cada frase citada esté respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números). Si una frase no lo está, se muestra el texto literal del registro. Las frases sin cita solo se conservan si son preguntas cortas, cortesía o "no puedo ayudar con…".
+- Traza `grounding` (frases mostradas, total, texto literal y frases descartadas) y línea de depuración `[respaldo: …]`.
+- Prueba en vivo `tests/live/test_live_grounding.py`: arma el asistente completo con los modelos reales y comprueba que no reaparecen los consejos inventados del guion.
+
+### Changed
+- Sin evidencia suficiente (insuficiente o RAG no disponible) ya no se llama al LLM de respuesta: se muestra un mensaje fijo de abstención; con alarma prioritaria, solo su mensaje fijo.
+- `knowledge/evidence_policy.json` v1.1.0: `min_support`, `max_free_sentences` y `max_free_words`.
+- `bootstrap/main.py`: `build_service` pasa a ser público (lo usan las pruebas en vivo).
+
 ### Fixed
 - Filtro 2: cada síntoma reportado se revisa por separado. Antes se unían en un solo texto, y "acidez en el embarazo" + "fiebre en el bebé" activaba RN-MI-07 (fiebre en el embarazo) con el mensaje para gestantes.
 - Una urgencia detectada por el filtro 1 queda en el hilo activo solo si es del mismo dominio; si no, se abre un hilo con el dominio de la regla (antes un ACV quedaba en el hilo materno de la fiebre de un bebé).

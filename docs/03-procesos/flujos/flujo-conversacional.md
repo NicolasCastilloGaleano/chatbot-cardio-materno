@@ -54,9 +54,14 @@ sequenceDiagram
         else en alcance (o con alarma prioritaria)
             S->>K: consulta = mensaje + resumen + síntomas (dominio del análisis)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
-            S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
-            L2-->>S: {reply, evidence_ids ⊆ ofrecidas}
-            S-->>U: (mensaje fijo ⚠️ si prioritaria) + reply
+            alt insuficiente o no disponible
+                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
+            else suficiente
+                S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
+                L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}
+                S->>S: verificación determinista (domain/grounding.py); si una frase citada no está respaldada → texto literal del registro
+                S-->>U: (mensaje fijo ⚠️ si prioritaria) + respuesta verificada
+            end
         end
     end
     S->>R: actualizar o abrir hilo · mensajes con thread_id y trace · alertas (una urgencia de otro dominio abre un hilo de su dominio)

@@ -7,7 +7,7 @@ import pytest
 
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.evidence import NO_EVIDENCE_TEXT
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
@@ -16,6 +16,7 @@ from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
 from tests.unit.fakes import (
     PRIORITY_MESSAGE,
     URGENT_MESSAGE,
+    BackingRetriever,
     FakeRetriever,
     InMemoryThreadRepository,
     ScriptedAgent,
@@ -30,6 +31,17 @@ from tests.unit.fakes import (
 )
 
 ALARMS: dict[str, Any] = {"alarm_policy": make_alarm_policy()}
+FOOD_ADVICE = "Come comidas pequeñas y frecuentes."
+# Registro real de la base citado en el incidente del 2026-10-11 (tipo Indagar).
+HEARTBURN_ENTRY = (
+    "Describe si es ardor que sube hacia el pecho o un dolor localizado, cuánto tarda en "
+    "aparecer después de comer y qué alimentos lo desencadenan. ¿Hay sabor ácido, vómitos o "
+    "dificultad para alimentarte? Indica las semanas de embarazo y los productos que estás "
+    "usando para aliviarlo. Estos datos ayudan a distinguir síntomas digestivos de otros "
+    "dolores abdominales. Si la molestia es intensa y persistente, especialmente bajo las "
+    "costillas derechas o junto con dolor de cabeza o visión alterada, necesita atención "
+    "obstétrica inmediata."
+)
 
 
 # --- Hilos (HU-06) -------------------------------------------------------------------------
@@ -327,13 +339,17 @@ def test_domain_none_searches_all_domains() -> None:
 
 def test_reply_schema_limits_citations_to_offered_labels_and_trace_records_them() -> None:
     repo = InMemoryThreadRepository()
-    agent = ScriptedAgent(citing(agent_json("comidas pequeñas"), "E1"))
-    retriever = FakeRetriever(evidence_result(knowledge_entry("k1"), knowledge_entry("k2")))
+    agent = ScriptedAgent(citing(agent_json("Come comidas pequeñas."), "E1"))
+    retriever = FakeRetriever(
+        evidence_result(knowledge_entry("k1", answer=FOOD_ADVICE), knowledge_entry("k2"))
+    )
 
     result = make_service(agent, repo, retriever=retriever).send("¿qué como?")
 
     schema = agent.responder.schemas[0]
-    assert schema["properties"]["evidence_ids"]["items"]["enum"] == ["E1", "E2"]
+    sentence = schema["properties"]["sentences"]["items"]["properties"]
+    assert sentence["evidence_id"]["enum"] == ["E1", "E2", "ninguna"]
+    assert result.reply == "Come comidas pequeñas."
     trace = repo.messages["hilo-1"][1].trace
     assert trace is not None and trace == result.trace
     assert [ref.entry_id for ref in trace.evidence] == ["k1", "k2"]
@@ -353,21 +369,80 @@ def test_citing_unoffered_label_is_an_error_and_saves_nothing() -> None:
     assert repo.threads == {}
 
 
-def test_without_evidence_reply_context_says_so_and_schema_forbids_citations() -> None:
-    agent = ScriptedAgent(agent_json("no tengo información validada"))
-    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.UNAVAILABLE))
+@pytest.mark.parametrize("status", [RetrievalStatus.INSUFFICIENT, RetrievalStatus.UNAVAILABLE])
+def test_without_sufficient_evidence_abstains_without_calling_the_reply_model(
+    status: RetrievalStatus,
+) -> None:
+    agent = ScriptedAgent(agent_json("el jengibre ayuda"))
+    retriever = FakeRetriever(RetrievalResult(status, best_score=0.44))
 
-    result = make_service(agent, retriever=retriever).send("¿qué es el colesterol?")
+    result = make_service(agent, retriever=retriever).send("¿qué como si tengo acidez?")
 
-    assert NO_EVIDENCE_TEXT in [m.content for m in agent.responder.calls[0]]
-    assert agent.responder.schemas[0]["properties"]["evidence_ids"]["maxItems"] == 0
-    assert result.trace is not None and result.trace.retrieval_status is RetrievalStatus.UNAVAILABLE
+    assert result.reply == ABSTENTION_TEXT and agent.responder.calls == []
+    assert result.trace is not None and result.trace.retrieval_status is status
+    assert result.trace.grounding is None
+    assert [t.stage for t in result.trace.timings] == ["análisis", "RAG"]
+
+
+def test_abstention_with_priority_alarm_shows_only_the_fixed_notice() -> None:
+    agent = ScriptedAgent(agent_json("consejos"))
+
+    result = make_service(agent, config=ALARMS, retriever=FakeRetriever()).send(
+        "tengo la presion alta"
+    )
+
+    assert result.reply == PRIORITY_MESSAGE and agent.responder.calls == []
+
+
+def test_unsupported_cited_sentence_shows_the_literal_entry_text() -> None:
+    sentences = [
+        {"text": "Describe si el ardor sube hacia el pecho.", "evidence_id": "E1"},
+        {"text": "Come yogur, avena, almendras y nueces.", "evidence_id": "E1"},
+    ]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("¿qué más puedo comer?")
+
+    assert result.reply == LITERAL_TEMPLATE.format(answer=HEARTBURN_ENTRY)
+    assert result.trace is not None and result.trace.grounding is not None
+    assert result.trace.grounding.literal and result.trace.cited_evidence == ("E1",)
+    assert result.trace.grounding.dropped == ("Come yogur, avena, almendras y nueces.",)
+
+
+def test_supported_sentences_and_a_clarifying_question_are_kept() -> None:
+    sentences = [
+        {"text": "Cuenta si el ardor sube hacia el pecho.", "evidence_id": "E1"},
+        {"text": "Evita el café y el chocolate.", "evidence_id": "ninguna"},
+        {"text": "¿Desde cuándo lo sientes?", "evidence_id": "ninguna"},
+    ]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("tengo acidez")
+
+    assert result.reply == "Cuenta si el ardor sube hacia el pecho. ¿Desde cuándo lo sientes?"
+    assert result.trace is not None and result.trace.grounding is not None
+    assert (result.trace.grounding.supported, result.trace.grounding.total) == (2, 3)
+    assert not result.trace.grounding.literal
+
+
+def test_reply_with_only_uncited_claims_shows_the_literal_entry_text() -> None:
+    sentences = [{"text": "Toma infusiones de manzanilla.", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("tengo acidez")
+
+    assert result.reply == LITERAL_TEMPLATE.format(answer=HEARTBURN_ENTRY)
 
 
 def test_sufficient_evidence_without_citation_is_flagged_as_uncited() -> None:
+    question = [{"text": "¿Desde cuándo lo sientes?", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": question})
     retriever = FakeRetriever(evidence_result(knowledge_entry()))
 
-    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("¿qué como?")
+    result = make_service(agent, retriever=retriever).send("¿qué como?")
 
     assert result.trace is not None and result.trace.uncited
 
@@ -434,7 +509,7 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
 
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
     agent = ScriptedAgent(scoped(agent_json("consejos"), "fuera_de_alcance", "habla de fútbol"))
-    retriever = FakeRetriever()
+    retriever = BackingRetriever(agent)
 
     result = make_service(agent, config=ALARMS, retriever=retriever).send(
         "vengo del partido y tengo la presion alta"
@@ -458,7 +533,7 @@ def test_reported_symptom_overrides_out_of_scope_decision() -> None:
     agent = ScriptedAgent(
         scoped(agent_json("r", reported_symptoms=["acidez en el embarazo"]), "fuera_de_alcance")
     )
-    retriever = FakeRetriever()
+    retriever = BackingRetriever(agent)
 
     result = make_service(agent, retriever=retriever).send(
         "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas"
