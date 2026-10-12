@@ -5,8 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
+from cardio_materno.bootstrap.rag_setup import apply_policy_overrides
 from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     ConfigurationError,
@@ -163,3 +165,59 @@ def test_think_is_optional() -> None:
 def test_invalid_embed_num_gpu_raises_configuration_error(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError, match="OLLAMA_EMBED_NUM_GPU"):
         load_rag_settings({"OLLAMA_EMBED_NUM_GPU": "mucho"}, tmp_path)
+
+
+def test_think_can_be_set_per_stage_with_global_fallback() -> None:
+    env = {"OLLAMA_THINK": "true", "OLLAMA_ANALYSIS_THINK": "false"}
+
+    assert load_stage_settings(env, "OLLAMA_ANALYSIS_MODEL").think is False
+    assert load_stage_settings(env, "OLLAMA_REPLY_MODEL").think is True
+    assert load_stage_settings({}, "OLLAMA_REPLY_MODEL").think is None
+
+
+def test_each_stage_can_set_model_temperature_context_and_timeout() -> None:
+    env = {
+        "OLLAMA_MODEL": "general",
+        "OLLAMA_TEMPERATURE": "0.3",
+        "OLLAMA_ANALYSIS_MODEL": "mistral-small3.1:24b",
+        "OLLAMA_ANALYSIS_TEMPERATURE": "0.1",
+        "OLLAMA_REPLY_MODEL": "qwen3:8b",
+        "OLLAMA_REPLY_NUM_CTX": "8192",
+        "OLLAMA_REPLY_TIMEOUT_SECONDS": "60",
+    }
+
+    analysis = load_stage_settings(env, "OLLAMA_ANALYSIS_MODEL")
+    reply = load_stage_settings(env, "OLLAMA_REPLY_MODEL")
+
+    assert (analysis.model, analysis.temperature, analysis.num_ctx) == (
+        "mistral-small3.1:24b",
+        0.1,
+        4096,
+    )
+    assert (reply.model, reply.temperature, reply.num_ctx, reply.timeout_seconds) == (
+        "qwen3:8b",
+        0.3,
+        8192,
+        60,
+    )
+
+
+def test_evidence_thresholds_from_env_override_the_policy_file(tmp_path: Path) -> None:
+    env = {"RAG_MIN_SIMILARITY": "0.5", "RAG_TOP_K": "4", "GROUNDING_MIN_SUPPORT": " "}
+
+    overrides = load_rag_settings(env, tmp_path).policy_overrides
+    policy = apply_policy_overrides(EvidencePolicy(min_similarity=0.55, min_support=0.6), overrides)
+
+    assert (overrides.min_similarity, overrides.top_k, overrides.min_support) == (0.5, 4, None)
+    assert (policy.min_similarity, policy.top_k, policy.min_support) == (0.5, 4, 0.6)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [("RAG_MIN_SIMILARITY", "1.5"), ("GROUNDING_MIN_SUPPORT", "-0.1"), ("RAG_TOP_K", "0")],
+)
+def test_invalid_evidence_thresholds_raise_configuration_error(
+    tmp_path: Path, name: str, value: str
+) -> None:
+    with pytest.raises(ConfigurationError, match=name):
+        load_rag_settings({name: value}, tmp_path)

@@ -95,31 +95,54 @@ Si un paso no da lo esperado, copia el mensaje, la respuesta y las líneas de de
 Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Además, las preguntas educativas no deben reportar síntomas y los reportes coloquiales deben activar el filtro 2.
 
 ### Variables (`.env`)
+`.env.example` está ordenado en las mismas secciones. **Regla general:** una variable vacía toma su valor por defecto. En las etapas, una variable vacía toma la general (por ejemplo, `OLLAMA_REPLY_TEMPERATURE` vacía usa `OLLAMA_TEMPERATURE`). Los umbrales del RAG y de la verificación, si tienen valor, **reemplazan** los de `knowledge/evidence_policy.json`.
+
+**1. General y servidor de Ollama**
 | Variable | Por defecto | Para qué |
 |---|---|---|
+| `APP_ENV` / `LOG_LEVEL` / `CHANNEL` | `development` / `INFO` / `console` | Entorno, nivel de registro y canal |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
-| `OLLAMA_MODEL` | `mistral-small3.1:24b` | Modelo por defecto de ambas llamadas |
-| `OLLAMA_ANALYSIS_MODEL` | (vacío = `OLLAMA_MODEL`) | Modelo de la llamada de análisis |
-| `OLLAMA_REPLY_MODEL` | (vacío = `OLLAMA_MODEL`) | Modelo de la llamada de respuesta |
-| `OLLAMA_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta |
-| `OLLAMA_TEMPERATURE` | `0.3` | Creatividad (0 = más predecible) |
-| `OLLAMA_NUM_CTX` | `4096` | Ventana de contexto en tokens |
-| `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
-| `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
-| `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
-| `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma |
+| `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
+
+**2. Modelos y generación (generales y por etapa, ADR 0011)**
+| Variable general | Por etapa (análisis / respuesta) | Por defecto | Para qué |
+|---|---|---|---|
+| `OLLAMA_MODEL` | `OLLAMA_ANALYSIS_MODEL` / `OLLAMA_REPLY_MODEL` | `mistral-small3.1:24b` | Modelo (nombre de `ollama list`). **Decisión del equipo (2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` |
+| `OLLAMA_TEMPERATURE` | `OLLAMA_ANALYSIS_TEMPERATURE` / `OLLAMA_REPLY_TEMPERATURE` | `0.3` | Creatividad (0 = más predecible) |
+| `OLLAMA_NUM_CTX` | `OLLAMA_ANALYSIS_NUM_CTX` / `OLLAMA_REPLY_NUM_CTX` | `4096` | Ventana de contexto en tokens |
+| `OLLAMA_TIMEOUT_SECONDS` | `OLLAMA_ANALYSIS_TIMEOUT_SECONDS` / `OLLAMA_REPLY_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta (s) |
+| `OLLAMA_THINK` | `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 (**obligatorio** con qwen3 en la respuesta) |
+| — | `OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT` | `600` / `500` | Máximo de tokens que genera cada etapa (`auto` = sin límite) |
+
+**3. RAG y búsqueda de evidencia (ADR 0008)**
+| Variable | Por defecto | Para qué |
+|---|---|---|
 | `RAG_ENABLED` | `true` | Activa la búsqueda de evidencia |
 | `OLLAMA_EMBED_MODEL` | `qwen3-embedding:8b` | Modelo de embeddings (debe coincidir con el del índice) |
 | `OLLAMA_EMBED_TIMEOUT_SECONDS` | `120` | Espera máxima por embedding |
+| `OLLAMA_EMBED_NUM_GPU` | `0` | Capas del embedder en GPU: `0` = CPU (deja la GPU al LLM), `auto` = decide Ollama |
 | `EMBED_BATCH_SIZE` | `16` | Textos por lote al construir el índice |
-| `KB_ENTRIES_FILE` | `knowledge/kb/entries.jsonl` | Base de conocimiento |
-| `KB_INDEX_DIR` | `data/kb_index` | Índice vectorial (derivado) |
-| `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Umbral, top-k e instrucción de consulta |
-| `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
-| `OLLAMA_EMBED_NUM_GPU` | `0` | Capas del embedder en GPU: `0` = CPU (deja la GPU al LLM), `auto` = decide Ollama (ver [operacion.md](operacion.md)) |
-| `OLLAMA_ANALYSIS_NUM_PREDICT` | `600` | Máximo de tokens de la llamada de análisis (`auto` = sin límite) |
-| `OLLAMA_REPLY_NUM_PREDICT` | `500` | Máximo de tokens de la llamada de respuesta (`auto` = sin límite) |
-| `OLLAMA_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 |
+| `KB_ENTRIES_FILE` / `KB_INDEX_DIR` | `knowledge/kb/entries.jsonl` / `data/kb_index` | Base de conocimiento e índice (derivado) |
+| `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Valores calibrados por defecto (umbral, top-k, instrucción de consulta) |
+| `RAG_MIN_SIMILARITY` | (archivo: `0.50`) | Similitud mínima para que un registro cuente como evidencia (0 a 1). **0,55 → 0,50 por decisión del equipo (2026-10-12)** |
+| `RAG_TOP_K` / `RAG_CANDIDATE_K` | (archivo: `3` / `12`) | Registros que se entregan al agente / candidatos antes de fusionar |
+
+**4. Verificación del respaldo (ADR 0010)**
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `GROUNDING_MIN_SUPPORT` | (archivo: `0.6`) | Fracción mínima de palabras de una frase que debe estar en el registro citado |
+| `GROUNDING_MAX_FREE_SENTENCES` | (archivo: `2`) | Frases sin cita permitidas (preguntas de aclaración, cortesía) |
+| `GROUNDING_MAX_FREE_WORDS` | (archivo: `20`) | Palabras máximas de una frase sin cita |
+
+**5. Alarmas, hilos y consola**
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (PROVISIONAL) |
+| `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
+| `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
+| `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
+
+Al arrancar, la consola muestra el modelo de cada etapa y el umbral efectivo del RAG (`… · umbral 0.50`).
 
 ### Problemas frecuentes
 | Mensaje | Solución |

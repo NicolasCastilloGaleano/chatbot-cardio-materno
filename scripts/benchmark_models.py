@@ -7,7 +7,9 @@ usa el proyecto:
 - **Filtro 2:** reglas de alarma que se activan con los síntomas que reporta el análisis, con
   las frases coloquiales de `tests/live/colloquial_alarm_phrases.json`. Se mide el filtro 2 por
   sí solo (cuánto entiende el modelo el lenguaje coloquial), con el mismo conjunto en todas las
-  rondas; las frases que también capta el filtro 1 se marcan en la consola.
+  rondas; las frases que también capta el filtro 1 se marcan en la consola. Desde el ADR 0012
+  el filtro 2 tiene dos vías (síntomas en texto y códigos de signos); la consola dice por cuál
+  acertó y la columna "Filtro 2 por código" cuenta los aciertos de la vía de códigos.
 - **Turnos completos:** las consultas de `tests/live/retrieval_probe.json` con el asistente
   armado como en producción: respuestas verificadas, con texto literal o con abstención, y
   tiempos por etapa.
@@ -43,9 +45,9 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (  # noqa
     OllamaLanguageModel,
 )
 from cardio_materno.application.agent_turn import (  # noqa: E402
-    ANALYSIS_SCHEMA,
     AnalysisTurn,
     Scope,
+    analysis_schema,
     parse_analysis,
 )
 from cardio_materno.application.alarm_policy import (  # noqa: E402
@@ -82,10 +84,20 @@ SCOPE_KEYS = {
     "conversacional": Scope.CONVERSATIONAL,
 }
 TABLE_HEADER = (
-    "| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | Verificadas | "
-    "Literal | Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |\n"
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+    "| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | "
+    "Filtro 2 por código | Verificadas | Literal | Abstención | Otros | Turno p50 | Turno p90 | "
+    "Análisis p50 | Respuesta p50 |\n"
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 )
+
+
+@dataclass(frozen=True)
+class AnalysisSetup:
+    """Lo necesario para la llamada de análisis de una combinación."""
+
+    analyzer: OllamaLanguageModel
+    prompt: str
+    policy: AlarmPolicy
 
 
 @dataclass
@@ -98,6 +110,7 @@ class ComboResult:
     scope_hits: int = 0
     scope_total: int = 0
     alarm_hits: int = 0
+    alarm_code_hits: int = 0
     alarm_total: int = 0
     outcomes: dict[str, int] = field(default_factory=dict)
     turn_seconds: list[float] = field(default_factory=list)
@@ -141,20 +154,20 @@ def run_combo(analysis_model: str, reply_model: str) -> ComboResult:
         load_conversation_settings(os.environ, PROJECT_ROOT).alarm_rules_file
     )
     prompt = render_system_prompt(ANALYSIS_PROMPT_FILE.read_text(encoding="utf-8"), policy)
-    measure_scope(analyzer, prompt, result)
-    measure_alarms(analyzer, prompt, policy, result)
+    setup = AnalysisSetup(analyzer, prompt, policy)
+    measure_scope(setup, result)
+    measure_alarms(setup, result)
     measure_turns(result)
     return result
 
 
-def analyze(
-    analyzer: OllamaLanguageModel, prompt: str, text: str, result: ComboResult
-) -> AnalysisTurn | None:
-    """Llamada de análisis sin hilo; registra el tiempo y los errores de JSON."""
+def analyze(setup: AnalysisSetup, text: str, result: ComboResult) -> AnalysisTurn | None:
+    """Llamada de análisis sin hilo (con los códigos del catálogo); registra tiempo y errores."""
     start = time.perf_counter()
     try:
-        context = analysis_context(prompt, None, TurnInput(text))
-        return parse_analysis(analyzer.complete_json(context, ANALYSIS_SCHEMA))
+        context = analysis_context(setup.prompt, None, TurnInput(text))
+        schema = analysis_schema(setup.policy.codes)
+        return parse_analysis(setup.analyzer.complete_json(context, schema), setup.policy.codes)
     except LanguageModelError as error:
         result.json_errors += 1
         print(f"  ⚠️ {text[:50]}… → {error}")
@@ -163,35 +176,56 @@ def analyze(
         result.analysis_seconds.append(time.perf_counter() - start)
 
 
-def measure_scope(analyzer: OllamaLanguageModel, prompt: str, result: ComboResult) -> None:
+def measure_scope(setup: AnalysisSetup, result: ComboResult) -> None:
     """Aciertos de alcance con los casos compartidos de HU-07."""
     cases: dict[str, Any] = read_json(LIVE_DIR / "scope_cases.json")
     for key, expected in SCOPE_KEYS.items():
         for message in cases[key]:
-            analysis = analyze(analyzer, prompt, message, result)
+            analysis = analyze(setup, message, result)
             hit = analysis is not None and effective_scope(analysis) is expected
             result.scope_total += 1
             result.scope_hits += hit
             print(f"  alcance {'✅' if hit else '❌'} {message[:60]}")
 
 
-def measure_alarms(
-    analyzer: OllamaLanguageModel, prompt: str, policy: AlarmPolicy, result: ComboResult
-) -> None:
-    """Reglas que capta el filtro 2 por sí solo en las frases coloquiales."""
+def measure_alarms(setup: AnalysisSetup, result: ComboResult) -> None:
+    """Reglas que capta el filtro 2 por sí solo en las frases coloquiales, y por qué vía."""
     for case in read_json(COLLOQUIAL_PHRASES_FILE)["cases"]:
         rule_id, phrase = case["rule"], case["phrase"]
-        analysis = analyze(analyzer, prompt, phrase, result)
-        symptoms = analysis.reported_symptoms if analysis else ()
-        hit = triggers(policy, symptoms, AlertOrigin.AGENT, rule_id)
+        analysis = analyze(setup, phrase, result)
+        via = filter_two_via(setup.policy, analysis, rule_id)
         result.alarm_total += 1
-        result.alarm_hits += hit
-        also = (
-            " (también filtro 1)" if triggers(policy, [phrase], AlertOrigin.USER, rule_id) else ""
-        )
-        print(
-            f"  filtro 2 {'✅' if hit else '❌'}{also} {rule_id}: {phrase[:50]} → {list(symptoms)}"
-        )
+        result.alarm_hits += bool(via)
+        result.alarm_code_hits += "código" in via
+        caught_by_one = triggers(setup.policy, [phrase], AlertOrigin.USER, rule_id)
+        print(alarm_line(rule_id, phrase, analysis, via, caught_by_one))
+
+
+def alarm_line(
+    rule_id: str,
+    phrase: str,
+    analysis: AnalysisTurn | None,
+    via: tuple[str, ...],
+    caught_by_one: bool,
+) -> str:
+    """Línea de la consola de una frase coloquial: resultado, vía y lo que marcó el análisis."""
+    verdict = "✅ " + "+".join(via) if via else "❌"
+    also = " (también filtro 1)" if caught_by_one else ""
+    symptoms = list(analysis.reported_symptoms) if analysis else []
+    signs = list(analysis.reported_signs) if analysis else []
+    return f"  filtro 2 {verdict}{also} {rule_id}: {phrase[:50]} → {symptoms} {signs}"
+
+
+def filter_two_via(
+    policy: AlarmPolicy, analysis: AnalysisTurn | None, rule_id: str
+) -> tuple[str, ...]:
+    """Vías del filtro 2 que activan la regla: "texto" (síntomas) y/o "código" (signos)."""
+    if analysis is None:
+        return ()
+    by_text = triggers(policy, analysis.reported_symptoms, AlertOrigin.AGENT, rule_id)
+    decision = policy.evaluate_codes(analysis.reported_signs)
+    by_code = decision is not None and rule_id in decision.rule_ids
+    return tuple(name for name, hit in (("texto", by_text), ("código", by_code)) if hit)
 
 
 def triggers(policy: AlarmPolicy, texts: Sequence[str], origin: AlertOrigin, rule_id: str) -> bool:
@@ -263,6 +297,7 @@ def render_row(r: ComboResult) -> str:
         str(r.json_errors),
         f"{r.scope_hits}/{r.scope_total}",
         f"{r.alarm_hits}/{r.alarm_total}",
+        f"{r.alarm_code_hits}/{r.alarm_total}",
         str(count("verificada")),
         str(count("literal")),
         str(count("abstención")),

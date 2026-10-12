@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 def valid_rule(**overrides: Any) -> dict[str, Any]:
     rule = {
         "id": "RN-X-01",
+        "code": "DOLOR_PECHO",
         "domain": "cardiovascular",
         "population": "adulto",
         "sign": "Dolor en el pecho",
@@ -35,11 +36,13 @@ def write_catalog(tmp_path: Path, rules: list[Any], messages: Any = None) -> Pat
     return path
 
 
-def test_real_catalog_loads_with_unique_ids() -> None:
+def test_real_catalog_loads_with_unique_ids_and_codes() -> None:
     policy = load_alarm_policy(PROJECT_ROOT / "knowledge" / "alarm_rules.json")
 
     ids = [rule.id for rule in policy.rules]
     assert len(ids) == len(set(ids)) > 0
+    assert len(policy.codes) == len(policy.rules)
+    assert all(len(rule.examples) >= 2 for rule in policy.rules)
 
 
 def test_valid_catalog_builds_policy(tmp_path: Path) -> None:
@@ -47,12 +50,16 @@ def test_valid_catalog_builds_policy(tmp_path: Path) -> None:
 
     assert policy.rules[0].id == "RN-X-01"
     assert policy.rules[0].matches("dolor del pecho")
+    assert (policy.rules[0].code, policy.rules[0].examples) == ("DOLOR_PECHO", ())
 
 
 @pytest.mark.parametrize(
     ("rules", "expected"),
     [
-        ([valid_rule(), valid_rule()], "repetidos"),
+        ([valid_rule(), valid_rule()], "IDs de regla repetidos"),
+        ([valid_rule(), valid_rule(id="RN-X-02")], "Códigos de signo repetidos"),
+        ([valid_rule(code="dolor pecho")], "'code'"),
+        ([valid_rule(examples="me duele")], "'examples'"),
         ([valid_rule(severity="grave")], "severity"),
         ([valid_rule(domain="oncologia")], "domain"),
         ([valid_rule(patterns=["(sin cerrar"])], "patrón inválido"),

@@ -11,14 +11,14 @@ from typing import Any
 import pytest
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLanguageModel
-from cardio_materno.application.agent_turn import ANALYSIS_SCHEMA, parse_analysis
+from cardio_materno.application.agent_turn import AnalysisTurn
 from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_prompt
 from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.application.turn_context import TurnInput, analysis_context
 from cardio_materno.domain.alarms import AlertOrigin
 from cardio_materno.domain.conversation import Domain
-from tests.live.conftest import LIVE_DIR, make_retriever
+from tests.live.conftest import LIVE_DIR, agent_rule_ids, complete_analysis, make_retriever
 
 pytestmark = pytest.mark.live
 
@@ -43,10 +43,11 @@ SYMPTOM_REPORTS = [
 ]
 
 
-def analyze(analyzer: OllamaLanguageModel, prompt: str, text: str) -> Any:
+def analyze(
+    analyzer: OllamaLanguageModel, policy: AlarmPolicy, prompt: str, text: str
+) -> AnalysisTurn:
     """Ejecuta solo la llamada de análisis sobre un mensaje, sin hilo previo."""
-    context = analysis_context(prompt, None, TurnInput(text))
-    return parse_analysis(analyzer.complete_json(context, ANALYSIS_SCHEMA))
+    return complete_analysis(analyzer, policy, analysis_context(prompt, None, TurnInput(text)))
 
 
 def test_retrieval_probe_finds_expected_category_in_top_k(evidence_policy: EvidencePolicy) -> None:
@@ -80,7 +81,10 @@ def test_educational_question_reports_no_symptoms(
     question: str,
 ) -> None:
     analysis = analyze(
-        analyzer, render_system_prompt(analysis_prompt_template, alarm_policy), question
+        analyzer,
+        alarm_policy,
+        render_system_prompt(analysis_prompt_template, alarm_policy),
+        question,
     )
 
     assert analysis.reported_symptoms == ()
@@ -97,9 +101,11 @@ def test_colloquial_report_is_caught_by_filter_two(
     assert alarm_policy.evaluate([message], AlertOrigin.USER) is None  # el filtro 1 no lo capta
 
     analysis = analyze(
-        analyzer, render_system_prompt(analysis_prompt_template, alarm_policy), message
+        analyzer,
+        alarm_policy,
+        render_system_prompt(analysis_prompt_template, alarm_policy),
+        message,
     )
-    decision = alarm_policy.evaluate(analysis.reported_symptoms, AlertOrigin.AGENT)
 
-    print(f"{message} → {analysis.reported_symptoms}")
-    assert decision is not None and rule_id in decision.rule_ids
+    print(f"{message} → {analysis.reported_symptoms} · {analysis.reported_signs}")
+    assert rule_id in agent_rule_ids(alarm_policy, analysis)

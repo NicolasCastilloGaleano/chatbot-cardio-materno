@@ -36,7 +36,7 @@ Clase: `domain/alarms.py::Alert`. Se guarda dentro de `alerts` del hilo.
 |---|---|---|---|---|---|
 | `rule_ids` | lista de string | No | Reglas del catálogo que se activaron | No | `["RN-MI-01"]` |
 | `severity` | enum | No | Gravedad máxima de esas reglas: `urgencia_inmediata` o `consulta_prioritaria` | No (dato de salud agregado) | `urgencia_inmediata` |
-| `origin` | enum | No | `usuario` (filtro 1, texto original) o `agente` (filtro 2, `reported_symptoms`) | No | `agente` |
+| `origin` | enum | No | `usuario` (filtro 1, texto original), `agente` (filtro 2, `reported_symptoms`) o `agente_codigo` (filtro 2, códigos de `reported_signs`, ADR 0012) | No | `agente_codigo` |
 | `created_at` | string ISO 8601 (UTC) | No | Momento del registro | No | `2026-10-10T19:16:31+00:00` |
 
 ### Objeto: `TRACE` (traza de una respuesta, ADR 0007 y 0008)
@@ -54,6 +54,7 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `scope` | enum o null | Alcance aplicado: `en_alcance`, `conversacional` (los `fuera_de_alcance` no se guardan) | `en_alcance` |
 | `scope_reason` | string | Motivo corto de la decisión de alcance | `consulta de acidez en el embarazo` |
 | `unstated_symptoms` | lista de string | Síntomas con números (semanas, meses, edades) que la persona no escribió en el hilo, o con marcadores copiados del prompt ("[N]"): el análisis los inventó, arrastró o copió. Solo para auditar: el síntoma se sigue revisando con las reglas de alarma | `["acidez en el embarazo de 34 semanas"]` |
+| `reported_signs` | lista de string | Códigos de signos del catálogo que marcó el análisis (ADR 0012) | `["VOMITA_TODO"]` |
 | `search_query` | string | Consulta con la que se buscó la evidencia ("" si no se buscó) | `presión arterial alta` |
 | `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro) y `dropped` (frases descartadas). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"]}` |
 
@@ -79,5 +80,6 @@ Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `s
 | `reply` | string | (Llamada de respuesta) Texto para el usuario; no se pide si hay urgencia inmediata |
 | `evidence_ids` | lista de string | (Saludos) Siempre vacía |
 | `sentences` | lista de `{text, evidence_id}` | (Respuesta con evidencia) Frases para el usuario; `evidence_id` es la etiqueta del registro que respalda la frase (restringida por `enum` a las ofrecidas) o `ninguna`. Cada frase se verifica con `domain/grounding.py` |
+| `reported_signs` | lista de string | (Análisis, desde el v5) Códigos de signos del catálogo que la persona describe; el JSON Schema los limita por `enum` a los códigos cargados y la aplicación rechaza los desconocidos (ADR 0012) |
 | `search_query` | string | (Análisis, desde el v3) Consulta de salud reformulada en palabras claras y sin el contexto ajeno; es la consulta de búsqueda de evidencia. Vacía si no hay consulta de salud (entonces se usa mensaje + resumen + síntomas) |
 | `reported_symptoms` | lista de string | Síntomas que la persona reporta, literales y con contexto. Si corresponden a un signo del catálogo, empiezan por su nombre exacto. Se revisan con las reglas de alarma (filtro 2). En B-015 se complementará con códigos cerrados |

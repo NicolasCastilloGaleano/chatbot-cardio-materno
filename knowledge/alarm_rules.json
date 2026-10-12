@@ -1,9 +1,9 @@
 {
-  "version": "0.4.0",
+  "version": "0.5.0",
   "updated_at": "2026-10-12",
-  "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales. La v0.4.0 (patrones ampliados) se implementó para la demostración por decisión de Nicolas Castillo Galeano (2026-10-12) y está pendiente de aprobación clínica (ver docs/00-gestion/pendientes-aprobacion.md).",
+  "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales. La v0.4.0 (patrones ampliados) y la v0.5.0 (códigos y ejemplos coloquiales por signo, ADR 0012) se implementaron para la demostración por decisión de Nicolas Castillo Galeano (2026-10-12) y está pendiente de aprobación clínica (ver docs/00-gestion/pendientes-aprobacion.md).",
   "validated_by": null,
-  "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09). Además de sus patrones, cada regla se activa si el texto contiene su nombre (campo sign) normalizado: el prompt le pide al agente usar esos nombres en reported_symptoms (puente hacia B-015).",
+  "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09). Además de sus patrones, cada regla se activa si el texto contiene su nombre (campo sign) normalizado: el prompt le pide al agente usar esos nombres en reported_symptoms (puente hacia B-015). Desde la v0.5.0 cada regla tiene un 'code' estable (ADR 0012): el análisis marca en 'reported_signs' los códigos de los signos que describe la persona (lista cerrada por enum) y el filtro 2 los cruza de forma exacta con las reglas, además de revisar los síntomas en texto. 'examples' son expresiones coloquiales del signo que se muestran en el prompt de análisis.",
   "messages": {
     "urgencia_embarazo": "🚨 Lo que describes puede ser un signo de alarma en el embarazo o después del parto. Acude de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No esperes a que pase solo y, si puedes, ve acompañada.",
     "urgencia_bebe": "🚨 Lo que describes puede ser un signo de peligro en el bebé o en el niño. Llévalo de inmediato al servicio de urgencias más cercano o llama a la línea de emergencias 123. No le des medicamentos por tu cuenta mientras tanto.",
@@ -14,9 +14,14 @@
   "rules": [
     {
       "id": "RN-MI-01",
+      "code": "SANGRADO_VAGINAL_EMBARAZO_POSPARTO",
       "domain": "materno_infantil",
       "population": "gestante/posparto",
       "sign": "Sangrado vaginal en el embarazo o el posparto",
+      "examples": [
+        "me bajó sangre estando embarazada",
+        "manché de rojo y tengo 6 meses"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bsangrado vaginal\\b",
@@ -32,9 +37,14 @@
     },
     {
       "id": "RN-MI-02",
+      "code": "CEFALEA_O_VISION_EMBARAZO",
       "domain": "materno_infantil",
       "population": "gestante/posparto",
       "sign": "Dolor de cabeza intenso o alteraciones visuales en el embarazo",
+      "examples": [
+        "con el embarazo me duele la cabeza durísimo",
+        "estoy embarazada y veo lucecitas"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(cefalea|dolor de cabeza) (intens\\w*|severa|severo|muy fuerte)\\b.{0,40}\\b(embarazo|gestante|posparto)\\b",
@@ -51,9 +61,14 @@
     },
     {
       "id": "RN-MI-03",
+      "code": "CONVULSIONES",
       "domain": "materno_infantil",
       "population": "gestante/posparto/niños",
       "sign": "Convulsiones",
+      "examples": [
+        "tuvo una convulsión",
+        "se sacudía todo y no respondía"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(convulsion\\w*|convulsiona\\w*|convulsiono|convulsiva\\w*)\\b",
@@ -67,9 +82,14 @@
     },
     {
       "id": "RN-MI-04",
+      "code": "HINCHAZON_EMBARAZO",
       "domain": "materno_infantil",
       "population": "gestante/posparto",
       "sign": "Hinchazón de cara, manos o pies de aparición reciente en el embarazo",
+      "examples": [
+        "en el embarazo se me hincharon de repente los pies y la cara",
+        "tengo las manos hinchadas como un guante y estoy embarazada"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(edema|hinchazon) (facial|de (la )?cara|de (las )?manos)\\b.{0,40}\\b(embarazo|gestante)\\b",
@@ -81,9 +101,14 @@
     },
     {
       "id": "RN-MI-05",
+      "code": "SALIDA_LIQUIDO_VAGINAL",
       "domain": "materno_infantil",
       "population": "gestante",
       "sign": "Salida de líquido por la vagina (ruptura de membranas)",
+      "examples": [
+        "se me rompió la fuente",
+        "me sale agüita por abajo"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(rompi|rompio|se me rompio|se rompio) (la )?fuente\\b",
@@ -98,9 +123,14 @@
     },
     {
       "id": "RN-MI-06",
+      "code": "MOVIMIENTOS_FETALES_DISMINUIDOS",
       "domain": "materno_infantil",
       "population": "gestante",
       "sign": "Disminución o ausencia de movimientos fetales",
+      "examples": [
+        "el bebé ya no patea",
+        "no siento al bebé moverse"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(disminucion|ausencia) de (los )?movimientos fetales\\b",
@@ -117,9 +147,14 @@
     },
     {
       "id": "RN-MI-07",
+      "code": "FIEBRE_EMBARAZO_POSPARTO",
       "domain": "materno_infantil",
       "population": "gestante/posparto",
       "sign": "Fiebre en el embarazo o el posparto",
+      "examples": [
+        "estoy embarazada y tengo calentura",
+        "acabo de dar a luz y tengo fiebre"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bfiebre\\b.{0,30}\\b(en el embarazo|en la gestacion|en el posparto|posparto)\\b",
@@ -130,9 +165,14 @@
     },
     {
       "id": "RN-MI-08",
+      "code": "CONTRACCIONES_PRETERMINO",
       "domain": "materno_infantil",
       "population": "gestante",
       "sign": "Contracciones o dolor tipo parto antes de las 37 semanas",
+      "examples": [
+        "tengo 32 semanas y siento dolores como de parto",
+        "siento contracciones y aún no cumplo los 9 meses"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(contracciones|trabajo de parto) (prematur\\w*|antes de tiempo|pretermino)\\b",
@@ -145,9 +185,14 @@
     },
     {
       "id": "RN-MI-09",
+      "code": "NO_PUEDE_COMER_BEBER_LACTAR",
       "domain": "materno_infantil",
       "population": "recién nacido/menor de 5 años",
       "sign": "No puede comer, beber o tomar el pecho",
+      "examples": [
+        "el bebé no logra mamar",
+        "el niño no puede tragar nada"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(rechazo|rechaza) (del |al |el )?(pecho|seno|alimento|tetero)\\b.{0,40}\\b(bebe|lactante|recien nacido|nino)\\b",
@@ -159,9 +204,14 @@
     },
     {
       "id": "RN-MI-10",
+      "code": "VOMITA_TODO",
       "domain": "materno_infantil",
       "population": "menor de 5 años",
       "sign": "Vomita todo lo que come o bebe",
+      "examples": [
+        "todo lo que le doy lo vomita",
+        "no retiene nada en el estómago"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bvomita (todo|absolutamente todo|todo lo que)\\b",
@@ -176,9 +226,14 @@
     },
     {
       "id": "RN-MI-11",
+      "code": "LETARGICO_NO_DESPIERTA",
       "domain": "materno_infantil",
       "population": "recién nacido/menor de 5 años",
       "sign": "Letárgico, muy decaído o no despierta",
+      "examples": [
+        "el bebé está muy flojito y no se despierta",
+        "está como ido, no responde"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(letargia|letargic\\w*|aletargad\\w*)\\b",
@@ -189,9 +244,14 @@
     },
     {
       "id": "RN-MI-12",
+      "code": "RESPIRA_RAPIDO_O_CON_DIFICULTAD",
       "domain": "materno_infantil",
       "population": "recién nacido/menor de 5 años",
       "sign": "Respira rápido o con dificultad",
+      "examples": [
+        "al bebé se le hunden las costillas",
+        "el niño respira agitado y con quejido"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bdificultad (respiratoria|para respirar)\\b.{0,30}\\b(bebe|lactante|recien nacido|nino|nina)\\b",
@@ -203,9 +263,14 @@
     },
     {
       "id": "RN-MI-13",
+      "code": "FIEBRE_O_HIPOTERMIA_RECIEN_NACIDO",
       "domain": "materno_infantil",
       "population": "recién nacido",
       "sign": "Fiebre o temperatura baja en el recién nacido",
+      "examples": [
+        "mi bebé de una semana tiene calentura",
+        "el recién nacido está muy frío"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(fiebre|hipotermia)\\b.{0,30}\\b(recien nacid\\w*|neonato)\\b",
@@ -218,9 +283,14 @@
     },
     {
       "id": "RN-MI-14",
+      "code": "PIEL_LABIOS_AMARILLOS_O_MORADOS",
       "domain": "materno_infantil",
       "population": "recién nacido/menor de 5 años",
       "sign": "Piel o labios muy amarillos o morados",
+      "examples": [
+        "el bebé está amarillito",
+        "se le pusieron los labios morados"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(ictericia|cianosis)\\b",
@@ -233,9 +303,14 @@
     },
     {
       "id": "RN-CV-01",
+      "code": "DOLOR_OPRESION_PECHO",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Dolor u opresión en el pecho",
+      "examples": [
+        "me aprieta el pecho",
+        "siento un peso en el pecho que se va al brazo"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bdolor (fuerte |muy fuerte |intenso )?(en el|del) pecho\\b",
@@ -248,9 +323,14 @@
     },
     {
       "id": "RN-CV-02",
+      "code": "DIFICULTAD_RESPIRAR",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Dificultad para respirar",
+      "examples": [
+        "me ahogo",
+        "me falta el aire al caminar poquito"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(me|le) (falta|falto|faltaba) (el )?aire\\b",
@@ -264,9 +344,14 @@
     },
     {
       "id": "RN-CV-03",
+      "code": "SIGNOS_ACV",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita)",
+      "examples": [
+        "se le torció la boca",
+        "no puede hablar bien y se le cae un lado de la cara"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(cara|boca) (torcida|caida|desviada|chueca|ladeada)\\b",
@@ -283,9 +368,14 @@
     },
     {
       "id": "RN-CV-04",
+      "code": "DESMAYO",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Desmayo o pérdida del conocimiento",
+      "examples": [
+        "se desmayó",
+        "perdió el sentido un momento"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(desmay\\w*|sincope)\\b",
@@ -297,9 +387,14 @@
     },
     {
       "id": "RN-CV-05",
+      "code": "PRESION_MUY_ALTA_O_CON_SINTOMAS",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Presión arterial muy alta (≥ 180) o presión alta con síntomas",
+      "examples": [
+        "la tensión me salió en 190",
+        "tengo la presión muy alta y me duele mucho la cabeza"
+      ],
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(presion|tension)\\b.{0,30}\\b(1[89]\\d|2\\d\\d)\\b",
@@ -311,9 +406,14 @@
     },
     {
       "id": "RN-CV-06",
+      "code": "PRESION_ALTA_SIN_SINTOMAS",
       "domain": "cardiovascular",
       "population": "adulto",
       "sign": "Presión arterial alta sin síntomas de alarma",
+      "examples": [
+        "me dijeron que tengo la tensión alta",
+        "sufro de la presión"
+      ],
       "severity": "consulta_prioritaria",
       "patterns": [
         "\\b(presion|tension) (arterial )?(alta|elevada|muy alta)\\b",

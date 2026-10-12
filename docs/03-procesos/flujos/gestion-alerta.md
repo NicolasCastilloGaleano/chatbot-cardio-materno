@@ -12,7 +12,7 @@ flowchart TD
     L -- falla el LLM --> E{¿Hubo alarma<br/>en el filtro 1?}
     E -- sí --> U2[Mensaje fijo de la alarma prioritaria]
     E -- no --> ERR[Mensaje de error;<br/>no se guarda nada]
-    L -- respuesta válida --> F2{Filtro 2:<br/>mismas reglas sobre<br/>cada síntoma por separado}
+    L -- respuesta válida --> F2{Filtro 2:<br/>reglas sobre cada síntoma<br/>+ cruce exacto de los<br/>códigos de reported_signs}
     F2 --> S{Severidad máxima<br/>de ambos filtros}
     S -- urgencia_inmediata --> U3[Mensaje fijo de urgencia<br/>se descarta el reply del agente]
     S -- consulta_prioritaria --> P[Mensaje fijo + reply del agente]
@@ -27,5 +27,6 @@ Reglas clave:
 - El agente **solo suma** alarmas. Una regla detectada por los dos filtros se registra una vez, con origen `usuario`.
 - No se analizan `reply` ni `summary`, porque contienen consejos que mencionan signos de alarma.
 - El filtro 2 revisa **cada síntoma por separado**: el contexto de un síntoma ("en el embarazo") no se combina con el signo de otro ("fiebre en el bebé"). Así se evita el falso positivo de RN-MI-07 del 2026-10-11.
+- Desde el ADR 0012 (provisional), el filtro 2 también cruza los **códigos de signos** que marca el análisis (`reported_signs`, lista cerrada); esas alertas tienen el origen `agente_codigo`. Las dos vías solo suman.
 - Una urgencia del filtro 1 queda en el hilo activo **solo si es del mismo dominio**. Si no, se cierra ese hilo y se abre uno nuevo con el dominio de la regla.
 - Las reglas son PROVISIONALES hasta la validación clínica (riesgo R-09).

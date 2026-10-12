@@ -6,6 +6,18 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Changed
+- **Decisión de modelos (ADR 0011, 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento (`.env.example`). Ronda 3 del benchmark registrada; falta medir la latencia de esa combinación exacta.
+- **Umbral del RAG de 0,55 a 0,50** por decisión del equipo (`evidence_policy.json` v1.2.0).
+- **Configuración en `.env`, ordenada por secciones:** cada etapa define su modelo, temperatura, contexto, tiempo de espera, razonamiento y límite de tokens (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`, con respaldo en las generales); los umbrales del RAG y de la verificación (`RAG_MIN_SIMILARITY`, `RAG_TOP_K`, `RAG_CANDIDATE_K`, `GROUNDING_*`) reemplazan a los del archivo de política. La consola muestra el umbral efectivo al arrancar. Convención registrada en AGENTS.md §3 y en `estandares-codigo.md`.
+
+### Added
+- **Códigos cerrados de signos (B-015, ADR 0012 aceptado provisionalmente para la demostración):** catálogo v0.5.0 con `code` y `examples` por regla; el análisis marca `reported_signs` (lista cerrada por `enum`, prompt de análisis v5) y el filtro 2 los cruza de forma exacta con las reglas, además de revisar los síntomas en texto. Alertas con el origen `agente_codigo`, traza `reported_signs` y línea `[signos marcados: …]`. Pendiente de ratificación del equipo y de aprobación clínica de los códigos y ejemplos.
+- `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK`: razonamiento por etapa (respaldo en `OLLAMA_THINK`).
+
+### Changed
+- `scripts/benchmark_models.py` evalúa el filtro 2 por texto y por código, dice la vía de cada acierto y agrega la columna "Filtro 2 por código"; las pruebas en vivo usan el esquema con los códigos del catálogo.
+
+### Changed
 - Catálogo de alarmas **v0.4.0** (PROVISIONAL, implementado para la demostración por decisión de Nicolas y pendiente de aprobación clínica): se amplían los patrones de RN-MI-02/03/10/12/13/14 y RN-CV-03/06 para reconocer descripciones correctas que no activaban su regla (p. ej., "vómito de todo lo que come", "fiebre en bebé de 10 días", "soy hipertenso"). No cambian signos, severidades ni mensajes. Frases de referencia nuevas (positivas y negativas) en `alarm_phrases.json`.
 - `scripts/benchmark_models.py` mide el filtro 2 por sí solo sobre las 18 frases coloquiales (mismo conjunto en todas las rondas) y marca las que también capta el filtro 1.
 - HU-02 (respuesta verificada) y HU-07 (alcance) verificadas en el PC de pruebas y marcadas como ✅; B-008, B-018 y B-020 cerrados. Siguen abiertos B-021, B-022 (elección del modelo, ADR 0011) y B-015 (ADR 0012).

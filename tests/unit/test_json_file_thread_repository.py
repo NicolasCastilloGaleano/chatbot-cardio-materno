@@ -130,6 +130,7 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         grounding=GroundingCheck(1, 2, literal=True, dropped=("Toma manzanilla.",)),
         unstated_symptoms=("acidez en el embarazo de 34 semanas",),
         search_query="secreción vaginal rosada en el embarazo",
+        reported_signs=("SALIDA_LIQUIDO_VAGINAL",),
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))
@@ -140,6 +141,7 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
     assert "trace" not in data["messages"][0]
     assert data["messages"][1]["trace"] == {
         "reported_symptoms": ["secrecion vaginal rosada"],
+        "reported_signs": ["SALIDA_LIQUIDO_VAGINAL"],
         "retrieval_status": "suficiente",
         "best_score": 0.71,
         "evidence": [{"label": "E1", "entry_id": "k1", "score": 0.71, "category": "Embarazo"}],

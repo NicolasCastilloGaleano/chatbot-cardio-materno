@@ -31,6 +31,7 @@ ANALYSIS_KEYS = (
     "domain",
     "summary",
     "reported_symptoms",
+    "reported_signs",
     "search_query",
     "scope",
     "scope_reason",
@@ -53,6 +54,7 @@ def agent_json(
         "domain": domain,
         "summary": summary,
         "reported_symptoms": reported_symptoms or [],
+        "reported_signs": [],
         "reply": reply,
         "evidence_ids": [],
         "search_query": "",
@@ -64,6 +66,11 @@ def agent_json(
 def scoped(turn: dict[str, Any], scope: str, reason: str = "") -> dict[str, Any]:
     """Guion de turno con el alcance que decidirá el análisis."""
     return turn | {"scope": scope, "scope_reason": reason}
+
+
+def signing(turn: dict[str, Any], *codes: str) -> dict[str, Any]:
+    """Guion de turno cuyo análisis marca los códigos de signos dados (ADR 0012)."""
+    return turn | {"reported_signs": list(codes)}
 
 
 def citing(turn: dict[str, Any], *labels: str) -> dict[str, Any]:
@@ -280,6 +287,8 @@ def make_alarm_policy() -> AlarmPolicy:
             (compile_pattern(r"sangrado vaginal"),),
             "urg",
             "prueba",
+            code="SANGRADO_VAGINAL",
+            examples=("me sangra",),
         ),
         AlarmRule(
             "T-PRI",
@@ -290,6 +299,7 @@ def make_alarm_policy() -> AlarmPolicy:
             (compile_pattern(r"presion alta"),),
             "pri",
             "prueba",
+            code="PRESION_ALTA",
         ),
     ]
     return AlarmPolicy(rules, {"urg": URGENT_MESSAGE, "pri": PRIORITY_MESSAGE})

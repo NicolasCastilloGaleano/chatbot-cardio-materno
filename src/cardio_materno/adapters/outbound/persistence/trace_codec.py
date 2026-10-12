@@ -17,6 +17,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
     """Convierte la traza en un diccionario legible."""
     return {
         "reported_symptoms": list(trace.reported_symptoms),
+        "reported_signs": list(trace.reported_signs),
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
         "best_score": trace.best_score,
         "evidence": [evidence_to_dict(ref) for ref in trace.evidence],
@@ -36,6 +37,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
     status = data.get("retrieval_status")
     return ReplyTrace(
         reported_symptoms=tuple(data.get("reported_symptoms", [])),
+        reported_signs=tuple(data.get("reported_signs", [])),
         evidence=tuple(evidence_from_dict(item) for item in data.get("evidence", [])),
         cited_evidence=tuple(data.get("evidence_ids", [])),
         retrieval_status=RetrievalStatus(status) if status else None,

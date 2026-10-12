@@ -32,31 +32,31 @@ Ver [Project Charter § Alcance](../00-gestion/project-charter.md#alcance).
 | RN-MI-xx / RN-CV-xx | Signos de alarma: ver el catálogo `knowledge/alarm_rules.json` y la tabla 4.1 | Borrador basado en MinSalud, OPS y AIEPI | ❌ **PROVISIONAL**: [solicitud de validación](solicitud-validacion-alarmas.md) |
 | RN-RUTA-xx | Ruta de atención según el municipio, el tipo de alarma y el régimen de salud | TODO: DTS Caldas | TODO |
 
-### 4.1 Catálogo de signos de alarma (v0.4.0, PROVISIONAL)
-Fuente de verdad: `knowledge/alarm_rules.json` (patrones, mensajes fijos y fuentes). Cada regla se activa con sus patrones **o** con su propio nombre (columna "Signo"), que el agente usa en `reported_symptoms` (ADR 0007, puente hacia B-015; la propuesta de códigos cerrados está en el ADR 0012). Frases de referencia: `tests/conversational/alarm_phrases.json`. La v0.4.0 (2026-10-12) solo amplía patrones de RN-MI-02/03/10/12/13/14 y RN-CV-03/06; no cambia signos, severidades ni mensajes. **Implementada para la demostración, pendiente de aprobación clínica.**
+### 4.1 Catálogo de signos de alarma (v0.5.0, PROVISIONAL)
+Fuente de verdad: `knowledge/alarm_rules.json` (patrones, mensajes fijos y fuentes). Cada regla se activa con sus patrones **o** con su propio nombre (columna "Signo"), que el agente usa en `reported_symptoms` (ADR 0007, puente hacia B-015; la propuesta de códigos cerrados está en el ADR 0012). Frases de referencia: `tests/conversational/alarm_phrases.json`. La v0.4.0 (2026-10-12) solo amplía patrones de RN-MI-02/03/10/12/13/14 y RN-CV-03/06; no cambia signos, severidades ni mensajes. **Implementada para la demostración, pendiente de aprobación clínica.** La v0.5.0 agrega a cada regla un **código** y **ejemplos coloquiales** (ADR 0012): el análisis marca el código y el filtro 2 lo cruza de forma exacta; también pendiente de aprobación.
 
-| ID | Signo (población) | Severidad | Validación |
-|---|---|---|---|
-| RN-MI-01 | Sangrado vaginal en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-02 | Dolor de cabeza intenso o alteraciones visuales en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-03 | Convulsiones (gestante/posparto/niños) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-04 | Hinchazón de cara, manos o pies de aparición reciente en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-05 | Salida de líquido por la vagina (ruptura de membranas) (gestante) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-06 | Disminución o ausencia de movimientos fetales (gestante) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-07 | Fiebre en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-08 | Contracciones o dolor tipo parto antes de las 37 semanas (gestante) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-09 | No puede comer, beber o tomar el pecho (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-10 | Vomita todo lo que come o bebe (menor de 5 años) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-11 | Letárgico, muy decaído o no despierta (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-12 | Respira rápido o con dificultad (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-13 | Fiebre o temperatura baja en el recién nacido (recién nacido) | urgencia_inmediata | PROVISIONAL |
-| RN-MI-14 | Piel o labios muy amarillos o morados (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-01 | Dolor u opresión en el pecho (adulto) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-02 | Dificultad para respirar (adulto) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-03 | Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita) (adulto) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-04 | Desmayo o pérdida del conocimiento (adulto) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-05 | Presión arterial muy alta (≥ 180) o presión alta con síntomas (adulto) | urgencia_inmediata | PROVISIONAL |
-| RN-CV-06 | Presión arterial alta sin síntomas de alarma (adulto) | consulta_prioritaria | PROVISIONAL |
+| ID | Código | Signo (población) | Severidad | Validación |
+|---|---|---|---|---|
+| RN-MI-01 | `SANGRADO_VAGINAL_EMBARAZO_POSPARTO` | Sangrado vaginal en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-02 | `CEFALEA_O_VISION_EMBARAZO` | Dolor de cabeza intenso o alteraciones visuales en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-03 | `CONVULSIONES` | Convulsiones (gestante/posparto/niños) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-04 | `HINCHAZON_EMBARAZO` | Hinchazón de cara, manos o pies de aparición reciente en el embarazo (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-05 | `SALIDA_LIQUIDO_VAGINAL` | Salida de líquido por la vagina (ruptura de membranas) (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-06 | `MOVIMIENTOS_FETALES_DISMINUIDOS` | Disminución o ausencia de movimientos fetales (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-07 | `FIEBRE_EMBARAZO_POSPARTO` | Fiebre en el embarazo o el posparto (gestante/posparto) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-08 | `CONTRACCIONES_PRETERMINO` | Contracciones o dolor tipo parto antes de las 37 semanas (gestante) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-09 | `NO_PUEDE_COMER_BEBER_LACTAR` | No puede comer, beber o tomar el pecho (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-10 | `VOMITA_TODO` | Vomita todo lo que come o bebe (menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-11 | `LETARGICO_NO_DESPIERTA` | Letárgico, muy decaído o no despierta (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-12 | `RESPIRA_RAPIDO_O_CON_DIFICULTAD` | Respira rápido o con dificultad (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-13 | `FIEBRE_O_HIPOTERMIA_RECIEN_NACIDO` | Fiebre o temperatura baja en el recién nacido (recién nacido) | urgencia_inmediata | PROVISIONAL |
+| RN-MI-14 | `PIEL_LABIOS_AMARILLOS_O_MORADOS` | Piel o labios muy amarillos o morados (recién nacido/menor de 5 años) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-01 | `DOLOR_OPRESION_PECHO` | Dolor u opresión en el pecho (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-02 | `DIFICULTAD_RESPIRAR` | Dificultad para respirar (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-03 | `SIGNOS_ACV` | Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita) (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-04 | `DESMAYO` | Desmayo o pérdida del conocimiento (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-05 | `PRESION_MUY_ALTA_O_CON_SINTOMAS` | Presión arterial muy alta (≥ 180) o presión alta con síntomas (adulto) | urgencia_inmediata | PROVISIONAL |
+| RN-CV-06 | `PRESION_ALTA_SIN_SINTOMAS` | Presión arterial alta sin síntomas de alarma (adulto) | consulta_prioritaria | PROVISIONAL |
 
 ## 5. Criterios de aceptación (ejemplo de formato)
 ```gherkin

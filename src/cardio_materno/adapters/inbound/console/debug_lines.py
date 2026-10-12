@@ -18,6 +18,7 @@ ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
 SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
 UNSTATED_DEBUG_TEMPLATE = "[⚠️ datos que la persona no escribió: {symptoms}]"
 SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}]"
+SIGNS_DEBUG_TEMPLATE = "[signos marcados: {codes}]"
 NO_SYMPTOMS_TEXT = "ninguno"
 AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
 EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
@@ -59,6 +60,9 @@ def debug_lines(result: TurnResult) -> list[str]:
 def trace_lines(trace: ReplyTrace) -> list[str]:
     """Líneas de la traza: datos no dichos, búsqueda, evidencia, respaldo y tiempos."""
     optional = [
+        SIGNS_DEBUG_TEMPLATE.format(codes=", ".join(trace.reported_signs))
+        if trace.reported_signs
+        else "",
         format_unstated_debug(trace),
         SEARCH_DEBUG_TEMPLATE.format(query=trace.search_query) if trace.search_query else "",
         format_evidence_debug(trace),

@@ -1,6 +1,6 @@
 # Solicitud de validación clínica: reglas de alarma (borrador PROVISIONAL)
 
-*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.4.0 · Generado el 2026-10-10*
+*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.5.0 · Generado el 2026-10-10*
 
 **Para:** Dra. Dolly Magnolia González Hoyos y equipo clínico del proyecto.
 **De:** equipo de desarrollo (Nicolas Castillo Galeano).
@@ -252,7 +252,35 @@ Descripciones correctas que no activaban su regla por diferencias de redacción.
 
 - [ ] Aprobados · [ ] Aprobados con cambios: ______________________ · [ ] Rechazados
 
-**Propuesta de fondo (ADR 0012, B-015):** en lugar de seguir ampliando patrones, que el asistente marque el signo con un **código cerrado** del catálogo. La tabla de códigos, descripciones y ejemplos coloquiales la validaría este equipo.
+### Códigos y ejemplos coloquiales de la versión 0.5.0 (implementados para la demostración; pendientes de aprobación)
+El asistente marca el **código** del signo que describe la persona y el sistema lo cruza de forma exacta con la regla (ADR 0012). Los ejemplos se le muestran al asistente para que reconozca el lenguaje cotidiano. Los generó la IA.
+
+| Regla | Código | Signo | Ejemplos coloquiales |
+|---|---|---|---|
+| RN-MI-01 | `SANGRADO_VAGINAL_EMBARAZO_POSPARTO` | Sangrado vaginal en el embarazo o el posparto | me bajó sangre estando embarazada; manché de rojo y tengo 6 meses |
+| RN-MI-02 | `CEFALEA_O_VISION_EMBARAZO` | Dolor de cabeza intenso o alteraciones visuales en el embarazo | con el embarazo me duele la cabeza durísimo; estoy embarazada y veo lucecitas |
+| RN-MI-03 | `CONVULSIONES` | Convulsiones | tuvo una convulsión; se sacudía todo y no respondía |
+| RN-MI-04 | `HINCHAZON_EMBARAZO` | Hinchazón de cara, manos o pies de aparición reciente en el embarazo | en el embarazo se me hincharon de repente los pies y la cara; tengo las manos hinchadas como un guante y estoy embarazada |
+| RN-MI-05 | `SALIDA_LIQUIDO_VAGINAL` | Salida de líquido por la vagina (ruptura de membranas) | se me rompió la fuente; me sale agüita por abajo |
+| RN-MI-06 | `MOVIMIENTOS_FETALES_DISMINUIDOS` | Disminución o ausencia de movimientos fetales | el bebé ya no patea; no siento al bebé moverse |
+| RN-MI-07 | `FIEBRE_EMBARAZO_POSPARTO` | Fiebre en el embarazo o el posparto | estoy embarazada y tengo calentura; acabo de dar a luz y tengo fiebre |
+| RN-MI-08 | `CONTRACCIONES_PRETERMINO` | Contracciones o dolor tipo parto antes de las 37 semanas | tengo 32 semanas y siento dolores como de parto; siento contracciones y aún no cumplo los 9 meses |
+| RN-MI-09 | `NO_PUEDE_COMER_BEBER_LACTAR` | No puede comer, beber o tomar el pecho | el bebé no logra mamar; el niño no puede tragar nada |
+| RN-MI-10 | `VOMITA_TODO` | Vomita todo lo que come o bebe | todo lo que le doy lo vomita; no retiene nada en el estómago |
+| RN-MI-11 | `LETARGICO_NO_DESPIERTA` | Letárgico, muy decaído o no despierta | el bebé está muy flojito y no se despierta; está como ido, no responde |
+| RN-MI-12 | `RESPIRA_RAPIDO_O_CON_DIFICULTAD` | Respira rápido o con dificultad | al bebé se le hunden las costillas; el niño respira agitado y con quejido |
+| RN-MI-13 | `FIEBRE_O_HIPOTERMIA_RECIEN_NACIDO` | Fiebre o temperatura baja en el recién nacido | mi bebé de una semana tiene calentura; el recién nacido está muy frío |
+| RN-MI-14 | `PIEL_LABIOS_AMARILLOS_O_MORADOS` | Piel o labios muy amarillos o morados | el bebé está amarillito; se le pusieron los labios morados |
+| RN-CV-01 | `DOLOR_OPRESION_PECHO` | Dolor u opresión en el pecho | me aprieta el pecho; siento un peso en el pecho que se va al brazo |
+| RN-CV-02 | `DIFICULTAD_RESPIRAR` | Dificultad para respirar | me ahogo; me falta el aire al caminar poquito |
+| RN-CV-03 | `SIGNOS_ACV` | Signos de accidente cerebrovascular (cara caída, debilidad de un lado, habla alterada, cefalea súbita) | se le torció la boca; no puede hablar bien y se le cae un lado de la cara |
+| RN-CV-04 | `DESMAYO` | Desmayo o pérdida del conocimiento | se desmayó; perdió el sentido un momento |
+| RN-CV-05 | `PRESION_MUY_ALTA_O_CON_SINTOMAS` | Presión arterial muy alta (≥ 180) o presión alta con síntomas | la tensión me salió en 190; tengo la presión muy alta y me duele mucho la cabeza |
+| RN-CV-06 | `PRESION_ALTA_SIN_SINTOMAS` | Presión arterial alta sin síntomas de alarma | me dijeron que tengo la tensión alta; sufro de la presión |
+
+- [ ] Aprobados · [ ] Aprobados con cambios: ______________________ · [ ] Rechazados
+
+**Propuesta de fondo (ADR 0012, B-015, ya implementada para la demostración):** en lugar de seguir ampliando patrones, que el asistente marque el signo con un **código cerrado** del catálogo. La tabla de códigos, descripciones y ejemplos coloquiales la validaría este equipo.
 
 ### Pregunta 4: frases coloquiales de prueba
 `tests/live/colloquial_alarm_phrases.json` tiene 18 frases coloquiales sintéticas (p. ej., "el niño devuelve hasta el agua" → RN-MI-10; "mi tío se cayó redondo y no respondía" → RN-CV-04) con la regla que **debería** activar cada una. Las generó la IA. ¿Están bien asignadas? Marque las que no: ______________________

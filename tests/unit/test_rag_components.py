@@ -285,7 +285,7 @@ def test_real_knowledge_base_and_policy_load() -> None:
     assert {e.domain for e in entries} == {Domain.MATERNAL_CHILD, Domain.CARDIOVASCULAR}
     assert {e.focus for e in entries} == {Focus.INQUIRE, Focus.SOLVE}
     assert len({e.id for e in entries}) == len(entries)
-    assert policy.min_similarity == 0.55 and policy.top_k == 3
+    assert policy.min_similarity == 0.5 and policy.top_k == 3
 
 
 def test_invalid_entry_line_raises_error(tmp_path: Path) -> None:

@@ -57,3 +57,6 @@ Desde la HU-00 el prototipo conversaba libremente con el LLM sin detección de a
 
 ## Actualización 2026-10-10 (3): el filtro 2 nunca ve evidencia (ADR 0008)
 `reported_symptoms` lo produce ahora una **llamada de análisis sin evidencia del RAG**, para evitar que los registros de la base (por ejemplo, los *Indagar*, que listan signos de alarma) contaminen o minimicen los síntomas. Si el filtro 2 detecta una urgencia inmediata, no se busca evidencia ni se hace la llamada de respuesta.
+
+## Actualización 2026-10-12: el filtro 2 tiene dos vías (ADR 0012)
+Además de revisar `reported_symptoms` con las reglas, el filtro 2 cruza de forma exacta los **códigos de signos** que marca el análisis en `reported_signs` (lista cerrada por `enum`). Las dos vías solo suman alarmas. Las alertas por código se registran con el origen `agente_codigo`. Implementado para la demostración; pendiente de ratificación del equipo.

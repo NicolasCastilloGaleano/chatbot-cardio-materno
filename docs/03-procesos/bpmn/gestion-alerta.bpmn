@@ -45,7 +45,7 @@
     <bpmn:endEvent id="End_Error" name="Error mostrado; no se guarda nada">
       <bpmn:incoming>f9</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:task id="T_Filtro2" name="Filtro 2: reglas sobre cada síntoma de reported_symptoms (por separado)">
+    <bpmn:task id="T_Filtro2" name="Filtro 2: reglas sobre cada síntoma de reported_symptoms y cruce exacto de los códigos de reported_signs">
       <bpmn:incoming>f6</bpmn:incoming>
       <bpmn:outgoing>f10</bpmn:outgoing>
     </bpmn:task>

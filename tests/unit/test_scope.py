@@ -26,3 +26,15 @@ def test_symptoms_with_domain_none_do_not_force_scope() -> None:
     result = effective_scope(analysis(Scope.OUT_OF_SCOPE, Domain.NONE, ("dolor de muela",)))
 
     assert result is Scope.OUT_OF_SCOPE
+
+
+def test_marked_sign_code_keeps_the_message_in_scope() -> None:
+    analysis = AnalysisTurn(
+        ThreadAction.NEW,
+        Domain.NONE,
+        "s",
+        reported_signs=("DESMAYO",),
+        scope=Scope.OUT_OF_SCOPE,
+    )
+
+    assert effective_scope(analysis) is Scope.IN_SCOPE

@@ -4,6 +4,7 @@ import pytest
 from scripts.benchmark_models import (
     ComboResult,
     dropped_sentences,
+    filter_two_via,
     outcome_kind,
     parse_combo,
     percentile,
@@ -11,7 +12,10 @@ from scripts.benchmark_models import (
     render_row,
 )
 
+from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
+from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.trace import GroundingCheck, ReplyTrace, RetrievalStatus, StageTiming
+from tests.unit.fakes import make_alarm_policy
 
 
 def test_combo_with_one_model_uses_it_for_both_stages() -> None:
@@ -76,7 +80,8 @@ def test_report_row_summarizes_a_combination() -> None:
     )
 
     assert render_row(result) == (
-        "| qwen3:8b | mistral | 1 | 8/9 | 18/20 | 10 | 3 | 2 | 1 | 20.0 s | 20.0 s | 3.0 s | — |"
+        "| qwen3:8b | mistral | 1 | 8/9 | 18/20 | 0/20 | 10 | 3 | 2 | 1 | "
+        "20.0 s | 20.0 s | 3.0 s | — |"
     )
 
 
@@ -85,3 +90,22 @@ def test_dropped_sentences_come_from_the_grounding_check() -> None:
 
     assert dropped_sentences(ReplyTrace(grounding=check)) == ("Toma manzanilla.",)
     assert dropped_sentences(ReplyTrace()) == () and dropped_sentences(None) == ()
+
+
+def test_filter_two_via_reports_text_and_code_paths() -> None:
+    policy = make_alarm_policy()
+    both = AnalysisTurn(
+        ThreadAction.NEW,
+        Domain.NONE,
+        "s",
+        ("sangrado vaginal",),
+        reported_signs=("SANGRADO_VAGINAL",),
+    )
+    code_only = AnalysisTurn(
+        ThreadAction.NEW, Domain.NONE, "s", reported_signs=("SANGRADO_VAGINAL",)
+    )
+
+    assert filter_two_via(policy, both, "T-URG") == ("texto", "código")
+    assert filter_two_via(policy, code_only, "T-URG") == ("código",)
+    assert filter_two_via(policy, code_only, "T-PRI") == ()
+    assert filter_two_via(policy, None, "T-URG") == ()

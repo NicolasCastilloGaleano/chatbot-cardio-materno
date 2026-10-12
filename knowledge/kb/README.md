@@ -21,7 +21,7 @@ El índice se genera desde este archivo y **no se sube a git** (`data/kb_index/`
 Usa `OLLAMA_EMBED_MODEL` (por defecto `qwen3-embedding:8b`). Si este archivo o el modelo cambian, el asistente avisa al arrancar y hay que reconstruir el índice.
 
 ## Política de evidencia y verificación del respaldo
-`knowledge/evidence_policy.json` define la búsqueda (umbral, `top_k`…) y, desde el ADR 0010, la verificación determinista de cada frase: `min_support` (0,6), `max_free_sentences` (2) y `max_free_words` (20). Cambiar estos valores no obliga a reconstruir el índice, pero sí a repetir `pytest -m live` (`test_live_grounding.py` mide cuántas respuestas terminan en texto literal).
+`knowledge/evidence_policy.json` define la búsqueda (umbral, `top_k`…; desde la v1.2.0, del 2026-10-12, el umbral es **0,50** por decisión del equipo) y, desde el ADR 0010, la verificación determinista de cada frase: `min_support` (0,6), `max_free_sentences` (2) y `max_free_words` (20). Los umbrales también se pueden fijar en `.env` (`RAG_MIN_SIMILARITY`, `RAG_TOP_K`, `RAG_CANDIDATE_K`, `GROUNDING_*`), que tienen prioridad sobre el archivo. Cambiar estos valores no obliga a reconstruir el índice, pero sí a repetir `pytest -m live` (`test_live_grounding.py` mide cuántas respuestas terminan en texto literal).
 
 **Efecto de la verificación:** una pregunta que la base no cubre (p. ej., qué comer con acidez o la dosis de insulina en la diabetes gestacional) recibe la abstención o el texto literal de un registro *Indagar*. Llenar esos vacíos es contenido clínico (B-019).
 

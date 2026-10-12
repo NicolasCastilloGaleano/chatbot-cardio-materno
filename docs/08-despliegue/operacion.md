@@ -37,23 +37,30 @@ Cada turno en alcance hace hasta **tres solicitudes a Ollama**: análisis (LLM),
 Para decidir qué modelo usa cada etapa:
 
 1. Descarga los candidatos: `ollama pull qwen3:8b`, `ollama pull llama3.1:8b`, `ollama pull mistral-nemo:12b`.
-2. Ejecuta la comparación (cada combinación tarda entre 5 y 25 minutos según el modelo). Cada argumento es `MODELO` (ambas etapas) o `ANÁLISIS+RESPUESTA`. **Ronda 2**, después de la ronda 1 del 2026-10-12 (ver ADR 0011):
+2. Ejecuta la comparación (cada combinación tarda entre 5 y 25 minutos según el modelo). Cada argumento es `MODELO` (ambas etapas) o `ANÁLISIS+RESPUESTA`. **Ronda 3**, con los códigos cerrados (ADR 0012) y todas las combinaciones de la ronda 1. qwen3 va aparte, con su razonamiento desactivado **solo en la etapa donde se usa** (`OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK`):
    ```bash
-   .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b mistral-nemo:12b
+   .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b llama3.1:8b mistral-nemo:12b
    ```
-   qwen3 va en un comando aparte, con su razonamiento desactivado (la variable solo aplica a ese comando):
    ```bash
-   OLLAMA_THINK=false .venv/bin/python scripts/benchmark_models.py qwen3:8b
+   OLLAMA_ANALYSIS_THINK=false OLLAMA_REPLY_THINK=false .venv/bin/python scripts/benchmark_models.py qwen3:8b
+   ```
+   ```bash
+   OLLAMA_ANALYSIS_THINK=false .venv/bin/python scripts/benchmark_models.py qwen3:8b+mistral-small3.1:24b
    ```
 3. El informe se imprime y queda en `data/benchmarks/` (no se versiona). Columnas:
    - errores de JSON;
    - aciertos de alcance (9 casos);
-   - reglas que detecta el filtro 2 por sí solo en 18 frases coloquiales (`tests/live/colloquial_alarm_phrases.json`); la consola marca las que también capta el filtro 1;
+   - reglas que detecta el filtro 2 por sí solo en 18 frases coloquiales (`tests/live/colloquial_alarm_phrases.json`), por texto o por código; la columna "Filtro 2 por código" cuenta las de la vía de códigos, y la consola dice la vía de cada acierto y marca las que también capta el filtro 1;
    - turnos verificados, con texto literal, con abstención u otros (16 consultas de la sonda);
    - tiempos p50/p90 del turno, del análisis y de la respuesta.
 
    En la salida de la consola, cada turno con texto literal lista sus frases descartadas: sirven para calibrar `min_support`.
 4. Lleva el informe al equipo: la decisión se registra en el ADR 0011 con los criterios que allí se proponen. **El filtro 2 no puede perder detecciones.**
+
+**Decisión vigente (2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50 (ver `.env.example`). Falta medir esa combinación exacta:
+```bash
+OLLAMA_REPLY_THINK=false .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b+qwen3:8b
+```
 
 ## Pendiente
 TODO al desplegar: healthcheck, logs, rotación de secretos, actualización de la base de conocimiento y de las reglas clínicas, y respaldo de datos.

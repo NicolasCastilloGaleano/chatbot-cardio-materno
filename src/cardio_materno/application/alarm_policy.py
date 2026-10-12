@@ -10,6 +10,7 @@ from cardio_materno.domain.alarms import (
     Severity,
     detect_alarms,
     most_severe,
+    rules_for_codes,
 )
 from cardio_materno.domain.conversation import Domain
 
@@ -17,6 +18,9 @@ REPLY_SEPARATOR = "\n\n"
 # Marcador del prompt de sistema que se reemplaza por la lista de signos del catálogo.
 ALARM_SIGNS_PLACEHOLDER = "{{SIGNOS_DE_ALARMA}}"
 NO_SIGNS_TEXT = "(no hay signos de alarma cargados)"
+SIGN_LINE_TEMPLATE = "- {code}: {sign}{examples}"
+SIGN_EXAMPLES_TEMPLATE = " (ej.: {examples})"
+EXAMPLES_SEPARATOR = "; "
 
 
 @dataclass(frozen=True)
@@ -91,6 +95,30 @@ class AlarmPolicy:
             La decisión con las reglas activadas y el mensaje fijo, o None.
         """
         rules = [rule for rule in detect_alarms(texts, self._rules) if rule.id not in exclude]
+        return self._decision(rules, origin)
+
+    @property
+    def codes(self) -> tuple[str, ...]:
+        """Códigos de signos del catálogo, sin repetir y en orden (ADR 0012)."""
+        return tuple(dict.fromkeys(rule.code for rule in self._rules if rule.code))
+
+    def evaluate_codes(
+        self, codes: Sequence[str], exclude: Collection[str] = ()
+    ) -> AlarmDecision | None:
+        """Cruce exacto de los códigos marcados por el análisis con las reglas (ADR 0012).
+
+        Args:
+            codes: Códigos de signos marcados en `reported_signs`.
+            exclude: IDs de reglas ya detectadas que no se deben repetir.
+
+        Returns:
+            La decisión con origen `agente_codigo`, o None si no se activa ninguna regla.
+        """
+        rules = [rule for rule in rules_for_codes(codes, self._rules) if rule.id not in exclude]
+        return self._decision(rules, AlertOrigin.AGENT_CODE)
+
+    def _decision(self, rules: list[AlarmRule], origin: AlertOrigin) -> AlarmDecision | None:
+        """Decisión con el mensaje fijo de la regla más grave, o None si no hay reglas."""
         if not rules:
             return None
         message = self._messages[most_severe(rules).message_id]
@@ -146,6 +174,19 @@ def render_system_prompt(template: str, policy: AlarmPolicy) -> str:
 
 
 def format_sign_list(policy: AlarmPolicy) -> str:
-    """Lista con viñetas de los nombres de signos, sin repetir y en el orden del catálogo."""
-    signs = list(dict.fromkeys(rule.sign for rule in policy.rules))
-    return "\n".join(f"- {sign}" for sign in signs) if signs else NO_SIGNS_TEXT
+    """Tabla de signos para el prompt: código, nombre y ejemplos coloquiales (ADR 0012).
+
+    Las reglas sin código se listan solo con su nombre.
+    """
+    lines = list(dict.fromkeys(format_sign_line(rule) for rule in policy.rules))
+    return "\n".join(lines) if lines else NO_SIGNS_TEXT
+
+
+def format_sign_line(rule: AlarmRule) -> str:
+    """Línea de un signo: "- CÓDIGO: nombre (ej.: …)"."""
+    examples = EXAMPLES_SEPARATOR.join(rule.examples)
+    return SIGN_LINE_TEMPLATE.format(
+        code=rule.code or rule.id,
+        sign=rule.sign,
+        examples=SIGN_EXAMPLES_TEMPLATE.format(examples=examples) if examples else "",
+    )

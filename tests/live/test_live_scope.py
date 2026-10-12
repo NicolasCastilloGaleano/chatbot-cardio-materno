@@ -5,21 +5,21 @@ Ejecutar en el PC de pruebas: `pytest -m live -s`.
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
+from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLanguageModel
 from cardio_materno.application.agent_turn import (
-    ANALYSIS_SCHEMA,
     AnalysisTurn,
     Scope,
-    parse_analysis,
 )
 from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_prompt
 from cardio_materno.application.scope import effective_scope
 from cardio_materno.application.turn_context import TurnInput, analysis_context
 from cardio_materno.domain.conversation import ChatMessage, Domain, Role, open_thread
-from tests.live.conftest import LIVE_DIR
+from tests.live.conftest import LIVE_DIR, complete_analysis
 
 pytestmark = pytest.mark.live
 
@@ -29,6 +29,7 @@ SCOPE_CASES: dict[str, list[str]] = json.loads(
 IN_SCOPE_WITH_FOREIGN_CONTEXT = SCOPE_CASES["en_alcance"]
 OUT_OF_SCOPE = SCOPE_CASES["fuera_de_alcance"]
 CONVERSATIONAL = SCOPE_CASES["conversacional"]
+POLICY = load_alarm_policy(Path(__file__).resolve().parents[2] / "knowledge" / "alarm_rules.json")
 
 
 def analyze(
@@ -41,9 +42,7 @@ def analyze(
         if thread_summary
         else None
     )
-    return parse_analysis(
-        analyzer.complete_json(analysis_context(prompt, thread, turn), ANALYSIS_SCHEMA)
-    )
+    return complete_analysis(analyzer, POLICY, analysis_context(prompt, thread, turn))
 
 
 @pytest.fixture(scope="module")
