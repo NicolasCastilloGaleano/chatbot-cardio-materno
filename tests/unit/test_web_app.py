@@ -158,11 +158,16 @@ def test_local_page_and_script_are_served() -> None:
 
     page = client.get("/")
     script = client.get("/static/app.js")
+    styles = client.get("/static/styles.css")
 
     assert page.status_code == 200
     assert "Hilos guardados" in page.text
     assert script.status_code == 200
     assert "showAudit" in script.text
+    assert "Estoy procesando tu mensaje" in script.text
+    assert styles.status_code == 200
+    assert ".messages" in styles.text and "overflow-y: auto" in styles.text
+    assert ".side-column" in styles.text and "height: 100%" in styles.text
 
 
 def test_immediate_alarm_is_returned_without_calling_agent() -> None:

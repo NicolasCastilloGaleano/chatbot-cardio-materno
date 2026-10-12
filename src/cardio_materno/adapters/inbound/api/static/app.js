@@ -2,6 +2,7 @@ const messagesNode = document.querySelector("#messages");
 const composer = document.querySelector("#composer");
 const input = document.querySelector("#message-input");
 const sendButton = document.querySelector("#send-button");
+const newChatButton = document.querySelector("#new-chat");
 const auditPanel = document.querySelector("#audit-panel");
 const threadList = document.querySelector("#thread-list");
 const activeThread = document.querySelector("#active-thread");
@@ -41,6 +42,23 @@ function addMessage(role, content, trace = null, outOfScope = false, alerts = []
   }
   messagesNode.append(row);
   messagesNode.scrollTop = messagesNode.scrollHeight;
+}
+
+function addProcessingMessage() {
+  const row = document.createElement("div");
+  row.className = "bubble-row assistant processing-row";
+  row.setAttribute("role", "status");
+  row.setAttribute("aria-live", "polite");
+  const bubble = document.createElement("div");
+  bubble.className = "bubble processing-bubble";
+  bubble.append(
+    textNode("span", "•••", "processing-dots"),
+    textNode("span", "Estoy procesando tu mensaje. Espera un momento…", "processing-copy"),
+  );
+  row.append(bubble);
+  messagesNode.append(row);
+  messagesNode.scrollTop = messagesNode.scrollHeight;
+  return row;
 }
 
 function addWelcome() {
@@ -222,9 +240,11 @@ composer.addEventListener("submit", async (event) => {
   addMessage("user", text);
   input.value = "";
   sendButton.disabled = true;
-  messagesNode.classList.add("loading");
+  newChatButton.disabled = true;
+  const processingMessage = addProcessingMessage();
   try {
     const result = await request("/api/messages", { method: "POST", body: JSON.stringify({ text }) });
+    processingMessage.remove();
     updateContext(result.thread);
     addMessage(
       "assistant", result.reply, result.trace, result.out_of_scope, result.alerts, result.thread,
@@ -232,11 +252,12 @@ composer.addEventListener("submit", async (event) => {
     showAudit(result.trace, result.out_of_scope, result.thread, result.alerts);
     await loadThreads();
   } catch (error) {
+    processingMessage.remove();
     showError(error.message);
     input.value = text;
   } finally {
-    messagesNode.classList.remove("loading");
     sendButton.disabled = false;
+    newChatButton.disabled = false;
     input.focus();
   }
 });
@@ -246,7 +267,7 @@ input.addEventListener("input", () => {
   input.style.height = `${Math.min(input.scrollHeight, 130)}px`;
 });
 
-document.querySelector("#new-chat").addEventListener("click", async () => {
+newChatButton.addEventListener("click", async () => {
   try {
     await request("/api/session/end", { method: "POST" });
   } catch (error) {

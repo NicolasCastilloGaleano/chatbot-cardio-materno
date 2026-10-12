@@ -297,6 +297,16 @@ Escenario: Conversar y revisar una respuesta
   Cuando envío una consulta de salud y selecciono la respuesta del asistente
   Entonces veo el resumen, dominio y estado del hilo, síntomas, signos, búsqueda, evidencia completa, citas, verificación y tiempos disponibles
 
+Escenario: Mensaje en procesamiento
+  Dado que envié un mensaje mientras el agente prepara la respuesta
+  Entonces la interfaz muestra que está procesando el mensaje y pide esperar
+
+Escenario: Chat extenso con auditoría a la vista
+  Dado que el chat tiene más mensajes de los que caben en su panel
+  Cuando continúo la conversación
+  Entonces puedo desplazar el historial dentro del panel del chat
+  Y los paneles laterales de trazabilidad e hilos permanecen visibles
+
 Escenario: Consultar un hilo guardado
   Dado que hay hilos persistidos
   Cuando selecciono un hilo del historial

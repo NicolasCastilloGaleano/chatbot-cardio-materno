@@ -16,7 +16,7 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-06 | Contexto acotado (JSON del hilo + N mensajes) | `conversation_service.py::_build_context` | `test_context_is_bounded_to_thread_json_and_last_n_messages` | ✅ (automática) |
 | HU-06 | Salir cierra el hilo activo | `console_chat.py`, `ConversationService.end_session` | `test_console_chat.py::test_exit_closes_active_thread` | ✅ (automática) |
 | HU-06 | Respuesta inválida o error del modelo | `application/agent_turn.py`, `conversation_service.py` | `test_agent_turn.py`, `test_model_failure_saves_nothing_and_keeps_thread` | ✅ (automática) |
-| HU-08 | Conversación web, traza y texto de evidencia completa | `adapters/inbound/api/web_app.py`, `adapters/inbound/api/static/*` | `tests/unit/test_web_app.py` | ✅ (automática); recorrido visual pendiente |
+| HU-08 | Conversación web, estado de procesamiento, chat desplazable y traza/evidencia | `adapters/inbound/api/web_app.py`, `adapters/inbound/api/static/*` | `tests/unit/test_web_app.py` | ✅ (automática); recorrido visual pendiente |
 | HU-08 | Hilos guardados en consulta de solo lectura y sesión nueva | `ThreadRepository`, `JsonFileThreadRepository`, `bootstrap/web.py` | `test_web_app.py`, `test_json_file_thread_repository.py` | ✅ (automática); recorrido visual pendiente |
 | HU-06 | Calidad real de la decisión de hilo y del resumen | prompt v2 | Guion manual en el PC de pruebas (2026-10-10) | ✅ |
 | HU-01 / RN-01 | Primer contacto → aviso + consentimiento | TODO | TODO | ⏳ |
