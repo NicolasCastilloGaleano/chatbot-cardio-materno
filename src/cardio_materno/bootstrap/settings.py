@@ -1,7 +1,7 @@
 """Lectura de la configuración desde variables de entorno."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
@@ -27,17 +27,21 @@ DEFAULT_EMBED_NUM_GPU = "0"
 AUTO_VALUE = "auto"
 ANALYSIS_MODEL_VARIABLE = "OLLAMA_ANALYSIS_MODEL"
 REPLY_MODEL_VARIABLE = "OLLAMA_REPLY_MODEL"
-# Límite de tokens por etapa (variable, valor por defecto). Holgado: el JSON del análisis
-# suele ocupar 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
-# Razonamiento por etapa (variable de la etapa; si está vacía, OLLAMA_THINK).
-STAGE_THINK = {
-    ANALYSIS_MODEL_VARIABLE: "OLLAMA_ANALYSIS_THINK",
-    REPLY_MODEL_VARIABLE: "OLLAMA_REPLY_THINK",
+# Prefijo de las variables de cada etapa: OLLAMA_ANALYSIS_TEMPERATURE, OLLAMA_REPLY_MODEL…
+STAGE_PREFIXES = {
+    ANALYSIS_MODEL_VARIABLE: "OLLAMA_ANALYSIS_",
+    REPLY_MODEL_VARIABLE: "OLLAMA_REPLY_",
 }
-STAGE_NUM_PREDICT = {
-    ANALYSIS_MODEL_VARIABLE: ("OLLAMA_ANALYSIS_NUM_PREDICT", "600"),
-    REPLY_MODEL_VARIABLE: ("OLLAMA_REPLY_NUM_PREDICT", "500"),
-}
+# Variables que cada etapa puede definir; si la de la etapa está vacía, se usa la general
+# OLLAMA_<CAMPO> (p. ej., OLLAMA_REPLY_TEMPERATURE vacía → OLLAMA_TEMPERATURE).
+STAGE_FIELDS = ("MODEL", "TEMPERATURE", "NUM_CTX", "TIMEOUT_SECONDS", "THINK")
+GLOBAL_PREFIX = "OLLAMA_"
+NUM_PREDICT_FIELD = "NUM_PREDICT"
+# Límite de tokens por defecto de cada etapa. Holgado: el JSON del análisis suele ocupar
+# 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
+STAGE_NUM_PREDICT_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "600", REPLY_MODEL_VARIABLE: "500"}
+MIN_FRACTION = 0.0
+MAX_FRACTION = 1.0
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 
 
@@ -63,6 +67,27 @@ class ConversationSettings:
 
 
 @dataclass(frozen=True)
+class PolicyOverrides:
+    """Umbrales de la política de evidencia fijados en .env (None = el del archivo).
+
+    Attributes:
+        min_similarity: `RAG_MIN_SIMILARITY`, similitud mínima para contar como evidencia.
+        top_k: `RAG_TOP_K`, máximo de registros que se entregan al agente.
+        candidate_k: `RAG_CANDIDATE_K`, candidatos por búsqueda antes de fusionar.
+        min_support: `GROUNDING_MIN_SUPPORT`, respaldo mínimo de una frase citada.
+        max_free_sentences: `GROUNDING_MAX_FREE_SENTENCES`, frases sin cita permitidas.
+        max_free_words: `GROUNDING_MAX_FREE_WORDS`, palabras de una frase sin cita.
+    """
+
+    min_similarity: float | None = None
+    top_k: int | None = None
+    candidate_k: int | None = None
+    min_support: float | None = None
+    max_free_sentences: int | None = None
+    max_free_words: int | None = None
+
+
+@dataclass(frozen=True)
 class RagSettings:
     """Configuración de la recuperación de evidencia (HU-02, ADR 0008).
 
@@ -76,6 +101,8 @@ class RagSettings:
         policy_file: Política de evidencia (umbral, top-k, instrucción de consulta).
         keep_alive: Tiempo que Ollama mantiene cargado el modelo de embeddings.
         embed_num_gpu: Capas del embedder en GPU (0 = CPU, por defecto; None = decide Ollama).
+        policy_overrides: Umbrales de la política de evidencia definidos en .env, que
+            reemplazan a los del archivo de política.
     """
 
     enabled: bool
@@ -87,6 +114,7 @@ class RagSettings:
     policy_file: Path
     keep_alive: str = DEFAULT_KEEP_ALIVE
     embed_num_gpu: int | None = None
+    policy_overrides: PolicyOverrides = field(default_factory=PolicyOverrides)
 
 
 def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings:
@@ -109,15 +137,33 @@ def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings
         ),
         keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
         embed_num_gpu=_get_int_or_auto(env, "OLLAMA_EMBED_NUM_GPU", DEFAULT_EMBED_NUM_GPU),
+        policy_overrides=load_policy_overrides(env),
+    )
+
+
+def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
+    """Umbrales de la política de evidencia definidos en .env (vacíos = los del archivo).
+
+    Raises:
+        ConfigurationError: Si un valor no es numérico o una fracción está fuera de [0, 1].
+    """
+    return PolicyOverrides(
+        min_similarity=_get_optional_fraction(env, "RAG_MIN_SIMILARITY"),
+        top_k=_get_optional_positive_int(env, "RAG_TOP_K"),
+        candidate_k=_get_optional_positive_int(env, "RAG_CANDIDATE_K"),
+        min_support=_get_optional_fraction(env, "GROUNDING_MIN_SUPPORT"),
+        max_free_sentences=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_SENTENCES"),
+        max_free_words=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_WORDS"),
     )
 
 
 def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSettings:
     """Configuración de Ollama para una etapa (análisis o respuesta).
 
-    Si la variable de modelo de la etapa está vacía, se usa OLLAMA_MODEL. El límite de tokens
-    sale de OLLAMA_ANALYSIS_NUM_PREDICT u OLLAMA_REPLY_NUM_PREDICT ("auto" = sin límite), y el
-    razonamiento de OLLAMA_ANALYSIS_THINK u OLLAMA_REPLY_THINK (si están vacías, OLLAMA_THINK).
+    Cada etapa puede definir su modelo, temperatura, contexto, tiempo de espera y
+    razonamiento (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`); si una variable de la etapa está
+    vacía, se usa la general (`OLLAMA_*`). El límite de tokens es propio de cada etapa
+    (`OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT`; "auto" = sin límite).
 
     Args:
         env: Variables de entorno.
@@ -126,16 +172,21 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     Raises:
         ConfigurationError: Si un valor numérico no es válido.
     """
-    base = load_ollama_settings(env)
-    predict_variable, predict_default = STAGE_NUM_PREDICT.get(model_variable, ("", AUTO_VALUE))
-    num_predict = _get_int_or_auto(env, predict_variable, predict_default)
-    stage_think = _get_optional_bool(env, STAGE_THINK.get(model_variable, ""))
-    return replace(
-        base,
-        model=_get(env, model_variable, base.model),
-        num_predict=num_predict,
-        think=base.think if stage_think is None else stage_think,
-    )
+    prefix = STAGE_PREFIXES.get(model_variable, GLOBAL_PREFIX)
+    base = load_ollama_settings(stage_environment(env, prefix))
+    predict_default = STAGE_NUM_PREDICT_DEFAULTS.get(model_variable, AUTO_VALUE)
+    num_predict = _get_int_or_auto(env, prefix + NUM_PREDICT_FIELD, predict_default)
+    return replace(base, num_predict=num_predict)
+
+
+def stage_environment(env: Mapping[str, str], prefix: str) -> dict[str, str]:
+    """Variables de entorno en las que las de la etapa reemplazan a las generales."""
+    merged = dict(env)
+    for field_name in STAGE_FIELDS:
+        value = env.get(prefix + field_name, "").strip()
+        if value:
+            merged[GLOBAL_PREFIX + field_name] = value
+    return merged
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:
@@ -216,6 +267,26 @@ def _get_path(env: Mapping[str, str], name: str, default: str, project_root: Pat
     """Lee una ruta; si es relativa, se resuelve desde la raíz del proyecto."""
     path = Path(_get(env, name, default))
     return path if path.is_absolute() else project_root / path
+
+
+def _get_optional_fraction(env: Mapping[str, str], name: str) -> float | None:
+    """Lee una fracción entre 0 y 1 (umbrales); None si la variable está vacía."""
+    if not env.get(name, "").strip():
+        return None
+    value = _get_float(env, name, "")
+    if not MIN_FRACTION <= value <= MAX_FRACTION:
+        raise ConfigurationError(f"{name} debe estar entre 0 y 1, se recibió '{value}'.")
+    return value
+
+
+def _get_optional_positive_int(env: Mapping[str, str], name: str) -> int | None:
+    """Lee un entero mayor que 0; None si la variable está vacía."""
+    if not env.get(name, "").strip():
+        return None
+    value = _get_int(env, name, "")
+    if value < 1:
+        raise ConfigurationError(f"{name} debe ser mayor que 0, se recibió '{value}'.")
+    return value
 
 
 def _get_int_or_auto(env: Mapping[str, str], name: str, default: str) -> int | None:

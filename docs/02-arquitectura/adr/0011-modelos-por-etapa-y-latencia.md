@@ -1,6 +1,6 @@
 # ADR 0011: Modelos por etapa y estrategia de latencia
 
-- **Estado:** Propuesto. **Falta la decisión del equipo** con los datos de `scripts/benchmark_models.py`
+- **Estado:** **Aceptado (de momento)** por el equipo el 2026-10-12, después de la ronda 3: análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento. Pendiente de confirmar la latencia de esa combinación exacta (ver "Riesgo de la decisión")
 - **Fecha:** 2026-10-11
 - **Decisores:** equipo del proyecto (pendiente). Elegir el modelo no se delega a la IA (AGENTS.md §5)
 - **Relacionado:** ADR 0005 (Ollama local), ADR 0008 (dos llamadas), ADR 0010 (respuesta verificada), B-022
@@ -67,8 +67,39 @@ Opciones que caben en 8 GB con `num_ctx` 4096:
 - **Parte de las fallas del filtro 2 eran de los patrones, no de los modelos.** Por ejemplo, "Vómito de todo lo que come o bebe" no activaba "Vomita todo…". Se ampliaron los patrones (catálogo v0.4.0, pendiente de aprobación clínica), con lo que el filtro 1 pasa a captar 7 de las 18 frases. Y se propone la solución de fondo, los códigos cerrados ([ADR 0012](0012-signos-reportados-como-codigos-cerrados.md)).
 - **Las frases descartadas eran de verdad agregados sin respaldo**, como "el dolor puede extenderse al brazo…" o "sigue una dieta saludable". El verificador acertó.
 
-### Ronda 3 (pendiente, con el ADR 0012 implementado)
-Mismas 18 frases (el filtro 2 se mide por sí solo, con el mismo conjunto en todas las rondas) y **todas** las combinaciones de la ronda 1, para ver cómo cambian con los códigos cerrados. Comandos en [operacion.md](../../08-despliegue/operacion.md).
+### Ronda 3 (2026-10-12): con los códigos cerrados (ADR 0012) y el catálogo v0.5.0
+| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | Filtro 2 por código | Verificadas | Literal | Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mistral-small3.1:24b | mistral-small3.1:24b | 0 | 9/9 | 16/18 | 16/18 | 8 | 0 | 0 | 8 | 49.9 s | 64.9 s | 25.5 s | 36.4 s |
+| llama3.1:8b | llama3.1:8b | 0 | 5/9 | 14/18 | 7/18 | 5 | 2 | 0 | 9 | 2.1 s | 4.5 s | 1.6 s | 2.4 s |
+| mistral-nemo:12b | mistral-nemo:12b | 0 | 8/9 | 15/18 | 15/18 | 3 | 2 | 0 | 11 | 7.5 s | 21.1 s | 7.3 s | 9.6 s |
+| qwen3:8b | qwen3:8b | 0 | 8/9 | 15/18 | 13/18 | 5 | 1 | 0 | 10 | 2.4 s | 5.2 s | 2.1 s | 2.8 s |
+| qwen3:8b | mistral-small3.1:24b | 0 | 8/9 | 15/18 | 14/18 | 5 | 1 | 0 | 10 | 9.5 s | 66.5 s | 2.1 s | 46.6 s |
+
+**Lectura (comparada con la ronda 2):**
+- **Los códigos cerrados mejoran a todos los modelos.** En el filtro 2: mistral-small pasa de 14 a 16 de 18, nemo de 12 a 15 y qwen3 de 9 a 15. En mistral-small y nemo casi todos los aciertos llegan por código.
+- **Errores de interpretación que siguen apareciendo:**
+  - qwen3 y nemo marcaron `SIGNOS_ACV` en convulsiones ("ojos en blanco y temblaba", "ataque y se puso rígida");
+  - nemo marcó `SANGRADO_VAGINAL_EMBARAZO_POSPARTO` para "me orino sola" (falso positivo);
+  - qwen3 no reconoció "se cayó redondo y no respondía" (desmayo).
+
+  Ningún modelo reconoce "me orino sola" (RN-MI-05) como salida de líquido: puede que la frase de prueba esté mal asignada (pregunta 4 al equipo clínico).
+- **llama3.1 se descarta:** alcance 5/9 (no descarta los mensajes ajenos).
+- **qwen3 es excelente redactando:** 5 verificadas y 1 literal con 2,8 s, frente a los 36 s de mistral-small.
+- **Las combinaciones mixtas sufren el intercambio de modelos en la VRAM:** con qwen3 en el análisis y mistral en la respuesta, la respuesta tarda 46,6 s y el turno p90 sube a 66,5 s.
+
+### Decisión (2026-10-12, equipo)
+- **Análisis:** `mistral-small3.1:24b`, el mejor filtro 2 (16/18) y alcance 9/9.
+- **Respuesta:** `qwen3:8b` con `OLLAMA_REPLY_THINK=false`: redacción verificada y muy rápida.
+- **Umbral del RAG:** de 0,55 a 0,50 (algunos registros útiles quedaban justo por debajo). Política de evidencia v1.2.0; se puede ajustar con `RAG_MIN_SIMILARITY` en `.env`.
+
+**Riesgo de la decisión:** esta combinación exacta **no se midió**. La inversa (qwen3 en el análisis + mistral en la respuesta) mostró el costo de intercambiar dos modelos que no caben juntos en 8 GB de VRAM. Hay que medirla antes de darla por definitiva:
+```bash
+OLLAMA_REPLY_THINK=false .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b+qwen3:8b
+```
+Si el intercambio la hace lenta, las alternativas son:
+- `qwen3:8b` en las dos etapas, la más rápida, con un filtro 2 de 15/18;
+- `mistral-small3.1:24b` en las dos, la más segura (unos 50 s por turno).
 
 **Criterios propuestos** (los confirma el equipo):
 1. **Filtro 2 sin pérdida:** en las 18 frases coloquiales (`colloquial_alarm_phrases.json`), las reglas que detecta el filtro 2 por sí solo no bajan frente a la opción A. Es seguridad clínica: no se negocia.
@@ -78,5 +109,5 @@ Mismas 18 frases (el filtro 2 se mide por sí solo, con el mismo conjunto en tod
 5. **Latencia:** turno p50 ≤ 15 s.
 
 ## Consecuencias
-- Cuando el equipo decida, este ADR pasa a **Aceptado** con la tabla del informe (`data/benchmarks/`), se ajustan `OLLAMA_ANALYSIS_MODEL` / `OLLAMA_REPLY_MODEL` en `.env.example` y se repite `pytest -m live`.
+- La decisión quedó en `.env.example` (`OLLAMA_ANALYSIS_MODEL`, `OLLAMA_REPLY_MODEL`, `OLLAMA_REPLY_THINK=false`). Todos los parámetros de cada etapa (modelo, temperatura, contexto, tiempo de espera, razonamiento y límite de tokens) se configuran en `.env`. Falta repetir `pytest -m live` con la combinación elegida.
 - ⚠️ Un modelo más pequeño puede reportar peor los síntomas. Por eso el criterio 1 es obligatorio y las reglas del filtro 1 siguen revisando el texto original.

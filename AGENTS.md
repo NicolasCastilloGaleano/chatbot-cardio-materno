@@ -42,6 +42,7 @@ src/cardio_materno/
 - **Docstrings estilo Google** en español para todo módulo, clase y función pública: qué hace, `Args`, `Returns` y `Raises`.
 - **Identificadores en inglés**; documentación, docstrings y mensajes al usuario en **español**.
 - Sin números ni textos mágicos: van como constantes con nombre o en configuración. Los textos al usuario van en plantillas.
+- **Lo que se ajusta al operar** (modelos, temperaturas, contextos, tiempos de espera, umbrales del RAG y de la verificación) va en `.env`, leído en `bootstrap/settings.py` y documentado en `.env.example` (por secciones) y en `docs/08-despliegue/instalacion.md`. Los valores calibrados por defecto pueden vivir en un archivo versionado (p. ej., `knowledge/evidence_policy.json`), pero `.env` tiene prioridad.
 - Errores explícitos con excepciones de dominio propias; nunca `except:` vacío.
 - Logging estructurado sin datos personales.
 - Inyección de dependencias por constructor, sin singletons globales.

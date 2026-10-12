@@ -40,4 +40,6 @@ def detect_alarm_signs(symptoms: list[Symptom]) -> list[AlarmSign]:
 `ruff check`, `ruff format`, `mypy --strict` (sobre `src` y `tests`) y `pytest`. La configuración está en `pyproject.toml` y se ejecuta en la CI (`.github/workflows/ci.yml`).
 
 ## Constructores con muchas dependencias
+**Configuración:** todo parámetro que se ajuste al operar se lee de `.env` en `bootstrap/settings.py` (con un valor por defecto en constante) y se documenta en `.env.example` y en la tabla de variables de `instalacion.md`. Las etapas del LLM usan el prefijo `OLLAMA_ANALYSIS_` / `OLLAMA_REPLY_`, con respaldo en `OLLAMA_*`.
+
 Si un constructor supera los 5 parámetros, se agrupan los de configuración en una `@dataclass(frozen=True)` (p. ej., `ConversationConfig`). No se usa `# noqa: PLR0913`.

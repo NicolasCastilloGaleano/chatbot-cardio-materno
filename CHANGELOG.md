@@ -5,6 +5,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Changed
+- **Decisión de modelos (ADR 0011, 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento (`.env.example`). Ronda 3 del benchmark registrada; falta medir la latencia de esa combinación exacta.
+- **Umbral del RAG de 0,55 a 0,50** por decisión del equipo (`evidence_policy.json` v1.2.0).
+- **Configuración en `.env`, ordenada por secciones:** cada etapa define su modelo, temperatura, contexto, tiempo de espera, razonamiento y límite de tokens (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`, con respaldo en las generales); los umbrales del RAG y de la verificación (`RAG_MIN_SIMILARITY`, `RAG_TOP_K`, `RAG_CANDIDATE_K`, `GROUNDING_*`) reemplazan a los del archivo de política. La consola muestra el umbral efectivo al arrancar. Convención registrada en AGENTS.md §3 y en `estandares-codigo.md`.
+
 ### Added
 - **Códigos cerrados de signos (B-015, ADR 0012 aceptado provisionalmente para la demostración):** catálogo v0.5.0 con `code` y `examples` por regla; el análisis marca `reported_signs` (lista cerrada por `enum`, prompt de análisis v5) y el filtro 2 los cruza de forma exacta con las reglas, además de revisar los síntomas en texto. Alertas con el origen `agente_codigo`, traza `reported_signs` y línea `[signos marcados: …]`. Pendiente de ratificación del equipo y de aprobación clínica de los códigos y ejemplos.
 - `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK`: razonamiento por etapa (respaldo en `OLLAMA_THINK`).
