@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- El punto de entrada `run_web.py` agrega `src/` al `sys.path`, igual que `run_console.py`, para permitir ejecutar el proyecto sin instalarlo como paquete.
+
 ### Added
 - **HU-08 / B-023:** interfaz web local con FastAPI para conversar con el agente, inspeccionar las trazas y evidencias completas por respuesta y consultar hilos guardados en modo de solo lectura. `python run_web.py` sirve en `127.0.0.1:8000`; se agregan FastAPI/Uvicorn y el ADR 0013.
 

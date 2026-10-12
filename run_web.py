@@ -1,6 +1,11 @@
-"""Punto de entrada para ejecutar la interfaz web local."""
+"""Atajo para iniciar la interfaz local sin instalar el paquete."""
 
-from cardio_materno.bootstrap.web import main
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
+from cardio_materno.bootstrap.web import main  # noqa: E402 (requiere el sys.path anterior)
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

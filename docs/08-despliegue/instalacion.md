@@ -40,6 +40,7 @@ git pull
 # Alternativa de demostración: interfaz de chat y auditoría en http://127.0.0.1:8000
 .venv/bin/python run_web.py
 ```
+Si acabas de cambiar a una rama que incorpora dependencias nuevas, instala primero las versiones de esa rama con `.venv/bin/pip install -r requirements.txt`.
 Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
 
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
