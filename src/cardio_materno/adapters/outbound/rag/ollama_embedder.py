@@ -17,6 +17,8 @@ from cardio_materno.application.errors import LanguageModelError
 EMBED_ENDPOINT = "/api/embed"
 MIN_SPLITTABLE_BATCH = 2
 
+WARM_UP_TEXT = "hola"
+
 
 @dataclass(frozen=True)
 class EmbedderSettings:
@@ -73,6 +75,14 @@ class OllamaEmbedder:
     def verify_ready(self) -> None:
         """Verifica que Ollama responde y que el modelo de embeddings está instalado."""
         self._http.ensure_model_installed(self._settings.model)
+
+    def warm_up(self) -> None:
+        """Embebe un texto corto para cargar el modelo antes del primer turno.
+
+        Raises:
+            LanguageModelError: Si Ollama falla.
+        """
+        self.embed([WARM_UP_TEXT])
 
     def _embed_batch(self, batch: list[str]) -> list[list[float]]:
         """Embebe un lote; ante un timeout con varios textos, reintenta en dos mitades."""

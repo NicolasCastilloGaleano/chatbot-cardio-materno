@@ -24,12 +24,13 @@
    - **Respuesta (con evidencia):** solo si no hubo urgencia; texto + `evidence_ids`.
 
    La evidencia **nunca** llega al análisis, así no puede alterar el filtro de seguridad. Las urgencias detectadas por el filtro 2 ya no buscan evidencia ni redactan una respuesta para descartarla.
-5. **Solo evidencia para afirmaciones de salud:**
+5. **Solo evidencia para afirmaciones de salud** (*actualizado por el [ADR 0010](0010-respuesta-verificada-y-abstencion-determinista.md): la abstención ya no depende del prompt y cada frase se verifica de forma determinista*):
    - el prompt de respuesta exige usar únicamente la EVIDENCIA y citar sus etiquetas;
    - el JSON Schema restringe `evidence_ids` a las etiquetas ofrecidas (`enum`) y la aplicación lo valida;
    - sin evidencia, el agente lo dice y remite al personal de salud;
    - si hubo evidencia y no se citó, queda la marca `uncited_reply`.
 6. **Trazabilidad:** cada respuesta guarda en el hilo una `trace` con síntomas, evidencia ofrecida (id, etiqueta, puntaje, categoría), citas, estado de la búsqueda y **tiempos por etapa**.
+   *Actualización (2026-10-11, B-021):* la consulta de búsqueda es el `search_query` que reformula el análisis, sin el contexto ajeno del mensaje; si viene vacío, se usa mensaje + resumen + síntomas. El análisis sigue sin recibir evidencia.
 7. **Modelos por etapa:** `OLLAMA_ANALYSIS_MODEL` y `OLLAMA_REPLY_MODEL` (vacío = `OLLAMA_MODEL`).
 8. **Dependencias de ejecución:** se agrega `numpy` (`requirements.txt`). Termina la regla de "cero dependencias" del ADR 0005. En Ubuntu 24.04 hay que usar un entorno virtual (PEP 668).
 

@@ -6,9 +6,13 @@ import pytest
 
 from cardio_materno.application.agent_turn import (
     ANALYSIS_SCHEMA,
+    NO_CITATION,
+    DraftSentence,
     Scope,
     ThreadAction,
+    grounded_reply_schema,
     parse_analysis,
+    parse_grounded_reply,
     parse_reply,
     reply_schema,
 )
@@ -80,9 +84,29 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
         "domain",
         "summary",
         "reported_symptoms",
+        "search_query",
         "scope",
         "scope_reason",
     }
+
+
+def test_placeholders_are_removed_from_summary_and_search_query_but_not_symptoms() -> None:
+    data = analysis_json(
+        summary="Acidez en el embarazo de [N] semanas.",
+        search_query="acidez [síntoma]",
+        reported_symptoms=["acidez de [N] días"],
+    )
+
+    analysis = parse_analysis(data)
+
+    assert analysis.summary == "Acidez en el embarazo de semanas."
+    assert analysis.search_query == "acidez"
+    assert analysis.reported_symptoms == ("acidez de [N] días",)
+
+
+def test_search_query_is_optional_and_trimmed() -> None:
+    assert parse_analysis(analysis_json()).search_query == ""
+    assert parse_analysis(analysis_json(search_query=" acidez ")).search_query == "acidez"
 
 
 def test_scope_and_reason_are_parsed() -> None:
@@ -127,3 +151,46 @@ def test_reply_schema_restricts_citations_to_offered_labels() -> None:
 
     assert with_labels["items"]["enum"] == ["E1", "E2"]
     assert without_labels["maxItems"] == 0
+
+
+# --- Respuesta frase por frase (ADR 0010) --------------------------------------------------
+
+
+def test_grounded_reply_schema_restricts_each_citation_to_offered_labels_or_none() -> None:
+    schema = grounded_reply_schema(["E1", "E2"])
+
+    sentence = schema["properties"]["sentences"]["items"]
+    assert sentence["properties"]["evidence_id"]["enum"] == ["E1", "E2", NO_CITATION]
+    assert sentence["required"] == ["text", "evidence_id"]
+    assert schema["properties"]["sentences"]["minItems"] == 1
+
+
+def test_grounded_reply_is_parsed_and_empty_sentences_are_dropped() -> None:
+    data = {
+        "sentences": [
+            {"text": " Come poco. ", "evidence_id": "E1"},
+            {"text": "  ", "evidence_id": "E1"},
+            {"text": "¿Desde cuándo?", "evidence_id": NO_CITATION},
+        ]
+    }
+
+    assert parse_grounded_reply(data, ["E1"]) == (
+        DraftSentence("Come poco.", "E1"),
+        DraftSentence("¿Desde cuándo?", None),
+    )
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"sentences": []},
+        {"sentences": ["texto suelto"]},
+        {"sentences": [{"text": "x", "evidence_id": "E9"}]},
+        {"sentences": [{"text": "x"}]},
+    ],
+    ids=["sin-frases", "lista-vacia", "frase-sin-forma", "etiqueta-no-ofrecida", "sin-cita"],
+)
+def test_invalid_grounded_reply_raises_error(data: dict[str, Any]) -> None:
+    with pytest.raises(LanguageModelError):
+        parse_grounded_reply(data, ["E1"])

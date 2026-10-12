@@ -5,16 +5,18 @@ from typing import Any
 
 import pytest
 
+from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.evidence import NO_EVIDENCE_TEXT
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
-from cardio_materno.domain.alarms import AlertOrigin, Severity
+from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
 from cardio_materno.domain.conversation import Domain, Role, ThreadStatus
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
 from tests.unit.fakes import (
     PRIORITY_MESSAGE,
     URGENT_MESSAGE,
+    BackingRetriever,
     FakeRetriever,
     InMemoryThreadRepository,
     ScriptedAgent,
@@ -29,6 +31,17 @@ from tests.unit.fakes import (
 )
 
 ALARMS: dict[str, Any] = {"alarm_policy": make_alarm_policy()}
+FOOD_ADVICE = "Come comidas pequeñas y frecuentes."
+# Registro real de la base citado en el incidente del 2026-10-11 (tipo Indagar).
+HEARTBURN_ENTRY = (
+    "Describe si es ardor que sube hacia el pecho o un dolor localizado, cuánto tarda en "
+    "aparecer después de comer y qué alimentos lo desencadenan. ¿Hay sabor ácido, vómitos o "
+    "dificultad para alimentarte? Indica las semanas de embarazo y los productos que estás "
+    "usando para aliviarlo. Estos datos ayudan a distinguir síntomas digestivos de otros "
+    "dolores abdominales. Si la molestia es intensa y persistente, especialmente bajo las "
+    "costillas derechas o junto con dolor de cabeza o visión alterada, necesita atención "
+    "obstétrica inmediata."
+)
 
 
 # --- Hilos (HU-06) -------------------------------------------------------------------------
@@ -180,6 +193,40 @@ def test_urgent_message_inside_active_thread_stays_in_that_thread() -> None:
     assert len(repo.alerts["hilo-1"]) == 1
 
 
+def test_urgent_message_of_another_domain_opens_a_thread_of_that_domain() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(agent_json("r1", domain="cardiovascular"))
+    service = make_service(agent, repo, ALARMS)
+
+    service.send("me duele el pecho")
+    result = service.send("ahora tengo sangrado vaginal")
+
+    assert thread_of(result).id == "hilo-2" and result.is_new_thread
+    assert thread_of(result).domain is Domain.MATERNAL_CHILD
+    assert repo.threads["hilo-1"].status is ThreadStatus.CLOSED
+    assert "hilo-1" not in repo.alerts and len(repo.alerts["hilo-2"]) == 1
+
+
+def test_each_reported_symptom_is_checked_on_its_own() -> None:
+    context_rule = AlarmRule(
+        "T-CTX",
+        Domain.MATERNAL_CHILD,
+        "gestante",
+        "Fiebre en el embarazo",
+        Severity.IMMEDIATE,
+        (compile_pattern(r"^(?=.*embarazo)(?=.*fiebre)"),),
+        "urg",
+        "prueba",
+    )
+    policy = AlarmPolicy([context_rule], {"urg": URGENT_MESSAGE})
+    symptoms = ["acidez en el embarazo de 34 semanas", "fiebre en el bebé"]
+    agent = ScriptedAgent(agent_json("r", "nuevo", reported_symptoms=symptoms))
+
+    result = make_service(agent, config={"alarm_policy": policy}).send("mi bebé tiene fiebre")
+
+    assert result.alerts == () and result.reply == "r"
+
+
 def test_priority_user_message_shows_fixed_notice_then_agent_reply() -> None:
     agent = ScriptedAgent(agent_json("consejos", domain="cardiovascular"))
 
@@ -282,6 +329,46 @@ def test_retrieval_query_uses_message_summary_symptoms_and_domain() -> None:
     assert query.domains == (Domain.CARDIOVASCULAR,)
 
 
+def test_retrieval_uses_the_reformulated_search_query_when_present() -> None:
+    turn = agent_json(domain="cardiovascular") | {"search_query": "presión arterial alta"}
+    retriever = FakeRetriever()
+
+    result = make_service(ScriptedAgent(turn), retriever=retriever).send(
+        "¿quién ganó? y tengo la presión alta"
+    )
+
+    assert retriever.queries[0].text == "presión arterial alta"
+    assert result.trace is not None and result.trace.search_query == "presión arterial alta"
+
+
+def test_symptom_with_details_the_person_never_wrote_is_flagged_in_the_trace() -> None:
+    agent = ScriptedAgent(
+        agent_json("r1", reported_symptoms=["acidez en el embarazo"]),
+        agent_json("r2", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+    )
+    service = make_service(agent)
+
+    service.send("tengo acidez en el embarazo")
+    result = service.send("¿y qué más puedo comer?")
+
+    assert result.trace is not None
+    assert result.trace.unstated_symptoms == ("acidez en el embarazo de 34 semanas",)
+    assert result.trace.reported_symptoms == ("acidez en el embarazo de 34 semanas",)
+
+
+def test_details_said_earlier_in_the_thread_are_not_flagged() -> None:
+    agent = ScriptedAgent(
+        agent_json("r1", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+        agent_json("r2", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+    )
+    service = make_service(agent)
+
+    service.send("tengo acidez y 34 semanas")
+    result = service.send("¿y qué más puedo comer?")
+
+    assert result.trace is not None and result.trace.unstated_symptoms == ()
+
+
 def test_domain_none_searches_all_domains() -> None:
     retriever = FakeRetriever()
 
@@ -292,13 +379,17 @@ def test_domain_none_searches_all_domains() -> None:
 
 def test_reply_schema_limits_citations_to_offered_labels_and_trace_records_them() -> None:
     repo = InMemoryThreadRepository()
-    agent = ScriptedAgent(citing(agent_json("comidas pequeñas"), "E1"))
-    retriever = FakeRetriever(evidence_result(knowledge_entry("k1"), knowledge_entry("k2")))
+    agent = ScriptedAgent(citing(agent_json("Come comidas pequeñas."), "E1"))
+    retriever = FakeRetriever(
+        evidence_result(knowledge_entry("k1", answer=FOOD_ADVICE), knowledge_entry("k2"))
+    )
 
     result = make_service(agent, repo, retriever=retriever).send("¿qué como?")
 
     schema = agent.responder.schemas[0]
-    assert schema["properties"]["evidence_ids"]["items"]["enum"] == ["E1", "E2"]
+    sentence = schema["properties"]["sentences"]["items"]["properties"]
+    assert sentence["evidence_id"]["enum"] == ["E1", "E2", "ninguna"]
+    assert result.reply == "Come comidas pequeñas."
     trace = repo.messages["hilo-1"][1].trace
     assert trace is not None and trace == result.trace
     assert [ref.entry_id for ref in trace.evidence] == ["k1", "k2"]
@@ -318,21 +409,80 @@ def test_citing_unoffered_label_is_an_error_and_saves_nothing() -> None:
     assert repo.threads == {}
 
 
-def test_without_evidence_reply_context_says_so_and_schema_forbids_citations() -> None:
-    agent = ScriptedAgent(agent_json("no tengo información validada"))
-    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.UNAVAILABLE))
+@pytest.mark.parametrize("status", [RetrievalStatus.INSUFFICIENT, RetrievalStatus.UNAVAILABLE])
+def test_without_sufficient_evidence_abstains_without_calling_the_reply_model(
+    status: RetrievalStatus,
+) -> None:
+    agent = ScriptedAgent(agent_json("el jengibre ayuda"))
+    retriever = FakeRetriever(RetrievalResult(status, best_score=0.44))
 
-    result = make_service(agent, retriever=retriever).send("¿qué es el colesterol?")
+    result = make_service(agent, retriever=retriever).send("¿qué como si tengo acidez?")
 
-    assert NO_EVIDENCE_TEXT in [m.content for m in agent.responder.calls[0]]
-    assert agent.responder.schemas[0]["properties"]["evidence_ids"]["maxItems"] == 0
-    assert result.trace is not None and result.trace.retrieval_status is RetrievalStatus.UNAVAILABLE
+    assert result.reply == ABSTENTION_TEXT and agent.responder.calls == []
+    assert result.trace is not None and result.trace.retrieval_status is status
+    assert result.trace.grounding is None
+    assert [t.stage for t in result.trace.timings] == ["análisis", "RAG"]
+
+
+def test_abstention_with_priority_alarm_shows_only_the_fixed_notice() -> None:
+    agent = ScriptedAgent(agent_json("consejos"))
+
+    result = make_service(agent, config=ALARMS, retriever=FakeRetriever()).send(
+        "tengo la presion alta"
+    )
+
+    assert result.reply == PRIORITY_MESSAGE and agent.responder.calls == []
+
+
+def test_unsupported_cited_sentence_shows_the_literal_entry_text() -> None:
+    sentences = [
+        {"text": "Describe si el ardor sube hacia el pecho.", "evidence_id": "E1"},
+        {"text": "Come yogur, avena, almendras y nueces.", "evidence_id": "E1"},
+    ]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("¿qué más puedo comer?")
+
+    assert result.reply == LITERAL_TEMPLATE.format(answer=HEARTBURN_ENTRY)
+    assert result.trace is not None and result.trace.grounding is not None
+    assert result.trace.grounding.literal and result.trace.cited_evidence == ("E1",)
+    assert result.trace.grounding.dropped == ("Come yogur, avena, almendras y nueces.",)
+
+
+def test_supported_sentences_and_a_clarifying_question_are_kept() -> None:
+    sentences = [
+        {"text": "Cuenta si el ardor sube hacia el pecho.", "evidence_id": "E1"},
+        {"text": "Evita el café y el chocolate.", "evidence_id": "ninguna"},
+        {"text": "¿Desde cuándo lo sientes?", "evidence_id": "ninguna"},
+    ]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("tengo acidez")
+
+    assert result.reply == "Cuenta si el ardor sube hacia el pecho. ¿Desde cuándo lo sientes?"
+    assert result.trace is not None and result.trace.grounding is not None
+    assert (result.trace.grounding.supported, result.trace.grounding.total) == (2, 3)
+    assert not result.trace.grounding.literal
+
+
+def test_reply_with_only_uncited_claims_shows_the_literal_entry_text() -> None:
+    sentences = [{"text": "Toma infusiones de manzanilla.", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": sentences})
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=HEARTBURN_ENTRY)))
+
+    result = make_service(agent, retriever=retriever).send("tengo acidez")
+
+    assert result.reply == LITERAL_TEMPLATE.format(answer=HEARTBURN_ENTRY)
 
 
 def test_sufficient_evidence_without_citation_is_flagged_as_uncited() -> None:
+    question = [{"text": "¿Desde cuándo lo sientes?", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": question})
     retriever = FakeRetriever(evidence_result(knowledge_entry()))
 
-    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("¿qué como?")
+    result = make_service(agent, retriever=retriever).send("¿qué como?")
 
     assert result.trace is not None and result.trace.uncited
 
@@ -399,7 +549,7 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
 
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
     agent = ScriptedAgent(scoped(agent_json("consejos"), "fuera_de_alcance", "habla de fútbol"))
-    retriever = FakeRetriever()
+    retriever = BackingRetriever(agent)
 
     result = make_service(agent, config=ALARMS, retriever=retriever).send(
         "vengo del partido y tengo la presion alta"
@@ -423,7 +573,7 @@ def test_reported_symptom_overrides_out_of_scope_decision() -> None:
     agent = ScriptedAgent(
         scoped(agent_json("r", reported_symptoms=["acidez en el embarazo"]), "fuera_de_alcance")
     )
-    retriever = FakeRetriever()
+    retriever = BackingRetriever(agent)
 
     result = make_service(agent, retriever=retriever).send(
         "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas"
@@ -442,8 +592,18 @@ def test_conversational_message_replies_without_rag() -> None:
     assert retriever.queries == []
     assert CONVERSATIONAL_CONTEXT in [m.content for m in agent.responder.calls[0]]
     assert agent.responder.schemas[0]["properties"]["evidence_ids"]["maxItems"] == 0
-    assert result.thread is not None and result.trace is not None
+    assert result.trace is not None
     assert result.trace.scope == "conversacional" and result.trace.retrieval_status is None
+
+
+def test_conversational_message_without_thread_is_not_recorded() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(scoped(agent_json("¡Hola!", "nuevo", "ninguno"), "conversacional"))
+
+    result = make_service(agent, repo).send("hola")
+
+    assert result.thread is None and not result.is_new_thread and not result.out_of_scope
+    assert repo.threads == {} and repo.messages == {}
 
 
 def test_greeting_inside_a_thread_keeps_the_thread_domain() -> None:
@@ -458,3 +618,23 @@ def test_greeting_inside_a_thread_keeps_the_thread_domain() -> None:
     result = service.send("gracias")
 
     assert thread_of(result).domain is Domain.MATERNAL_CHILD
+
+
+def test_greeting_never_opens_a_thread_nor_changes_the_active_one() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("r1", domain="cardiovascular", summary="presión"),
+        scoped(agent_json("¡Hola!", "nuevo", "ninguno", "saludo"), "conversacional"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("tengo la presión alta")
+    result = service.send("hola")
+
+    assert thread_of(result).id == "hilo-1" and not result.is_new_thread
+    assert repo.threads["hilo-1"].status is ThreadStatus.OPEN
+    assert (repo.threads["hilo-1"].domain, repo.threads["hilo-1"].summary) == (
+        Domain.CARDIOVASCULAR,
+        "presión",
+    )
+    assert [m.content for m in repo.messages["hilo-1"]][-2:] == ["hola", "¡Hola!"]

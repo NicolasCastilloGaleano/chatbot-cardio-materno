@@ -228,5 +228,19 @@ Hoy, una **pregunta educativa** que menciona un signo de alarma (p. ej., “¿po
 Propuesta (B-017): mantener siempre la alarma, pero si el asistente identifica que es una consulta general, mostrar un mensaje condicional (“Si esto le está pasando ahora a ti o a alguien, acude de inmediato a urgencias o llama al 123”) seguido de una explicación.
 - [ ] De acuerdo con la propuesta · [ ] Mantener siempre solo el mensaje de urgencia · [ ] Otra: ______________________
 
+### Pregunta 2: fiebre en un bebé que no es recién nacido
+Hoy, la única regla de fiebre infantil es RN-MI-13 (*fiebre o temperatura baja en el recién nacido*). Si alguien escribe "mi bebé tiene fiebre" sin decir la edad, ninguna regla se activa y el asistente responde con la orientación de la base de conocimiento.
+- ¿Debe haber una regla para la fiebre en menores de cierta edad (p. ej., < 3 meses) o con ciertos signos acompañantes? Edad límite: ______ · Signos: ______________________
+- ¿El asistente debe preguntar la edad del bebé antes de orientar? [ ] Sí · [ ] No
+
+### Pregunta 3: cómo se nombran algunos signos
+En la comparación de modelos del 2026-10-12, varios modelos describieron bien el síntoma, pero con palabras que la regla no reconoce:
+- "**No quiere** comer" frente a RN-MI-09 "**No puede** comer, beber o tomar el pecho". ¿Que un bebé no quiera comer debe activar la alerta, o solo cuando no puede? [ ] Ambos · [ ] Solo "no puede" · Comentario: ______________________
+- "Piel muy amarilla" (sin mencionar los labios) frente a RN-MI-14 "Piel o labios muy amarillos o morados". ¿Basta la piel amarilla? [ ] Sí · [ ] No · ¿Importa la edad? ______
+- "Respira rápido en el bebé" frente a RN-MI-12 "Respira rápido o con dificultad". ¿Basta "respira rápido"? [ ] Sí · [ ] No
+
+### Pregunta 4: frases coloquiales de prueba
+`tests/live/colloquial_alarm_phrases.json` tiene 18 frases coloquiales sintéticas (p. ej., "el niño devuelve hasta el agua" → RN-MI-10; "mi tío se cayó redondo y no respondía" → RN-CV-04) con la regla que **debería** activar cada una. Las generó la IA. ¿Están bien asignadas? Marque las que no: ______________________
+
 ## Validación
 Validado por: ______________________ · Fecha: ________ · Firma: ______________________

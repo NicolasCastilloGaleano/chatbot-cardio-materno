@@ -1,0 +1,23 @@
+{
+  "_description": "Frases coloquiales que el filtro 1 (reglas sobre el texto del usuario) NO capta y que debe captar el filtro 2 (reglas sobre los síntomas que reporta el análisis). Miden qué tan bien un modelo traduce el lenguaje coloquial a síntomas (scripts/benchmark_models.py). PROVISIONAL: frases sintéticas generadas con IA y comprobadas contra el catálogo v0.3.1; la regla esperada de cada frase debe revisarla el equipo clínico. Si una frase pasa a captarla el filtro 1, el script la reporta y no la cuenta.",
+  "cases": [
+    {"rule": "RN-MI-01", "phrase": "tengo 5 meses y me bajó como una regla"},
+    {"rule": "RN-MI-02", "phrase": "tengo 7 meses y siento que la cabeza me va a estallar"},
+    {"rule": "RN-MI-03", "phrase": "al niño se le pusieron los ojos en blanco y temblaba todo"},
+    {"rule": "RN-MI-03", "phrase": "a la bebé le dio un ataque y se puso rígida"},
+    {"rule": "RN-MI-04", "phrase": "tengo 8 meses y amanecí con la cara y las manos como infladas"},
+    {"rule": "RN-MI-05", "phrase": "tengo 36 semanas y siento que me orino sola sin poder aguantar"},
+    {"rule": "RN-MI-06", "phrase": "tengo 34 semanas y desde ayer el bebé está muy quietico"},
+    {"rule": "RN-MI-06", "phrase": "tengo 8 meses y mi barriga está como quieta, no hay pataditas desde la mañana"},
+    {"rule": "RN-MI-07", "phrase": "estoy embarazada y el termómetro marcó 39"},
+    {"rule": "RN-MI-08", "phrase": "tengo 30 semanas y la barriga se me pone dura a cada rato con dolor"},
+    {"rule": "RN-MI-09", "phrase": "el bebé ya no quiere coger el seno ni recibe nada"},
+    {"rule": "RN-MI-10", "phrase": "el niño devuelve hasta el agua"},
+    {"rule": "RN-MI-13", "phrase": "mi bebé de 10 días está muy calientico"},
+    {"rule": "RN-CV-01", "phrase": "siento como un elefante sentado en el pecho"},
+    {"rule": "RN-CV-02", "phrase": "no me alcanza el aire ni para hablar"},
+    {"rule": "RN-CV-03", "phrase": "a mi papá se le durmió medio cuerpo de repente"},
+    {"rule": "RN-CV-04", "phrase": "mi tío se cayó redondo y no respondía"},
+    {"rule": "RN-CV-06", "phrase": "el médico me dijo que soy hipertenso"}
+  ]
+}

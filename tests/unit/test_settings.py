@@ -135,11 +135,29 @@ def test_stage_timer_records_duration_even_when_action_fails() -> None:
 
 def test_latency_settings_defaults_and_overrides(tmp_path: Path) -> None:
     defaults = load_rag_settings({}, tmp_path)
-    custom = load_rag_settings({"OLLAMA_KEEP_ALIVE": "1h", "OLLAMA_EMBED_NUM_GPU": "0"}, tmp_path)
+    custom = load_rag_settings(
+        {"OLLAMA_KEEP_ALIVE": "1h", "OLLAMA_EMBED_NUM_GPU": "auto"}, tmp_path
+    )
 
-    assert (defaults.keep_alive, defaults.embed_num_gpu) == ("30m", None)
-    assert (custom.keep_alive, custom.embed_num_gpu) == ("1h", 0)
-    assert load_ollama_settings({"OLLAMA_KEEP_ALIVE": "1h"}).keep_alive == "1h"
+    assert (defaults.keep_alive, defaults.embed_num_gpu) == ("30m", 0)
+    assert (custom.keep_alive, custom.embed_num_gpu) == ("1h", None)
+
+
+def test_stage_token_limits_have_defaults_and_can_be_disabled() -> None:
+    env = {"OLLAMA_REPLY_NUM_PREDICT": "auto", "OLLAMA_ANALYSIS_NUM_PREDICT": ""}
+
+    assert load_stage_settings(env, "OLLAMA_ANALYSIS_MODEL").num_predict == 600
+    assert load_stage_settings(env, "OLLAMA_REPLY_MODEL").num_predict is None
+    assert (
+        load_stage_settings({"OLLAMA_REPLY_NUM_PREDICT": "300"}, "OLLAMA_REPLY_MODEL").num_predict
+        == 300
+    )
+
+
+def test_think_is_optional() -> None:
+    assert load_ollama_settings({}).think is None
+    assert load_ollama_settings({"OLLAMA_THINK": "false"}).think is False
+    assert load_ollama_settings({"OLLAMA_THINK": "true"}).think is True
 
 
 def test_invalid_embed_num_gpu_raises_configuration_error(tmp_path: Path) -> None:

@@ -1,7 +1,8 @@
 """Contratos de las dos llamadas al agente (HU-06, HU-02; ADR 0006, 0008).
 
 - **Análisis** (sin evidencia): hilo, dominio, resumen y síntomas reportados → filtro 2.
-- **Respuesta** (con evidencia): texto para el usuario y etiquetas de evidencia citadas.
+- **Respuesta** (con evidencia): frases para el usuario, cada una con la etiqueta del registro
+  que la respalda (ADR 0010). Los mensajes conversacionales usan un texto simple sin citas.
 
 Se separan para que la evidencia del RAG nunca influya en los síntomas que revisan las
 reglas de alarma.
@@ -14,6 +15,7 @@ from typing import Any
 
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import Domain
+from cardio_materno.domain.grounding import remove_placeholders
 
 
 class ThreadAction(StrEnum):
@@ -39,6 +41,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "domain": {"type": "string", "enum": [d.value for d in Domain]},
         "summary": {"type": "string"},
         "reported_symptoms": {"type": "array", "items": {"type": "string"}},
+        "search_query": {"type": "string"},
         "scope": {"type": "string", "enum": [s.value for s in Scope]},
         "scope_reason": {"type": "string"},
     },
@@ -47,12 +50,15 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "domain",
         "summary",
         "reported_symptoms",
+        "search_query",
         "scope",
         "scope_reason",
     ],
 }
 
 MSG_INVALID_TURN = "El modelo no devolvió la estructura esperada ({detail})."
+# Valor de "evidence_id" de una frase que no cita evidencia (cortesía, aclaración o pregunta).
+NO_CITATION = "ninguna"
 
 
 @dataclass(frozen=True)
@@ -66,6 +72,8 @@ class AnalysisTurn:
         reported_symptoms: Síntomas que la persona dice tener o haber tenido (filtro 2, ADR 0007).
         scope: Alcance del mensaje completo (HU-07, ADR 0009).
         scope_reason: Motivo corto de la decisión de alcance (para auditar).
+        search_query: Consulta de salud reformulada para buscar evidencia (B-021); vacía si
+            no hay consulta de salud.
     """
 
     thread_action: ThreadAction
@@ -74,6 +82,7 @@ class AnalysisTurn:
     reported_symptoms: tuple[str, ...] = ()
     scope: Scope = Scope.IN_SCOPE
     scope_reason: str = ""
+    search_query: str = ""
 
 
 @dataclass(frozen=True)
@@ -89,8 +98,24 @@ class ReplyTurn:
     evidence_ids: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class DraftSentence:
+    """Frase redactada por el agente con la etiqueta del registro que dice respaldarla.
+
+    Attributes:
+        text: Texto de la frase.
+        evidence_id: Etiqueta citada (E1, E2…) o None si la frase no cita evidencia.
+    """
+
+    text: str
+    evidence_id: str | None = None
+
+
 def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
     """Valida el JSON de la llamada de análisis.
+
+    Quita del resumen y de la consulta los marcadores copiados de los ejemplos del prompt
+    ("[N]"). Los síntomas se conservan tal cual para el filtro 2 y se marcan en la traza.
 
     Raises:
         LanguageModelError: Si falta un campo, está vacío o tiene un valor no permitido.
@@ -98,10 +123,11 @@ def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
     return AnalysisTurn(
         thread_action=_parse_enum(ThreadAction, data, "thread_action"),
         domain=_parse_enum(Domain, data, "domain"),
-        summary=_required_text(data, "summary"),
+        summary=remove_placeholders(_required_text(data, "summary")),
         reported_symptoms=_text_list(data, "reported_symptoms"),
         scope=_parse_enum(Scope, data, "scope"),
         scope_reason=_optional_text(data, "scope_reason"),
+        search_query=remove_placeholders(_optional_text(data, "search_query")),
     )
 
 
@@ -132,6 +158,51 @@ def parse_reply(data: dict[str, Any], labels: Sequence[str]) -> ReplyTurn:
         detail = f"cita evidencia no ofrecida: {', '.join(unknown)}"
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
     return ReplyTurn(reply=_required_text(data, "reply"), evidence_ids=tuple(dict.fromkeys(cited)))
+
+
+def grounded_reply_schema(labels: Sequence[str]) -> dict[str, Any]:
+    """JSON Schema de la respuesta con evidencia: una lista de frases, cada una con su cita."""
+    sentence = {
+        "type": "object",
+        "properties": {
+            "text": {"type": "string"},
+            "evidence_id": {"type": "string", "enum": [*labels, NO_CITATION]},
+        },
+        "required": ["text", "evidence_id"],
+    }
+    return {
+        "type": "object",
+        "properties": {"sentences": {"type": "array", "minItems": 1, "items": sentence}},
+        "required": ["sentences"],
+    }
+
+
+def parse_grounded_reply(data: dict[str, Any], labels: Sequence[str]) -> tuple[DraftSentence, ...]:
+    """Valida la respuesta con evidencia; descarta las frases vacías.
+
+    Raises:
+        LanguageModelError: Si no hay frases, una frase no tiene la forma esperada o cita una
+            etiqueta que no se ofreció.
+    """
+    raw = data.get("sentences")
+    if not isinstance(raw, list):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' debe ser una lista"))
+    sentences = tuple(s for s in (_parse_sentence(item, labels) for item in raw) if s.text)
+    if not sentences:
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' vacío"))
+    return sentences
+
+
+def _parse_sentence(item: Any, labels: Sequence[str]) -> DraftSentence:
+    """Valida una frase de la respuesta con evidencia."""
+    if not isinstance(item, dict):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="frase sin la forma esperada"))
+    label = _required_text(item, "evidence_id")
+    if label != NO_CITATION and label not in labels:
+        detail = f"cita evidencia no ofrecida: {label}"
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
+    text = _optional_text(item, "text")
+    return DraftSentence(text, None if label == NO_CITATION else label)
 
 
 def _required_text(data: dict[str, Any], field: str) -> str:

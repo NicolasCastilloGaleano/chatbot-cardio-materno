@@ -91,25 +91,48 @@ Estado: ⏳ Borrador
 ### HU-02: Orientación en salud con evidencia
 **Como** gestante o cuidador, **quiero** hacer preguntas en mis propias palabras, **para** recibir información clara y confiable, respaldada por la base de conocimiento del proyecto.
 
-Notas técnicas (ADR 0008): búsqueda híbrida sobre `knowledge/kb/entries.jsonl` (1.600 registros, validados para el prototipo por el líder del proyecto). Dos llamadas al agente: **análisis sin evidencia** (hilo, resumen, síntomas → filtro 2) y **respuesta con evidencia**. Solo evidencia para afirmaciones de salud.
+Notas técnicas (ADR 0008 y 0010): búsqueda híbrida sobre `knowledge/kb/entries.jsonl` (1.600 registros, validados para el prototipo por el líder del proyecto). Dos llamadas al agente: **análisis sin evidencia** (hilo, resumen, síntomas → filtro 2) y **respuesta con evidencia**. Solo evidencia para afirmaciones de salud.
 
 ```gherkin
 Escenario: Respuesta respaldada por evidencia
   Dado que la base de conocimiento y su índice están disponibles
   Cuando pregunto "¿por qué es importante controlar la presión si no me duele nada?"
   Entonces se recuperan registros con similitud ≥ al umbral de la política
-  Y la respuesta usa solo esa evidencia y cita sus etiquetas en evidence_ids
-  Y la respuesta guarda en el hilo la evidencia ofrecida, la citada y los tiempos de cada etapa
+  Y cada frase de salud de la respuesta cita el registro que la respalda
+  Y la respuesta guarda en el hilo la evidencia ofrecida, la citada, la verificación del respaldo y los tiempos de cada etapa
 
-Escenario: Sin evidencia suficiente
-  Cuando pregunto algo que la base no cubre
-  Entonces el asistente dice que no tiene información validada sobre eso y sugiere consultar con el personal de salud
-  Y no cita evidencia
+Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
+  Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
+  Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Y no se llama al modelo de lenguaje para redactar
+  Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
+
+Escenario: Cada frase de salud está respaldada por el registro que cita (regresión del 2026-10-11)
+  Dado que la evidencia ofrecida es un registro que no habla de alimentación
+  Cuando el agente redacta "Come yogur, avena, almendras y nueces" citando ese registro
+  Entonces la verificación determinista rechaza la frase
+  Y se muestra el texto literal del registro en lugar de la redacción del agente
+  Y la traza registra la frase descartada y el uso del texto literal
+
+Escenario: Los avisos no se suavizan
+  Dado que el registro dice "necesita atención obstétrica inmediata"
+  Cuando el agente lo redacta como "es importante que hables con tu médico"
+  Entonces la frase no está respaldada y se muestra el texto literal del registro
+
+Escenario: Frases sin cita
+  Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
+  Entonces se conservan (máximo 2)
+  Y una frase sin cita con información de salud ("Toma infusiones de manzanilla") se descarta
 
 Escenario: La evidencia nunca llega al análisis
   Cuando el asistente procesa cualquier mensaje
   Entonces la llamada de análisis (que produce los síntomas del filtro 2) no recibe evidencia
   Y solo la llamada de respuesta la recibe
+
+Escenario: La búsqueda usa la consulta de salud, sin el contexto ajeno (B-021)
+  Cuando escribo "¿quién ganó el partido? ah, y tengo la presión alta"
+  Entonces el análisis reformula la consulta de búsqueda solo sobre la presión alta ("search_query")
+  Y la evidencia se busca con esa consulta, que queda registrada en la traza
 
 Escenario: Urgencias sin búsqueda de evidencia
   Dado que el filtro 1 o el filtro 2 detectan una urgencia inmediata
@@ -122,9 +145,10 @@ Escenario: Solo se pueden citar las etiquetas ofrecidas
 Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
-  Entonces avisa que el RAG no está disponible y se abstiene de dar información de salud
+  Entonces avisa al arrancar que el RAG no está disponible
+  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
 ```
-Estado: 🔄 En verificación (falta el guion y la sonda en vivo en el PC de pruebas)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
@@ -163,6 +187,23 @@ Escenario: Los consejos del agente no generan alarmas
   Cuando el agente menciona el sangrado como signo de alarma en su respuesta o en su resumen
   Y no reporta síntomas de la persona
   Entonces no se registra ninguna alerta
+
+Escenario: Cada síntoma reportado se revisa por separado (regresión del 2026-10-11)
+  Dado que el agente reporta "acidez en el embarazo" y "fiebre en el bebé"
+  Cuando se revisan los síntomas reportados
+  Entonces no se activa RN-MI-07 (fiebre en el embarazo), porque el contexto de un síntoma no se combina con el signo de otro
+
+Escenario: El análisis no agrega datos que la persona no dijo (regresión del 2026-10-11)
+  Dado un hilo sobre "tengo acidez en el embarazo" (sin semanas)
+  Cuando escribo "¿y qué más puedo comer?"
+  Entonces los síntomas reportados no incluyen semanas ni otros datos que no escribí
+  Y si aparecen, la traza los marca en "unstated_symptoms" y la consola muestra "[⚠️ datos que la persona no escribió: …]"
+
+Escenario: La urgencia queda en un hilo de su dominio (regresión del 2026-10-11)
+  Dado un hilo materno-infantil activo
+  Cuando escribo un signo de alarma cardiovascular ("se me torció la boca y no puedo mover el brazo")
+  Entonces se cierra ese hilo y la alerta queda en un hilo nuevo cardiovascular
+  Y si la alarma es del mismo dominio del hilo activo, queda en ese hilo
 ```
 Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica
 
@@ -230,10 +271,12 @@ Escenario: Mensaje ajeno en medio de una consulta
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"
   Entonces el asistente responde con amabilidad y presenta el servicio, sin buscar evidencia
-  Y si hay un hilo activo, su dominio no cambia
+  Y un mensaje conversacional nunca abre un hilo (regresión del 2026-10-11)
+  Y si hay un hilo activo, el mensaje queda en ese hilo sin cambiar su dominio ni su resumen
+  Y si no hay hilo activo, no se registra
 
 Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: 🔄 En verificación (falta `pytest -m live` y el guion en el PC de pruebas)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema)

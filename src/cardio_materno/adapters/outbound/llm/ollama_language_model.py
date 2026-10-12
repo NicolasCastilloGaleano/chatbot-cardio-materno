@@ -34,6 +34,10 @@ class OllamaSettings:
         num_ctx: Tamaño de la ventana de contexto en tokens.
         keep_alive: Tiempo que Ollama mantiene el modelo cargado tras cada solicitud
             (p. ej., "30m"); evita recargarlo en cada turno.
+        num_predict: Máximo de tokens que puede generar (None = sin límite). Evita respuestas
+            desbocadas, que en un modelo que corre en parte en CPU cuestan segundos por token.
+        think: Activa o desactiva el razonamiento de los modelos que lo tienen (p. ej., qwen3);
+            None = no se envía y decide el modelo.
     """
 
     base_url: str
@@ -42,6 +46,8 @@ class OllamaSettings:
     temperature: float
     num_ctx: int
     keep_alive: str = DEFAULT_KEEP_ALIVE
+    num_predict: int | None = None
+    think: bool | None = None
 
 
 class OllamaLanguageModel:
@@ -82,6 +88,14 @@ class OllamaLanguageModel:
         )
         return parse_json_body(extract_content(response).encode("utf-8"))
 
+    def warm_up(self) -> None:
+        """Carga el modelo en memoria sin generar nada, para que el primer turno no espere.
+
+        Raises:
+            LanguageModelError: Si Ollama no responde o falla.
+        """
+        self._http.post(CHAT_ENDPOINT, build_warm_up_payload(self._settings))
+
     def verify_ready(self) -> None:
         """Comprueba que Ollama responde y que el modelo configurado está instalado.
 
@@ -104,13 +118,38 @@ def build_chat_payload(
     Returns:
         Diccionario listo para serializar como JSON.
     """
-    return {
+    payload: dict[str, Any] = {
         "model": settings.model,
         "messages": [{"role": str(m.role), "content": m.content} for m in messages],
         "stream": False,
         "format": schema,
         "keep_alive": settings.keep_alive,
-        "options": {"temperature": settings.temperature, "num_ctx": settings.num_ctx},
+        "options": build_options(settings),
+    }
+    if settings.think is not None:
+        payload["think"] = settings.think
+    return payload
+
+
+def build_options(settings: OllamaSettings) -> dict[str, Any]:
+    """Opciones de generación; las mismas en las consultas y en el precalentamiento."""
+    options: dict[str, Any] = {"temperature": settings.temperature, "num_ctx": settings.num_ctx}
+    if settings.num_predict is not None:
+        options["num_predict"] = settings.num_predict
+    return options
+
+
+def build_warm_up_payload(settings: OllamaSettings) -> dict[str, Any]:
+    """Solicitud sin mensajes: Ollama solo carga el modelo y lo mantiene `keep_alive`.
+
+    Lleva las mismas opciones que las consultas: si `num_ctx` cambiara, Ollama volvería a
+    cargar el modelo en la primera consulta real (el primer turno seguiría siendo lento).
+    """
+    return {
+        "model": settings.model,
+        "messages": [],
+        "keep_alive": settings.keep_alive,
+        "options": build_options(settings),
     }
 
 

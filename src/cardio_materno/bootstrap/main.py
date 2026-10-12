@@ -41,8 +41,8 @@ PACKAGE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
 PROMPTS_DIR = PACKAGE_DIR / "prompts"
-ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v2.md"
-REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v2.md"
+ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v4.md"
+REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v3.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
@@ -58,7 +58,7 @@ def main() -> int:
     try:
         load_env_file(ENV_FILE)
         settings = load_conversation_settings(os.environ, PROJECT_ROOT)
-        service = _build_service(settings)
+        service = build_service(settings)
     except STARTUP_ERRORS as error:
         print(f"No se pudo iniciar el asistente: {error}", file=sys.stderr)
         return EXIT_ERROR
@@ -74,7 +74,7 @@ def _use_utf8_streams() -> None:
             reconfigure(encoding="utf-8")
 
 
-def _build_service(settings: ConversationSettings) -> ConversationService:
+def build_service(settings: ConversationSettings) -> ConversationService:
     """Carga alarmas, modelos y RAG, y arma el caso de uso."""
     alarm_policy = _load_alarm_policy(settings)
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
@@ -89,15 +89,17 @@ def _build_service(settings: ConversationSettings) -> ConversationService:
         context_messages=settings.context_messages,
         alarm_policy=alarm_policy,
         evidence_item_chars=rag.policy.item_max_chars,
+        grounding=rag.policy.grounding,
     )
     return ConversationService(ports, config)
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:
-    """Crea el adaptador de Ollama de una etapa y verifica que el modelo esté instalado."""
+    """Crea el adaptador de una etapa, verifica el modelo y lo carga en memoria."""
     print(f"Conectando con Ollama en {settings.base_url} ({stage}: {settings.model})…")
     language_model = OllamaLanguageModel(settings)
     language_model.verify_ready()
+    language_model.warm_up()
     return language_model
 
 

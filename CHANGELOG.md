@@ -5,6 +5,47 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Changed
+- HU-02 (respuesta verificada) y HU-07 (alcance) verificadas en el PC de pruebas y marcadas como ✅; B-008, B-018 y B-020 cerrados. Siguen abiertos B-021, B-022 (elección del modelo, ADR 0011) y B-015 (ADR 0012).
+
+### Fixed
+- Precalentamiento con las mismas opciones (`num_ctx`, `num_predict`) que las consultas: antes Ollama volvía a cargar el modelo en el primer turno (análisis de 37 s y RAG de 7,7 s en el guion del 2026-10-12).
+- Marcadores del prompt copiados por el modelo ("[N] días", "[lo que describió la persona]"): `analysis_prompt_v4` los prohíbe; se quitan del resumen y de la consulta de búsqueda, y los síntomas que los traen quedan marcados en `unstated_symptoms`.
+
+### Changed
+- `scripts/benchmark_models.py` mide el filtro 2 con frases coloquiales que el filtro 1 no capta (`tests/live/colloquial_alarm_phrases.json`, PROVISIONAL) e imprime las frases descartadas de las respuestas con texto literal; la prueba en vivo del respaldo también las imprime.
+- ADR 0011 con los resultados de la ronda 1 de la comparación de modelos; preguntas 3 y 4 en la solicitud de validación clínica.
+
+### Added
+- Latencia (B-022, ADR 0011 propuesto): precalentamiento de los modelos de análisis, respuesta y embeddings al arrancar; límite de tokens por etapa (`OLLAMA_ANALYSIS_NUM_PREDICT`=600, `OLLAMA_REPLY_NUM_PREDICT`=500); `OLLAMA_THINK` opcional.
+- `scripts/benchmark_models.py`: compara combinaciones de modelos (alcance, filtro 2, respaldo y tiempos p50/p90) y guarda el informe en `data/benchmarks/`. Los casos de alcance pasan a `tests/live/scope_cases.json`, compartido con `test_live_scope.py`.
+
+### Changed
+- `OLLAMA_EMBED_NUM_GPU` vale `0` por defecto (embedder en CPU); `auto` deja decidir a Ollama.
+
+### Added
+- Análisis v3 (`analysis_prompt_v3`): nunca agregar datos que la persona no escribió; ejemplos con marcadores [N] en lugar de datos copiables; sin arrastre de síntomas a un hilo nuevo; campo `search_query` (consulta de salud reformulada sin el contexto ajeno) que pasa a ser la consulta de búsqueda (B-021).
+- Marca de datos no dichos: `domain/grounding.py::unstated_details` registra en la traza (`unstated_symptoms`) los síntomas con números que la persona no escribió, con la línea `[⚠️ datos que la persona no escribió: …]`; la consulta usada queda en la traza (`search_query`) y en la línea `[búsqueda: …]`.
+- Pruebas en vivo `tests/live/test_live_analysis.py` (incidentes de "34 semanas" y del arrastre, búsqueda antes vs. ahora) y sonda con métricas top-1 y "útil con el umbral real".
+
+### Fixed
+- Corrección de documentación: la sonda ya exigía la categoría esperada en el top-3; el problema de ACV y TVP es de orden y de umbral, no de categoría ausente (B-021).
+
+### Added
+- Respuesta verificada (ADR 0010, B-018): el LLM redacta frase por frase (`reply_prompt_v3`, `sentences: [{text, evidence_id}]`) y `domain/grounding.py` comprueba de forma determinista que cada frase citada esté respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números). Si una frase no lo está, se muestra el texto literal del registro. Las frases sin cita solo se conservan si son preguntas cortas, cortesía o "no puedo ayudar con…".
+- Traza `grounding` (frases mostradas, total, texto literal y frases descartadas) y línea de depuración `[respaldo: …]`.
+- Prueba en vivo `tests/live/test_live_grounding.py`: arma el asistente completo con los modelos reales y comprueba que no reaparecen los consejos inventados del guion.
+
+### Changed
+- Sin evidencia suficiente (insuficiente o RAG no disponible) ya no se llama al LLM de respuesta: se muestra un mensaje fijo de abstención; con alarma prioritaria, solo su mensaje fijo.
+- `knowledge/evidence_policy.json` v1.1.0: `min_support`, `max_free_sentences` y `max_free_words`.
+- `bootstrap/main.py`: `build_service` pasa a ser público (lo usan las pruebas en vivo).
+
+### Fixed
+- Filtro 2: cada síntoma reportado se revisa por separado. Antes se unían en un solo texto, y "acidez en el embarazo" + "fiebre en el bebé" activaba RN-MI-07 (fiebre en el embarazo) con el mensaje para gestantes.
+- Una urgencia detectada por el filtro 1 queda en el hilo activo solo si es del mismo dominio; si no, se abre un hilo con el dominio de la regla (antes un ACV quedaba en el hilo materno de la fiebre de un bebé).
+- Los saludos y agradecimientos nunca abren un hilo: con hilo activo quedan en él sin cambiar su dominio ni su resumen, y sin hilo no se registran (línea de depuración `[sin hilo: mensaje conversacional · no se registra]`).
+
 ### Added
 - Guion de verificación manual de HU-02/HU-07 actualizado en `docs/08-despliegue/instalacion.md` (abstención con una pregunta dentro del dominio, traza en el JSON del hilo, RAG no disponible y medición de latencia); B-021 en el backlog.
 - HU-07: control de alcance por intención. El análisis devuelve `scope` (`en_alcance` / `conversacional` / `fuera_de_alcance`) y `scope_reason`. Los mensajes completamente ajenos reciben un mensaje fijo, sin RAG ni llamada de respuesta, y no se registran. Los saludos se responden sin RAG. Los temas mencionados como contexto no descartan el mensaje; los síntomas de nuestros dominios y las alarmas siempre tienen prioridad. Prompts `analysis_prompt_v2` y `reply_prompt_v2`, ADR 0009 y riesgo R-11.

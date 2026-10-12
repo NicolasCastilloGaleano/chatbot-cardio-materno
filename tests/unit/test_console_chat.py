@@ -146,14 +146,36 @@ def test_debug_shows_evidence_citations_and_timings() -> None:
 def test_debug_warns_when_evidence_was_not_cited() -> None:
     retriever = FakeRetriever(evidence_result(knowledge_entry()))
 
-    output = run_console(
-        ["x", "salir"], ScriptedAgent(agent_json()), retriever=retriever, show_thread_debug=True
-    )
+    question = [{"text": "¿Desde cuándo?", "evidence_id": "ninguna"}]
+    agent = ScriptedAgent(agent_json() | {"sentences": question})
+
+    output = run_console(["x", "salir"], agent, retriever=retriever, show_thread_debug=True)
 
     assert (
         "[evidencia: E1 0.80 Categoría | citadas: ninguna | ⚠️ la respuesta no citó evidencia]"
         in output
     )
+    assert "[respaldo: 1/1 frases]" in output
+
+
+def test_debug_shows_literal_fallback_and_abstention() -> None:
+    claim = [{"text": "Toma manzanilla.", "evidence_id": "E1"}]
+    literal_agent = ScriptedAgent(agent_json() | {"sentences": claim})
+    with_evidence = FakeRetriever(evidence_result(knowledge_entry()))
+    without_evidence = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT))
+
+    literal = run_console(
+        ["x", "salir"], literal_agent, retriever=with_evidence, show_thread_debug=True
+    )
+    abstention = run_console(
+        ["x", "salir"],
+        ScriptedAgent(agent_json()),
+        retriever=without_evidence,
+        show_thread_debug=True,
+    )
+
+    assert "[respaldo: 0/1 frases · texto literal del registro]" in literal
+    assert "[respaldo: abstención sin LLM (sin evidencia suficiente)]" in abstention
 
 
 def test_debug_explains_insufficient_or_unavailable_evidence() -> None:
@@ -188,9 +210,38 @@ def test_debug_for_out_of_scope_message() -> None:
     assert not any(line.startswith("[hilo") for line in output)
 
 
-def test_debug_for_conversational_message() -> None:
+def test_debug_for_conversational_message_inside_a_thread() -> None:
+    agent = ScriptedAgent(agent_json("r1"), scoped(agent_json("de nada"), "conversacional"))
+
+    output = run_console(["tengo acidez", "gracias", "salir"], agent, show_thread_debug=True)
+
+    assert "[evidencia: no se buscó (mensaje conversacional)]" in output
+
+
+def test_debug_for_conversational_message_without_thread() -> None:
     agent = ScriptedAgent(scoped(agent_json("hola"), "conversacional"))
 
     output = run_console(["hola", "salir"], agent, show_thread_debug=True)
 
-    assert "[evidencia: no se buscó (mensaje conversacional)]" in output
+    assert "[sin hilo: mensaje conversacional · no se registra]" in output
+    assert not any(line.startswith("[hilo") for line in output)
+
+
+def test_debug_warns_about_details_the_person_never_wrote() -> None:
+    agent = ScriptedAgent(
+        agent_json("r", reported_symptoms=["acidez en el embarazo de 34 semanas"])
+    )
+
+    output = run_console(["tengo acidez", "salir"], agent, show_thread_debug=True)
+
+    assert "[⚠️ datos que la persona no escribió: acidez en el embarazo de 34 semanas]" in output
+
+
+def test_debug_shows_the_search_query() -> None:
+    turn = agent_json("r") | {"search_query": "presión arterial alta"}
+
+    output = run_console(
+        ["¿quién ganó? y la presión", "salir"], ScriptedAgent(turn), show_thread_debug=True
+    )
+
+    assert "[búsqueda: presión arterial alta]" in output

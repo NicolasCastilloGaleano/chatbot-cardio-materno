@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "description": "Política de recuperación de evidencia (ADR 0008), portada del piloto (evidence_policy.json v1.2.0). min_similarity es un piso de similitud coseno calibrado en el piloto con qwen3-embedding:8b y esta query_instruction; se recalibra con la sonda en vivo (pytest -m live). La similitud no es confianza clínica.",
+  "version": "1.1.0",
+  "description": "Política de recuperación de evidencia (ADR 0008), portada del piloto (evidence_policy.json v1.2.0). min_similarity es un piso de similitud coseno calibrado en el piloto con qwen3-embedding:8b y esta query_instruction; se recalibra con la sonda en vivo (pytest -m live). La similitud no es confianza clínica. min_support, max_free_sentences y max_free_words controlan la verificación determinista del respaldo de cada frase (ADR 0010).",
   "top_k": 3,
   "candidate_k": 12,
   "min_similarity": 0.55,
@@ -8,5 +8,8 @@
   "query_instruction": "Instruct: Given a health question in Spanish, retrieve the knowledge base entry that answers it\nQuery: ",
   "max_query_chars": 600,
   "item_max_chars": 700,
-  "min_token_chars": 3
+  "min_token_chars": 3,
+  "min_support": 0.6,
+  "max_free_sentences": 2,
+  "max_free_words": 20
 }

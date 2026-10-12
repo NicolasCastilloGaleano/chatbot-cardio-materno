@@ -14,8 +14,9 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | ✅ Hecho |
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | **Alarmas deterministas** con doble filtro (HU-03/HU-04) | ✅ Hecho (técnico); reglas PROVISIONALES, falta la validación clínica |
-| **Orientación con evidencia (RAG)** y separación análisis/respuesta (HU-02) | 🔄 En verificación |
-| **Control de alcance** por intención (HU-07) | 🔄 En verificación |
+| **Orientación con evidencia (RAG)**, separación análisis/respuesta y **respuesta verificada** (HU-02, ADR 0010) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
+| **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
+| **Latencia**: embedder en CPU, precalentamiento y comparación de modelos (B-022, ADR 0011) | 🔄 Falta la decisión del equipo sobre el modelo |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |

@@ -23,8 +23,16 @@ DEFAULT_EMBED_BATCH_SIZE = "16"
 DEFAULT_KB_ENTRIES_FILE = "knowledge/kb/entries.jsonl"
 DEFAULT_KB_INDEX_DIR = "data/kb_index"
 DEFAULT_EVIDENCE_POLICY_FILE = "knowledge/evidence_policy.json"
+DEFAULT_EMBED_NUM_GPU = "0"
+AUTO_VALUE = "auto"
 ANALYSIS_MODEL_VARIABLE = "OLLAMA_ANALYSIS_MODEL"
 REPLY_MODEL_VARIABLE = "OLLAMA_REPLY_MODEL"
+# Límite de tokens por etapa (variable, valor por defecto). Holgado: el JSON del análisis
+# suele ocupar 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
+STAGE_NUM_PREDICT = {
+    ANALYSIS_MODEL_VARIABLE: ("OLLAMA_ANALYSIS_NUM_PREDICT", "600"),
+    REPLY_MODEL_VARIABLE: ("OLLAMA_REPLY_NUM_PREDICT", "500"),
+}
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 
 
@@ -62,7 +70,7 @@ class RagSettings:
         index_dir: Carpeta del índice vectorial (derivado, no versionado).
         policy_file: Política de evidencia (umbral, top-k, instrucción de consulta).
         keep_alive: Tiempo que Ollama mantiene cargado el modelo de embeddings.
-        embed_num_gpu: Capas del embedder en GPU (0 = CPU; None = decide Ollama).
+        embed_num_gpu: Capas del embedder en GPU (0 = CPU, por defecto; None = decide Ollama).
     """
 
     enabled: bool
@@ -95,21 +103,27 @@ def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings
             env, "EVIDENCE_POLICY_FILE", DEFAULT_EVIDENCE_POLICY_FILE, project_root
         ),
         keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
-        embed_num_gpu=_get_optional_int(env, "OLLAMA_EMBED_NUM_GPU"),
+        embed_num_gpu=_get_int_or_auto(env, "OLLAMA_EMBED_NUM_GPU", DEFAULT_EMBED_NUM_GPU),
     )
 
 
 def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSettings:
     """Configuración de Ollama para una etapa (análisis o respuesta).
 
-    Si la variable de modelo de la etapa está vacía, se usa OLLAMA_MODEL.
+    Si la variable de modelo de la etapa está vacía, se usa OLLAMA_MODEL. El límite de tokens
+    sale de OLLAMA_ANALYSIS_NUM_PREDICT u OLLAMA_REPLY_NUM_PREDICT ("auto" = sin límite).
 
     Args:
         env: Variables de entorno.
         model_variable: Variable del modelo de la etapa (p. ej., OLLAMA_ANALYSIS_MODEL).
+
+    Raises:
+        ConfigurationError: Si un valor numérico no es válido.
     """
     base = load_ollama_settings(env)
-    return replace(base, model=_get(env, model_variable, base.model))
+    predict_variable, predict_default = STAGE_NUM_PREDICT.get(model_variable, ("", AUTO_VALUE))
+    num_predict = _get_int_or_auto(env, predict_variable, predict_default)
+    return replace(base, model=_get(env, model_variable, base.model), num_predict=num_predict)
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:
@@ -157,6 +171,7 @@ def load_ollama_settings(env: Mapping[str, str]) -> OllamaSettings:
         temperature=_get_float(env, "OLLAMA_TEMPERATURE", DEFAULT_TEMPERATURE),
         num_ctx=_get_int(env, "OLLAMA_NUM_CTX", DEFAULT_NUM_CTX),
         keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
+        think=_get_optional_bool(env, "OLLAMA_THINK"),
     )
 
 
@@ -191,9 +206,15 @@ def _get_path(env: Mapping[str, str], name: str, default: str, project_root: Pat
     return path if path.is_absolute() else project_root / path
 
 
-def _get_optional_int(env: Mapping[str, str], name: str) -> int | None:
-    """Lee una variable entera opcional (None si está vacía)."""
-    raw = env.get(name, "").strip()
-    if not raw:
+def _get_int_or_auto(env: Mapping[str, str], name: str, default: str) -> int | None:
+    """Lee una variable entera; "auto" significa que decide Ollama (None)."""
+    raw = _get(env, name, default) if name else default
+    if raw.lower() == AUTO_VALUE:
         return None
     return _get_int(env, name, raw)
+
+
+def _get_optional_bool(env: Mapping[str, str], name: str) -> bool | None:
+    """Lee una variable booleana opcional (None si está vacía)."""
+    raw = env.get(name, "").strip()
+    return raw.lower() in TRUE_VALUES if raw else None

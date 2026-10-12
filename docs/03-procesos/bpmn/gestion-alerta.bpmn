@@ -45,7 +45,7 @@
     <bpmn:endEvent id="End_Error" name="Error mostrado; no se guarda nada">
       <bpmn:incoming>f9</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:task id="T_Filtro2" name="Filtro 2: reglas sobre reported_symptoms">
+    <bpmn:task id="T_Filtro2" name="Filtro 2: reglas sobre cada síntoma de reported_symptoms (por separado)">
       <bpmn:incoming>f6</bpmn:incoming>
       <bpmn:outgoing>f10</bpmn:outgoing>
     </bpmn:task>
@@ -79,7 +79,7 @@
       <bpmn:incoming>f21</bpmn:incoming>
       <bpmn:outgoing>f19</bpmn:outgoing>
     </bpmn:task>
-    <bpmn:task id="T_RegistrarAlerta" name="Registrar alerta en el hilo (rule_ids, severity, origin)">
+    <bpmn:task id="T_RegistrarAlerta" name="Registrar alerta en el hilo del dominio de la alarma (rule_ids, severity, origin)">
       <bpmn:incoming>f14</bpmn:incoming>
       <bpmn:incoming>f15</bpmn:incoming>
       <bpmn:incoming>f16</bpmn:incoming>

@@ -2,7 +2,13 @@
 
 from typing import Any
 
-from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, RetrievalStatus, StageTiming
+from cardio_materno.domain.trace import (
+    EvidenceRef,
+    GroundingCheck,
+    ReplyTrace,
+    RetrievalStatus,
+    StageTiming,
+)
 
 LEGACY_SYMPTOMS_KEY = "reported_symptoms"
 
@@ -19,6 +25,9 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "timings": {timing.stage: timing.seconds for timing in trace.timings},
         "scope": trace.scope,
         "scope_reason": trace.scope_reason,
+        "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
+        "unstated_symptoms": list(trace.unstated_symptoms),
+        "search_query": trace.search_query,
     }
 
 
@@ -36,6 +45,9 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         ),
         scope=data.get("scope"),
         scope_reason=data.get("scope_reason", ""),
+        grounding=grounding_from_dict(data["grounding"]) if data.get("grounding") else None,
+        unstated_symptoms=tuple(data.get("unstated_symptoms", [])),
+        search_query=data.get("search_query", ""),
     )
 
 
@@ -58,3 +70,23 @@ def evidence_to_dict(ref: EvidenceRef) -> dict[str, Any]:
 def evidence_from_dict(data: dict[str, Any]) -> EvidenceRef:
     """Reconstruye una referencia de evidencia."""
     return EvidenceRef(data["label"], data["entry_id"], float(data["score"]), data["category"])
+
+
+def grounding_to_dict(check: GroundingCheck) -> dict[str, Any]:
+    """Serializa la verificación del respaldo."""
+    return {
+        "supported": check.supported,
+        "total": check.total,
+        "literal": check.literal,
+        "dropped": list(check.dropped),
+    }
+
+
+def grounding_from_dict(data: dict[str, Any]) -> GroundingCheck:
+    """Reconstruye la verificación del respaldo."""
+    return GroundingCheck(
+        int(data["supported"]),
+        int(data["total"]),
+        bool(data.get("literal", False)),
+        tuple(data.get("dropped", [])),
+    )
