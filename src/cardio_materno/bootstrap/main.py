@@ -24,6 +24,7 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
 )
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.rag_setup import RagSetup, setup_rag
 from cardio_materno.bootstrap.settings import (
@@ -74,14 +75,27 @@ def _use_utf8_streams() -> None:
             reconfigure(encoding="utf-8")
 
 
-def build_service(settings: ConversationSettings) -> ConversationService:
-    """Carga alarmas, modelos y RAG, y arma el caso de uso."""
+def build_service(
+    settings: ConversationSettings, repository: ThreadRepository | None = None
+) -> ConversationService:
+    """Carga alarmas, modelos y RAG, y arma el caso de uso.
+
+    Args:
+        settings: ConfiguraciÃ³n de hilos y reglas.
+        repository: Repositorio opcional compartido con otro adaptador de entrada.
+
+    Returns:
+        Servicio conversacional con los puertos conectados.
+    """
     alarm_policy = _load_alarm_policy(settings)
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
     ports = ConversationPorts(
-        analyzer, responder, JsonFileThreadRepository(settings.threads_dir), rag.retriever
+        analyzer,
+        responder,
+        repository or JsonFileThreadRepository(settings.threads_dir),
+        rag.retriever,
     )
     config = ConversationConfig(
         analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),

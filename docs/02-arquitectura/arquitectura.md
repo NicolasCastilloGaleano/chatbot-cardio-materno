@@ -1,6 +1,6 @@
 # Documento de arquitectura
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-10-12 (HU-08)*
 
 ## 1. Patrón arquitectónico
 **Arquitectura hexagonal (puertos y adaptadores) en un monolito modular.** Justificación en [ADR 0001](adr/0001-arquitectura-hexagonal.md).
@@ -17,7 +17,7 @@ flowchart LR
         CON[Consola]
         TG[Telegram]
         WA[WhatsApp webhook]
-        API[API FastAPI / health]
+        API[Web local FastAPI / chat y auditoría]
     end
     subgraph CORE[Núcleo]
         subgraph APP[application]
@@ -79,11 +79,11 @@ sequenceDiagram
 | `ThreadRepository` (`application/ports/thread_repository.py`) | Persistir hilos y mensajes (con `thread_id`) | ✅ `JsonFileThreadRepository` (`adapters/outbound/persistence/`, [ADR 0006](adr/0006-hilos-conversacionales-con-resumen.md)); TODO: BD para Telegram |
 | `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
 
-## 4.1 Estado implementado (HU-00, HU-06, HU-03/04, HU-02; prototipo técnico)
-Camino actual: consola → `ConversationService` → filtro 1 → **llamada de análisis (sin evidencia)** → filtro 2 → **RAG** → **llamada de respuesta (con evidencia)** → **verificación determinista del respaldo**. Sin evidencia suficiente no hay llamada de respuesta (abstención fija). Reglas de alarma PROVISIONALES (R-09).
+## 4.1 Estado implementado (HU-00, HU-06, HU-03/04, HU-02, HU-08; prototipo técnico)
+El flujo puede entrar por consola o por la interfaz web local y comparte `ConversationService` → filtro 1 → **llamada de análisis (sin evidencia)** → filtro 2 → **RAG** → **llamada de respuesta (con evidencia)** → **verificación determinista del respaldo**. Sin evidencia suficiente no hay llamada de respuesta (abstención fija). Reglas de alarma PROVISIONALES (R-09).
 ```mermaid
 flowchart LR
-    U[Usuario en consola] --> CC[ConsoleChat + debug_lines]
+    U[Usuario] --> CC[Consola o interfaz web local]
     CC --> CS[ConversationService<br/>application]
     CS --> AP[AlarmPolicy<br/>filtro 1 y filtro 2<br/>texto + códigos]
     AP --> DA[domain/alarms.py]
@@ -102,6 +102,8 @@ flowchart LR
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```
+- **Interfaz local (HU-08):** FastAPI sirve la vista y las operaciones de conversación, lista e historial. Se inicia con `python run_web.py`, enlazada solo a `127.0.0.1:8000`. Las respuestas seleccionables muestran los datos de `ReplyTrace`; los `entry_id` se resuelven contra la base para mostrar pregunta y respuesta completas. El historial guardado es de solo lectura. `POST /api/session/end` cierra el hilo activo antes de iniciar otro.
+- **Lectura de hilos:** `ThreadRepository.list_threads` y `all_messages` soportan auditoría sin alterar los datos persistidos. El acceso sigue limitado al repositorio local de archivos JSON.
 - **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms, search_query, scope, scope_reason}`; respuesta con evidencia `{sentences: [{text, evidence_id}]}`, con `evidence_id` restringido por `enum` a las etiquetas ofrecidas o `"ninguna"`; respuesta conversacional `{reply, evidence_ids: []}`.
 - **Respaldo** ([ADR 0010](adr/0010-respuesta-verificada-y-abstencion-determinista.md), `application/grounded_reply.py` + `domain/grounding.py`): sin evidencia suficiente, `ABSTENTION_TEXT` sin llamar al LLM; con evidencia, cada frase citada debe estar respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números); si una falla, se muestra el texto literal del registro.
 - **Contexto:** `application/turn_context.py`. El análisis recibe prompt + JSON del hilo + últimos N mensajes; la respuesta recibe prompt + caso analizado + últimos N mensajes + EVIDENCIA. La evidencia nunca entra al análisis (ADR 0008).
@@ -116,7 +118,7 @@ flowchart LR
 - **Errores:** `LanguageModelError` si fallan el análisis o la respuesta. Sin alarma no se guarda nada; con alarma, se muestra el mensaje fijo. Si el RAG no está disponible, se muestra la abstención fija.
 
 ## 5. Stack
-Python 3.12+, FastAPI (previsto), pytest, ruff, mypy. LLM: Ollama local ([ADR 0005](adr/0005-ollama-local-como-llm.md)). RAG: índice propio con **numpy** ([ADR 0008](adr/0008-rag-evidencia-y-dos-llamadas.md)); `numpy` es la única dependencia de ejecución (`requirements.txt`).
+Python 3.12+, FastAPI, Uvicorn, pytest, ruff, mypy. LLM: Ollama local ([ADR 0005](adr/0005-ollama-local-como-llm.md)). RAG: índice propio con **numpy** ([ADR 0008](adr/0008-rag-evidencia-y-dos-llamadas.md)). FastAPI y Uvicorn son dependencias de ejecución para HU-08 ([ADR 0013](adr/0013-interfaz-web-local-de-auditoria.md)).
 
 ## 6. Diagrama de despliegue (objetivo)
 ```mermaid

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3f6f4">
+    <title>Chat cardio-materno · auditoría</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">+</div>
+        <div><p class="eyebrow">PROTOTIPO LOCAL · USO DEL EQUIPO</p><h1>Cardio materno</h1></div>
+        <span class="local-pill"><span></span> Sesión local</span>
+      </header>
+      <main class="workspace">
+        <section class="chat-panel" aria-label="Conversación">
+          <div class="chat-heading">
+            <div><p class="eyebrow">DEMOSTRACIÓN DEL FLUJO</p><h2>Conversación</h2></div>
+            <button id="new-chat" class="quiet-button" type="button">Nueva sesión</button>
+          </div>
+          <div id="active-thread" class="thread-context">Sin hilo activo · inicia una consulta para comenzar</div>
+          <div id="messages" class="messages" aria-live="polite">
+            <div class="welcome-card"><div class="welcome-icon">✦</div><h3>Hola, ¿en qué puedo orientarte?</h3><p>Escribe una consulta cardiovascular o materno-infantil. Selecciona cualquier respuesta del asistente para explorar cómo se construyó.</p></div>
+          </div>
+          <form id="composer" class="composer">
+            <label class="sr-only" for="message-input">Escribe tu mensaje</label>
+            <textarea id="message-input" rows="1" maxlength="4000" placeholder="Escribe un mensaje…" required></textarea>
+            <button id="send-button" class="send-button" type="submit" aria-label="Enviar mensaje">↑</button>
+            <p class="disclaimer">Prototipo de teleorientación. No reemplaza la consulta médica ni realiza diagnósticos.</p>
+          </form>
+        </section>
+        <aside class="side-column">
+          <section id="audit-panel" class="audit-panel" aria-label="Auditoría de respuesta">
+            <div class="empty-audit"><div class="inspect-icon">⌕</div><p class="eyebrow">TRAZABILIDAD DEL AGENTE</p><h2>Explora una respuesta</h2><p>Haz clic en una respuesta para ver el hilo, los síntomas identificados, las evidencias recuperadas y su verificación.</p></div>
+          </section>
+          <section class="history-panel">
+            <div class="section-heading"><div><p class="eyebrow">CONSULTA DE SOLO LECTURA</p><h2>Hilos guardados</h2></div><span id="thread-count" class="count-badge">0</span></div>
+            <div id="thread-list" class="thread-list"><p class="muted empty-list">Aún no hay conversaciones guardadas.</p></div>
+          </section>
+        </aside>
+      </main>
+      <footer class="footer"><span>Asistente de teleorientación cardio-materno</span><span>Las evidencias son visibles para auditoría interna</span></footer>
+    </div>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

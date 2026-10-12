@@ -64,6 +64,29 @@ class JsonFileThreadRepository:
         data = self._read(thread_id)
         return thread_from_dict(data) if data else None
 
+    def list_threads(self) -> list[ConversationThread]:
+        """Devuelve los hilos guardados del mÃ¡s reciente al mÃ¡s antiguo.
+
+        Returns:
+            Hilos ordenados por fecha de modificaciÃ³n descendente.
+        """
+        threads = [thread_from_dict(data) for data in self._read_all()]
+        return sorted(threads, key=lambda thread: thread.updated_at, reverse=True)
+
+    def all_messages(self, thread_id: str) -> list[ChatMessage]:
+        """Devuelve todos los mensajes de un hilo en orden cronolÃ³gico.
+
+        Args:
+            thread_id: Identificador del hilo consultado.
+
+        Returns:
+            Mensajes del hilo, o una lista vacÃ­a si no existe.
+        """
+        data = self._read(thread_id)
+        if data is None:
+            return []
+        return [message_from_dict(item) for item in data[MESSAGES_KEY]]
+
     def append_message(self, message: ChatMessage) -> None:
         """Agrega el mensaje al archivo de su hilo.
 
@@ -106,6 +129,13 @@ class JsonFileThreadRepository:
             return None
         data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
         return data
+
+    def _read_all(self) -> list[dict[str, Any]]:
+        """Lee los archivos JSON de hilos guardados."""
+        return [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in self._directory.glob(f"*{FILE_SUFFIX}")
+        ]
 
     def _write(self, thread_id: str, data: dict[str, Any]) -> None:
         """Escribe el archivo de forma atómica (archivo temporal + reemplazo)."""

@@ -17,6 +17,25 @@ class ThreadRepository(Protocol):
         """Devuelve el hilo con ese identificador, o None si no existe."""
         ...
 
+    def list_threads(self) -> list[ConversationThread]:
+        """Devuelve los hilos guardados del mÃ¡s reciente al mÃ¡s antiguo.
+
+        Returns:
+            Hilos ordenados por fecha de modificaciÃ³n descendente.
+        """
+        ...
+
+    def all_messages(self, thread_id: str) -> list[ChatMessage]:
+        """Devuelve todos los mensajes de un hilo en orden cronolÃ³gico.
+
+        Args:
+            thread_id: Identificador del hilo consultado.
+
+        Returns:
+            Mensajes del hilo, del mÃ¡s antiguo al mÃ¡s reciente.
+        """
+        ...
+
     def append_message(self, message: ChatMessage) -> None:
         """Agrega un mensaje al hilo indicado en `message.thread_id`.
 

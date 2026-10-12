@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-10 (HU-02: RAG)*
+*Última actualización: 2026-10-12 (HU-08: interfaz local)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -26,6 +26,9 @@ cp .env.example .env
 
 # Chat
 .venv/bin/python run_console.py
+
+# Interfaz web local para demostración y auditoría
+.venv/bin/python run_web.py
 ```
 
 ### Las siguientes veces
@@ -34,10 +37,15 @@ git pull
 .venv/bin/pip install -r requirements.txt     # por si cambiaron las dependencias
 .venv/bin/python run_build_kb_index.py        # solo si cambió knowledge/kb/entries.jsonl o OLLAMA_EMBED_MODEL
 .venv/bin/python run_console.py
+# Alternativa de demostración: interfaz de chat y auditoría en http://127.0.0.1:8000
+.venv/bin/python run_web.py
 ```
 Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
 
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
+
+### Interfaz local de chat y auditoría (HU-08)
+Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000`. La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
 
 ### Líneas de depuración (con `SHOW_THREAD_DEBUG=true`)
 | Línea | Qué muestra |
