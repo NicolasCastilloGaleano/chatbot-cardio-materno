@@ -301,6 +301,11 @@ Escenario: Mensaje en procesamiento
   Dado que envié un mensaje mientras el agente prepara la respuesta
   Entonces la interfaz muestra que está procesando el mensaje y pide esperar
 
+Escenario: Enviar desde el teclado
+  Cuando escribo un mensaje y presiono Enter
+  Entonces el mensaje se envía
+  Y Shift+Enter inserta una nueva línea sin enviarlo
+
 Escenario: Chat extenso con auditoría a la vista
   Dado que el chat tiene más mensajes de los que caben en su panel
   Cuando continúo la conversación

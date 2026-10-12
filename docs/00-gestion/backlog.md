@@ -28,7 +28,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-021 | Calidad de recuperación con frases coloquiales o mixtas. **Corrección (2026-10-11):** la sonda ya exigía la categoría esperada en el top-3 (el reporte solo imprimía la primera); el problema real es que, en ACV, TVP y el mensaje mixto de la presión, la categoría correcta no queda primera ni supera el umbral de producción, y el caso termina en abstención. Paso 1 (hecho): la sonda reporta top-1 y "útil con el umbral real"; el análisis v3 reformula la consulta (`search_query`) sin el contexto ajeno y la traza la registra. Paso 2 (según la medición en vivo): ajustar la instrucción de consulta, los pesos o el umbral | HU-02 | Por definir (equipo) | 1 | 🔄 En verificación |
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |
 | B-017 | Intención del mensaje (reporte / consulta general / ambiguo) para **adaptar** la respuesta a una alarma, nunca para suprimirla (ver nota) | HU-03, HU-04 | Media | — | ⏳ |
-| B-023 | Interfaz web local de chat con estado de procesamiento y paneles persistentes de auditoría | HU-08 | Alta | — | ✅ Implementada y verificada automáticamente; recorrido visual pendiente |
+| B-023 | Interfaz web local de chat con envío por Enter, estado de procesamiento y paneles persistentes de auditoría | HU-08 | Alta | — | ✅ Implementada y verificada automáticamente; recorrido visual pendiente |
 
 ## Notas de ítems
 

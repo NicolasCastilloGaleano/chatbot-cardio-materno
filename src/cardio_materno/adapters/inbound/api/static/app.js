@@ -267,6 +267,12 @@ input.addEventListener("input", () => {
   input.style.height = `${Math.min(input.scrollHeight, 130)}px`;
 });
 
+input.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  composer.requestSubmit();
+});
+
 newChatButton.addEventListener("click", async () => {
   try {
     await request("/api/session/end", { method: "POST" });

@@ -164,6 +164,7 @@ def test_local_page_and_script_are_served() -> None:
     assert "Hilos guardados" in page.text
     assert script.status_code == 200
     assert "showAudit" in script.text
+    assert 'event.key !== "Enter" || event.shiftKey || event.isComposing' in script.text
     assert "Estoy procesando tu mensaje" in script.text
     assert styles.status_code == 200
     assert ".messages" in styles.text and "overflow-y: auto" in styles.text
