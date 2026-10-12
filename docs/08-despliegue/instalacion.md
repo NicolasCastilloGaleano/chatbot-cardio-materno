@@ -82,7 +82,12 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 
 Si un paso no da lo esperado, copia el mensaje, la respuesta y las líneas de depuración.
 
-**Pruebas en vivo (sonda de recuperación, no contaminación y alcance):**
+**Análisis v3 (datos no dichos y consulta de búsqueda):**
+1. `tengo acidez en el embarazo` → `¿y qué más puedo comer?`: **no** debe aparecer `[⚠️ datos que la persona no escribió: …]` ni semanas en `[síntomas …]`
+2. Después, `mi bebé tiene fiebre`: si abre un hilo nuevo, los síntomas no incluyen la acidez y no se activa RN-MI-07
+3. `¿quién ganó el partido? ah, y tengo la presión alta` → la línea `[búsqueda: …]` habla solo de la presión (sin el partido); compara la `[evidencia …]` con el guion anterior (0,50, insuficiente)
+
+**Pruebas en vivo (sonda de recuperación, no contaminación, alcance, análisis y respaldo):**
 ```bash
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -m live -s

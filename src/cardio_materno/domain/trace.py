@@ -77,6 +77,8 @@ class ReplyTrace:
         scope: Alcance aplicado al mensaje (en_alcance, conversacional, fuera_de_alcance).
         scope_reason: Motivo corto de la decisión de alcance.
         grounding: Verificación del respaldo (None si no hubo redacción con evidencia).
+        unstated_symptoms: Síntomas con datos (números) que la persona no escribió (auditoría).
+        search_query: Consulta con la que se buscó la evidencia ("" si no se buscó).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -88,6 +90,8 @@ class ReplyTrace:
     scope: str | None = None
     scope_reason: str = ""
     grounding: GroundingCheck | None = None
+    unstated_symptoms: tuple[str, ...] = ()
+    search_query: str = ""
 
     @property
     def uncited(self) -> bool:

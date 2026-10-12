@@ -128,6 +128,8 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         scope="en_alcance",
         scope_reason="consulta de embarazo",
         grounding=GroundingCheck(1, 2, literal=True, dropped=("Toma manzanilla.",)),
+        unstated_symptoms=("acidez en el embarazo de 34 semanas",),
+        search_query="secreción vaginal rosada en el embarazo",
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))
@@ -147,6 +149,8 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         "scope": "en_alcance",
         "scope_reason": "consulta de embarazo",
         "grounding": {"supported": 1, "total": 2, "literal": True, "dropped": ["Toma manzanilla."]},
+        "unstated_symptoms": ["acidez en el embarazo de 34 semanas"],
+        "search_query": "secreción vaginal rosada en el embarazo",
     }
     assert messages[1].trace == trace
     assert messages[0].trace is None

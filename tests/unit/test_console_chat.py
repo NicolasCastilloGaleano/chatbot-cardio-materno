@@ -225,3 +225,23 @@ def test_debug_for_conversational_message_without_thread() -> None:
 
     assert "[sin hilo: mensaje conversacional · no se registra]" in output
     assert not any(line.startswith("[hilo") for line in output)
+
+
+def test_debug_warns_about_details_the_person_never_wrote() -> None:
+    agent = ScriptedAgent(
+        agent_json("r", reported_symptoms=["acidez en el embarazo de 34 semanas"])
+    )
+
+    output = run_console(["tengo acidez", "salir"], agent, show_thread_debug=True)
+
+    assert "[⚠️ datos que la persona no escribió: acidez en el embarazo de 34 semanas]" in output
+
+
+def test_debug_shows_the_search_query() -> None:
+    turn = agent_json("r") | {"search_query": "presión arterial alta"}
+
+    output = run_console(
+        ["¿quién ganó? y la presión", "salir"], ScriptedAgent(turn), show_thread_debug=True
+    )
+
+    assert "[búsqueda: presión arterial alta]" in output

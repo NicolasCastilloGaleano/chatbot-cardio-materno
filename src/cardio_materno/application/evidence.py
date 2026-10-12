@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from cardio_materno.application.agent_turn import AnalysisTurn
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.grounding import GroundingPolicy
@@ -55,14 +56,16 @@ class EvidencePolicy:
         return GroundingPolicy(self.min_support, self.max_free_sentences, self.max_free_words)
 
 
-def build_evidence_query(
-    user_text: str, summary: str, symptoms: Sequence[str], domain: Domain
-) -> EvidenceQuery:
-    """Arma la consulta: mensaje + resumen del hilo + síntomas, en el dominio del análisis.
+def build_evidence_query(analysis: AnalysisTurn, user_text: str) -> EvidenceQuery:
+    """Arma la consulta de búsqueda en el dominio del análisis (B-021).
 
-    Si el dominio es "ninguno", se busca en todos los dominios.
+    Usa la consulta reformulada por el análisis (`search_query`), sin el contexto ajeno del
+    mensaje. Si viene vacía, une el mensaje, el resumen del hilo y los síntomas. Si el dominio
+    es "ninguno", se busca en todos los dominios.
     """
-    text = QUERY_SEPARATOR.join(part for part in (user_text, summary, *symptoms) if part.strip())
+    parts = (user_text, analysis.summary, *analysis.reported_symptoms)
+    text = analysis.search_query or QUERY_SEPARATOR.join(p for p in parts if p.strip())
+    domain = analysis.domain
     domains = () if domain is Domain.NONE else (domain,)
     return EvidenceQuery(text, domains)
 

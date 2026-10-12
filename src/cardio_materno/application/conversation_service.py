@@ -10,7 +10,7 @@ Flujo de cada turno (ADR 0007 y 0008):
 4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
    un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia y
    nunca se abre un hilo.
-5. **RAG:** se busca evidencia con el mensaje, el resumen y los síntomas. Sin evidencia
+5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
    suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
@@ -23,7 +23,7 @@ revisan las reglas de alarma. El hilo solo se modifica al final del turno.
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from cardio_materno.application.agent_turn import (
@@ -63,7 +63,7 @@ from cardio_materno.domain.conversation import (
     open_thread,
     update_thread,
 )
-from cardio_materno.domain.grounding import GroundingPolicy
+from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
 from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace, StageTiming
 
@@ -241,7 +241,7 @@ class ConversationService:
                 raise
             return TurnOutcome(compose_reply([pre], None), (pre,))
         decisions = tuple(d for d in (pre, self._post_filter(analysis, pre)) if d is not None)
-        return self._route(analysis, turn, decisions, timer)
+        return with_unstated_details(self._route(analysis, turn, decisions, timer), turn)
 
     def _route(
         self,
@@ -279,15 +279,14 @@ class ConversationService:
         timer: StageTimer,
     ) -> TurnOutcome:
         """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
-        query = build_evidence_query(
-            turn.user_text, analysis.summary, analysis.reported_symptoms, analysis.domain
-        )
+        query = build_evidence_query(analysis, turn.user_text)
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             reply = compose_reply(decisions, None) if decisions else ABSTENTION_TEXT
-            return TurnOutcome(reply, decisions, trace, analysis)
-        return self._grounded_answer(analysis, turn, decisions, retrieval, timer)
+            return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
+        outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
+        return with_search_query(outcome, query.text)
 
     def _grounded_answer(
         self,
@@ -473,6 +472,22 @@ def analysis_trace(
         scope=str(scope),
         scope_reason=analysis.scope_reason,
     )
+
+
+def with_search_query(outcome: TurnOutcome, query_text: str) -> TurnOutcome:
+    """Registra en la traza la consulta con la que se buscó la evidencia (auditoría, B-021)."""
+    if outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, search_query=query_text))
+
+
+def with_unstated_details(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:
+    """Marca en la traza los síntomas con datos que la persona no escribió en el hilo."""
+    if outcome.trace is None:
+        return outcome
+    user_texts = [turn.user_text, *(m.content for m in turn.recent if m.role is Role.USER)]
+    unstated = unstated_details(outcome.trace.reported_symptoms, user_texts)
+    return replace(outcome, trace=replace(outcome.trace, unstated_symptoms=unstated))
 
 
 def continued_domain(current: Domain, analyzed: Domain) -> Domain:

@@ -329,6 +329,46 @@ def test_retrieval_query_uses_message_summary_symptoms_and_domain() -> None:
     assert query.domains == (Domain.CARDIOVASCULAR,)
 
 
+def test_retrieval_uses_the_reformulated_search_query_when_present() -> None:
+    turn = agent_json(domain="cardiovascular") | {"search_query": "presión arterial alta"}
+    retriever = FakeRetriever()
+
+    result = make_service(ScriptedAgent(turn), retriever=retriever).send(
+        "¿quién ganó? y tengo la presión alta"
+    )
+
+    assert retriever.queries[0].text == "presión arterial alta"
+    assert result.trace is not None and result.trace.search_query == "presión arterial alta"
+
+
+def test_symptom_with_details_the_person_never_wrote_is_flagged_in_the_trace() -> None:
+    agent = ScriptedAgent(
+        agent_json("r1", reported_symptoms=["acidez en el embarazo"]),
+        agent_json("r2", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+    )
+    service = make_service(agent)
+
+    service.send("tengo acidez en el embarazo")
+    result = service.send("¿y qué más puedo comer?")
+
+    assert result.trace is not None
+    assert result.trace.unstated_symptoms == ("acidez en el embarazo de 34 semanas",)
+    assert result.trace.reported_symptoms == ("acidez en el embarazo de 34 semanas",)
+
+
+def test_details_said_earlier_in_the_thread_are_not_flagged() -> None:
+    agent = ScriptedAgent(
+        agent_json("r1", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+        agent_json("r2", reported_symptoms=["acidez en el embarazo de 34 semanas"]),
+    )
+    service = make_service(agent)
+
+    service.send("tengo acidez y 34 semanas")
+    result = service.send("¿y qué más puedo comer?")
+
+    assert result.trace is not None and result.trace.unstated_symptoms == ()
+
+
 def test_domain_none_searches_all_domains() -> None:
     retriever = FakeRetriever()
 

@@ -12,7 +12,9 @@ from cardio_materno.domain.grounding import (
     content_stems,
     is_allowed_without_citation,
     is_supported,
+    stated_numbers,
     support_ratio,
+    unstated_details,
 )
 from tests.unit.fakes import evidence_result, knowledge_entry
 
@@ -124,3 +126,24 @@ def test_urgent_referral_words_and_line_123_do_not_count_against_support() -> No
 
     assert is_supported(sentence, EVIDENCE, POLICY)
     assert not is_supported("Llama al 123 y toma ibuprofeno con agua.", EVIDENCE, POLICY)
+
+
+# --- Datos que la persona no escribió (B-021, incidente del 2026-10-11) -------------------
+
+
+def test_stated_numbers_include_digits_and_spelled_numbers() -> None:
+    assert stated_numbers("tengo ocho meses y 2 hijos, un bebé") == {"8", "2"}
+
+
+def test_symptom_with_a_number_the_person_never_wrote_is_flagged() -> None:
+    symptoms = ["acidez en el embarazo de 34 semanas", "dolor de cabeza", "fiebre de 2 días"]
+
+    assert unstated_details(symptoms, ["tengo acidez en el embarazo", "fiebre hace dos días"]) == (
+        "acidez en el embarazo de 34 semanas",
+    )
+
+
+def test_numbers_said_in_digits_or_words_are_not_flagged() -> None:
+    symptoms = ["embarazo de 8 meses", "embarazo de 34 semanas"]
+
+    assert unstated_details(symptoms, ["tengo ocho meses", "o sea 34 semanas"]) == ()

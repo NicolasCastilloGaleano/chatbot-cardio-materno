@@ -26,6 +26,8 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "scope": trace.scope,
         "scope_reason": trace.scope_reason,
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
+        "unstated_symptoms": list(trace.unstated_symptoms),
+        "search_query": trace.search_query,
     }
 
 
@@ -44,6 +46,8 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         scope=data.get("scope"),
         scope_reason=data.get("scope_reason", ""),
         grounding=grounding_from_dict(data["grounding"]) if data.get("grounding") else None,
+        unstated_symptoms=tuple(data.get("unstated_symptoms", [])),
+        search_query=data.get("search_query", ""),
     )
 
 

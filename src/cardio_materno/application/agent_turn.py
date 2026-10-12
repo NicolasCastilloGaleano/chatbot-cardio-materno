@@ -40,6 +40,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "domain": {"type": "string", "enum": [d.value for d in Domain]},
         "summary": {"type": "string"},
         "reported_symptoms": {"type": "array", "items": {"type": "string"}},
+        "search_query": {"type": "string"},
         "scope": {"type": "string", "enum": [s.value for s in Scope]},
         "scope_reason": {"type": "string"},
     },
@@ -48,6 +49,7 @@ ANALYSIS_SCHEMA: dict[str, Any] = {
         "domain",
         "summary",
         "reported_symptoms",
+        "search_query",
         "scope",
         "scope_reason",
     ],
@@ -69,6 +71,8 @@ class AnalysisTurn:
         reported_symptoms: Síntomas que la persona dice tener o haber tenido (filtro 2, ADR 0007).
         scope: Alcance del mensaje completo (HU-07, ADR 0009).
         scope_reason: Motivo corto de la decisión de alcance (para auditar).
+        search_query: Consulta de salud reformulada para buscar evidencia (B-021); vacía si
+            no hay consulta de salud.
     """
 
     thread_action: ThreadAction
@@ -77,6 +81,7 @@ class AnalysisTurn:
     reported_symptoms: tuple[str, ...] = ()
     scope: Scope = Scope.IN_SCOPE
     scope_reason: str = ""
+    search_query: str = ""
 
 
 @dataclass(frozen=True)
@@ -118,6 +123,7 @@ def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
         reported_symptoms=_text_list(data, "reported_symptoms"),
         scope=_parse_enum(Scope, data, "scope"),
         scope_reason=_optional_text(data, "scope_reason"),
+        search_query=_optional_text(data, "search_query"),
     )
 
 

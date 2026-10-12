@@ -84,9 +84,15 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
         "domain",
         "summary",
         "reported_symptoms",
+        "search_query",
         "scope",
         "scope_reason",
     }
+
+
+def test_search_query_is_optional_and_trimmed() -> None:
+    assert parse_analysis(analysis_json()).search_query == ""
+    assert parse_analysis(analysis_json(search_query=" acidez ")).search_query == "acidez"
 
 
 def test_scope_and_reason_are_parsed() -> None:

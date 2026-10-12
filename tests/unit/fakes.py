@@ -26,7 +26,15 @@ from cardio_materno.domain.knowledge import (
     RetrievalStatus,
 )
 
-ANALYSIS_KEYS = ("thread_action", "domain", "summary", "reported_symptoms", "scope", "scope_reason")
+ANALYSIS_KEYS = (
+    "thread_action",
+    "domain",
+    "summary",
+    "reported_symptoms",
+    "search_query",
+    "scope",
+    "scope_reason",
+)
 
 
 def agent_json(
@@ -47,6 +55,7 @@ def agent_json(
         "reported_symptoms": reported_symptoms or [],
         "reply": reply,
         "evidence_ids": [],
+        "search_query": "",
         "scope": "en_alcance",
         "scope_reason": "",
     }

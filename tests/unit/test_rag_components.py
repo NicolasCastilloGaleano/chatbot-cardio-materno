@@ -32,6 +32,7 @@ from cardio_materno.adapters.outbound.rag.vector_index import (
     load_index,
     save_index,
 )
+from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy, build_evidence_query
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
@@ -196,11 +197,28 @@ def test_index_built_with_other_model_or_other_entries_is_rejected() -> None:
 # --- Consulta de evidencia ----------------------------------------------------------------------
 
 
-def test_build_evidence_query_skips_empty_parts() -> None:
-    query = build_evidence_query("hola", "", ["mareo"], Domain.NONE)
+def test_build_evidence_query_without_search_query_skips_empty_parts() -> None:
+    analysis = AnalysisTurn(ThreadAction.NEW, Domain.NONE, "", ("mareo",))
+
+    query = build_evidence_query(analysis, "hola")
 
     assert query.text == "hola. mareo"
     assert query.domains == ()
+
+
+def test_build_evidence_query_prefers_the_reformulated_search_query() -> None:
+    analysis = AnalysisTurn(
+        ThreadAction.NEW,
+        Domain.CARDIOVASCULAR,
+        "partido y presión alta",
+        ("presión arterial alta",),
+        search_query="cómo controlar la presión arterial alta",
+    )
+
+    query = build_evidence_query(analysis, "¿quién ganó el partido? ah, y tengo la presión alta")
+
+    assert query.text == "cómo controlar la presión arterial alta"
+    assert query.domains == (Domain.CARDIOVASCULAR,)
 
 
 # --- Constructor del índice y embedder -----------------------------------------------------------

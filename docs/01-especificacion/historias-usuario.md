@@ -129,6 +129,11 @@ Escenario: La evidencia nunca llega al análisis
   Entonces la llamada de análisis (que produce los síntomas del filtro 2) no recibe evidencia
   Y solo la llamada de respuesta la recibe
 
+Escenario: La búsqueda usa la consulta de salud, sin el contexto ajeno (B-021)
+  Cuando escribo "¿quién ganó el partido? ah, y tengo la presión alta"
+  Entonces el análisis reformula la consulta de búsqueda solo sobre la presión alta ("search_query")
+  Y la evidencia se busca con esa consulta, que queda registrada en la traza
+
 Escenario: Urgencias sin búsqueda de evidencia
   Dado que el filtro 1 o el filtro 2 detectan una urgencia inmediata
   Entonces no se busca evidencia ni se hace la llamada de respuesta, y se muestra el mensaje fijo
@@ -187,6 +192,12 @@ Escenario: Cada síntoma reportado se revisa por separado (regresión del 2026-1
   Dado que el agente reporta "acidez en el embarazo" y "fiebre en el bebé"
   Cuando se revisan los síntomas reportados
   Entonces no se activa RN-MI-07 (fiebre en el embarazo), porque el contexto de un síntoma no se combina con el signo de otro
+
+Escenario: El análisis no agrega datos que la persona no dijo (regresión del 2026-10-11)
+  Dado un hilo sobre "tengo acidez en el embarazo" (sin semanas)
+  Cuando escribo "¿y qué más puedo comer?"
+  Entonces los síntomas reportados no incluyen semanas ni otros datos que no escribí
+  Y si aparecen, la traza los marca en "unstated_symptoms" y la consola muestra "[⚠️ datos que la persona no escribió: …]"
 
 Escenario: La urgencia queda en un hilo de su dominio (regresión del 2026-10-11)
   Dado un hilo materno-infantil activo

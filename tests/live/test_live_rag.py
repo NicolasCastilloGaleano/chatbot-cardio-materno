@@ -50,16 +50,25 @@ def analyze(analyzer: OllamaLanguageModel, prompt: str, text: str) -> Any:
 
 
 def test_retrieval_probe_finds_expected_category_in_top_k(evidence_policy: EvidencePolicy) -> None:
+    """Sonda sin umbral. Reporta además dos métricas más exigentes (B-021).
+
+    - **top-1**: la categoría esperada está en el primer lugar.
+    - **útil**: la categoría esperada aparece con similitud ≥ el umbral real de la política, es
+      decir, el caso recibiría esa evidencia en producción (si no, habría abstención).
+    """
     retriever = make_retriever(replace(evidence_policy, min_similarity=0.0, top_k=TOP_K))
-    hits = 0
+    hits = top1 = useful = 0
     for case in PROBE:
         result = retriever.retrieve(EvidenceQuery(case["query"], (Domain(case["domain"]),)))
-        categories = [item.entry.category for item in result.items]
-        hit = any(category in case["expected_categories"] for category in categories)
-        hits += hit
-        scores = ", ".join(f"{item.score:.2f}" for item in result.items)
-        print(f"{'✅' if hit else '❌'} {case['query']} → [{scores}] {categories[:1]}")
-    print(f"Sonda: {hits}/{len(PROBE)} (meta ≥ {MIN_PROBE_HITS})")
+        expected = case["expected_categories"]
+        matches = [item for item in result.items if item.entry.category in expected]
+        hits += bool(matches)
+        top1 += bool(result.items) and result.items[0].entry.category in expected
+        useful += any(item.score >= evidence_policy.min_similarity for item in matches)
+        ranked = " | ".join(f"{i.score:.2f} {i.entry.category[:28]}" for i in result.items)
+        print(f"{'✅' if matches else '❌'} {case['query']} → {ranked}")
+    print(f"Sonda: top-3 {hits}/{len(PROBE)} (meta ≥ {MIN_PROBE_HITS}) · top-1 {top1}")
+    print(f"Útil con el umbral {evidence_policy.min_similarity}: {useful}/{len(PROBE)}")
     assert hits >= MIN_PROBE_HITS
 
 
@@ -90,7 +99,7 @@ def test_colloquial_report_is_caught_by_filter_two(
     analysis = analyze(
         analyzer, render_system_prompt(analysis_prompt_template, alarm_policy), message
     )
-    decision = alarm_policy.evaluate(["; ".join(analysis.reported_symptoms)], AlertOrigin.AGENT)
+    decision = alarm_policy.evaluate(analysis.reported_symptoms, AlertOrigin.AGENT)
 
     print(f"{message} → {analysis.reported_symptoms}")
     assert decision is not None and rule_id in decision.rule_ids

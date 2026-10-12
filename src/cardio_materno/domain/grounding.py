@@ -136,3 +136,48 @@ def is_allowed_without_citation(sentence: str, user_text: str, policy: Grounding
 def _stems_of(words: Iterable[str], policy: GroundingPolicy) -> frozenset[str]:
     """Raíces de una lista de palabras."""
     return frozenset(word[: policy.stem_chars] for word in words)
+
+
+# Números escritos con palabras (sin "un/una", demasiado frecuentes como artículo).
+NUMBER_WORDS = {
+    "dos": "2",
+    "tres": "3",
+    "cuatro": "4",
+    "cinco": "5",
+    "seis": "6",
+    "siete": "7",
+    "ocho": "8",
+    "nueve": "9",
+    "diez": "10",
+    "once": "11",
+    "doce": "12",
+    "quince": "15",
+    "veinte": "20",
+    "treinta": "30",
+    "cuarenta": "40",
+}
+
+
+def stated_numbers(text: str) -> frozenset[str]:
+    """Números de un texto, escritos con cifras o con palabras ("ocho meses" → "8")."""
+    words = WORD_PATTERN.findall(normalize_text(text))
+    spelled = {NUMBER_WORDS[word] for word in words if word in NUMBER_WORDS}
+    return numbers_in(text) | spelled
+
+
+def unstated_details(symptoms: Iterable[str], user_texts: Iterable[str]) -> tuple[str, ...]:
+    """Síntomas con números (semanas, meses, edades) que la persona no escribió.
+
+    Sirve para detectar que el análisis inventó o arrastró un dato (incidente del
+    2026-10-11: "34 semanas" copiado de un ejemplo del prompt). Solo se marca para auditar:
+    el síntoma sigue revisándose con las reglas de alarma.
+
+    Args:
+        symptoms: Síntomas reportados por el análisis.
+        user_texts: Mensajes de la persona en el hilo (incluido el actual).
+
+    Returns:
+        Los síntomas que contienen algún número que no aparece en los mensajes.
+    """
+    said: frozenset[str] = frozenset().union(*(stated_numbers(text) for text in user_texts))
+    return tuple(symptom for symptom in symptoms if not stated_numbers(symptom) <= said)

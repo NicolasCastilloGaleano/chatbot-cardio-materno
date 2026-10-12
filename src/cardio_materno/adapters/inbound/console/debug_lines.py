@@ -16,6 +16,8 @@ CATEGORY_MAX_CHARS = 32
 THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}{alerts}]"
 ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
 SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
+UNSTATED_DEBUG_TEMPLATE = "[⚠️ datos que la persona no escribió: {symptoms}]"
+SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}]"
 NO_SYMPTOMS_TEXT = "ninguno"
 AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
 EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
@@ -50,13 +52,27 @@ def debug_lines(result: TurnResult) -> list[str]:
         return unrecorded_lines(result.trace)
     lines = [format_thread_debug(result, result.thread), format_symptoms_debug(result.trace)]
     if result.trace is not None:
-        lines.append(format_evidence_debug(result.trace))
-        grounding = format_grounding_debug(result.trace)
-        if grounding:
-            lines.append(grounding)
-        if result.trace.timings:
-            lines.append(format_timings_debug(result.trace.timings))
+        lines.extend(trace_lines(result.trace))
     return lines
+
+
+def trace_lines(trace: ReplyTrace) -> list[str]:
+    """Líneas de la traza: datos no dichos, búsqueda, evidencia, respaldo y tiempos."""
+    optional = [
+        format_unstated_debug(trace),
+        SEARCH_DEBUG_TEMPLATE.format(query=trace.search_query) if trace.search_query else "",
+        format_evidence_debug(trace),
+        format_grounding_debug(trace),
+        format_timings_debug(trace.timings) if trace.timings else "",
+    ]
+    return [line for line in optional if line]
+
+
+def format_unstated_debug(trace: ReplyTrace) -> str:
+    """Aviso de síntomas con datos que la persona no escribió, o "" si no hay."""
+    if not trace.unstated_symptoms:
+        return ""
+    return UNSTATED_DEBUG_TEMPLATE.format(symptoms=LIST_SEPARATOR.join(trace.unstated_symptoms))
 
 
 def out_of_scope_lines(trace: ReplyTrace | None) -> list[str]:

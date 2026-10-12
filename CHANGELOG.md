@@ -6,6 +6,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- Análisis v3 (`analysis_prompt_v3`): nunca agregar datos que la persona no escribió; ejemplos con marcadores [N] en lugar de datos copiables; sin arrastre de síntomas a un hilo nuevo; campo `search_query` (consulta de salud reformulada sin el contexto ajeno) que pasa a ser la consulta de búsqueda (B-021).
+- Marca de datos no dichos: `domain/grounding.py::unstated_details` registra en la traza (`unstated_symptoms`) los síntomas con números que la persona no escribió, con la línea `[⚠️ datos que la persona no escribió: …]`; la consulta usada queda en la traza (`search_query`) y en la línea `[búsqueda: …]`.
+- Pruebas en vivo `tests/live/test_live_analysis.py` (incidentes de "34 semanas" y del arrastre, búsqueda antes vs. ahora) y sonda con métricas top-1 y "útil con el umbral real".
+
+### Fixed
+- Corrección de documentación: la sonda ya exigía la categoría esperada en el top-3; el problema de ACV y TVP es de orden y de umbral, no de categoría ausente (B-021).
+
+### Added
 - Respuesta verificada (ADR 0010, B-018): el LLM redacta frase por frase (`reply_prompt_v3`, `sentences: [{text, evidence_id}]`) y `domain/grounding.py` comprueba de forma determinista que cada frase citada esté respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números). Si una frase no lo está, se muestra el texto literal del registro. Las frases sin cita solo se conservan si son preguntas cortas, cortesía o "no puedo ayudar con…".
 - Traza `grounding` (frases mostradas, total, texto literal y frases descartadas) y línea de depuración `[respaldo: …]`.
 - Prueba en vivo `tests/live/test_live_grounding.py`: arma el asistente completo con los modelos reales y comprueba que no reaparecen los consejos inventados del guion.

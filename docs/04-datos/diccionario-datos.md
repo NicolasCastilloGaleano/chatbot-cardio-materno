@@ -53,6 +53,8 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `timings` | objeto | Segundos por etapa: `análisis`, `RAG`, `respuesta` | `{"análisis": 3.1, "RAG": 0.4, "respuesta": 6.2}` |
 | `scope` | enum o null | Alcance aplicado: `en_alcance`, `conversacional` (los `fuera_de_alcance` no se guardan) | `en_alcance` |
 | `scope_reason` | string | Motivo corto de la decisión de alcance | `consulta de acidez en el embarazo` |
+| `unstated_symptoms` | lista de string | Síntomas con números (semanas, meses, edades) que la persona no escribió en el hilo: el análisis los inventó o arrastró. Solo para auditar: el síntoma se sigue revisando con las reglas de alarma | `["acidez en el embarazo de 34 semanas"]` |
+| `search_query` | string | Consulta con la que se buscó la evidencia ("" si no se buscó) | `presión arterial alta` |
 | `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro) y `dropped` (frases descartadas). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"]}` |
 
 ### Entidad: `KNOWLEDGE_ENTRY` (base de conocimiento, `knowledge/kb/entries.jsonl`)
@@ -77,4 +79,5 @@ Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `s
 | `reply` | string | (Llamada de respuesta) Texto para el usuario; no se pide si hay urgencia inmediata |
 | `evidence_ids` | lista de string | (Saludos) Siempre vacía |
 | `sentences` | lista de `{text, evidence_id}` | (Respuesta con evidencia) Frases para el usuario; `evidence_id` es la etiqueta del registro que respalda la frase (restringida por `enum` a las ofrecidas) o `ninguna`. Cada frase se verifica con `domain/grounding.py` |
+| `search_query` | string | (Análisis, desde el v3) Consulta de salud reformulada en palabras claras y sin el contexto ajeno; es la consulta de búsqueda de evidencia. Vacía si no hay consulta de salud (entonces se usa mensaje + resumen + síntomas) |
 | `reported_symptoms` | lista de string | Síntomas que la persona reporta, literales y con contexto. Si corresponden a un signo del catálogo, empiezan por su nombre exacto. Se revisan con las reglas de alarma (filtro 2). En B-015 se complementará con códigos cerrados |

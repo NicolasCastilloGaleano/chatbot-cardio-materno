@@ -30,6 +30,7 @@
    - sin evidencia, el agente lo dice y remite al personal de salud;
    - si hubo evidencia y no se citó, queda la marca `uncited_reply`.
 6. **Trazabilidad:** cada respuesta guarda en el hilo una `trace` con síntomas, evidencia ofrecida (id, etiqueta, puntaje, categoría), citas, estado de la búsqueda y **tiempos por etapa**.
+   *Actualización (2026-10-11, B-021):* la consulta de búsqueda es el `search_query` que reformula el análisis, sin el contexto ajeno del mensaje; si viene vacío, se usa mensaje + resumen + síntomas. El análisis sigue sin recibir evidencia.
 7. **Modelos por etapa:** `OLLAMA_ANALYSIS_MODEL` y `OLLAMA_REPLY_MODEL` (vacío = `OLLAMA_MODEL`).
 8. **Dependencias de ejecución:** se agrega `numpy` (`requirements.txt`). Termina la regla de "cero dependencias" del ADR 0005. En Ubuntu 24.04 hay que usar un entorno virtual (PEP 668).
 
