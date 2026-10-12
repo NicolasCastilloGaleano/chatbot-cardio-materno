@@ -15,6 +15,7 @@ from typing import Any
 
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import Domain
+from cardio_materno.domain.grounding import remove_placeholders
 
 
 class ThreadAction(StrEnum):
@@ -113,17 +114,20 @@ class DraftSentence:
 def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
     """Valida el JSON de la llamada de análisis.
 
+    Quita del resumen y de la consulta los marcadores copiados de los ejemplos del prompt
+    ("[N]"). Los síntomas se conservan tal cual para el filtro 2 y se marcan en la traza.
+
     Raises:
         LanguageModelError: Si falta un campo, está vacío o tiene un valor no permitido.
     """
     return AnalysisTurn(
         thread_action=_parse_enum(ThreadAction, data, "thread_action"),
         domain=_parse_enum(Domain, data, "domain"),
-        summary=_required_text(data, "summary"),
+        summary=remove_placeholders(_required_text(data, "summary")),
         reported_symptoms=_text_list(data, "reported_symptoms"),
         scope=_parse_enum(Scope, data, "scope"),
         scope_reason=_optional_text(data, "scope_reason"),
-        search_query=_optional_text(data, "search_query"),
+        search_query=remove_placeholders(_optional_text(data, "search_query")),
     )
 
 

@@ -118,25 +118,39 @@ def build_chat_payload(
     Returns:
         Diccionario listo para serializar como JSON.
     """
-    options: dict[str, Any] = {"temperature": settings.temperature, "num_ctx": settings.num_ctx}
-    if settings.num_predict is not None:
-        options["num_predict"] = settings.num_predict
     payload: dict[str, Any] = {
         "model": settings.model,
         "messages": [{"role": str(m.role), "content": m.content} for m in messages],
         "stream": False,
         "format": schema,
         "keep_alive": settings.keep_alive,
-        "options": options,
+        "options": build_options(settings),
     }
     if settings.think is not None:
         payload["think"] = settings.think
     return payload
 
 
+def build_options(settings: OllamaSettings) -> dict[str, Any]:
+    """Opciones de generación; las mismas en las consultas y en el precalentamiento."""
+    options: dict[str, Any] = {"temperature": settings.temperature, "num_ctx": settings.num_ctx}
+    if settings.num_predict is not None:
+        options["num_predict"] = settings.num_predict
+    return options
+
+
 def build_warm_up_payload(settings: OllamaSettings) -> dict[str, Any]:
-    """Solicitud sin mensajes: Ollama solo carga el modelo y lo mantiene `keep_alive`."""
-    return {"model": settings.model, "messages": [], "keep_alive": settings.keep_alive}
+    """Solicitud sin mensajes: Ollama solo carga el modelo y lo mantiene `keep_alive`.
+
+    Lleva las mismas opciones que las consultas: si `num_ctx` cambiara, Ollama volvería a
+    cargar el modelo en la primera consulta real (el primer turno seguiría siendo lento).
+    """
+    return {
+        "model": settings.model,
+        "messages": [],
+        "keep_alive": settings.keep_alive,
+        "options": build_options(settings),
+    }
 
 
 def extract_content(response: dict[str, Any]) -> str:

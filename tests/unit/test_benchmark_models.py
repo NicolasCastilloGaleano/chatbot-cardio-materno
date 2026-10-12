@@ -3,6 +3,7 @@
 import pytest
 from scripts.benchmark_models import (
     ComboResult,
+    dropped_sentences,
     outcome_kind,
     parse_combo,
     percentile,
@@ -77,3 +78,10 @@ def test_report_row_summarizes_a_combination() -> None:
     assert render_row(result) == (
         "| qwen3:8b | mistral | 1 | 8/9 | 18/20 | 10 | 3 | 2 | 1 | 20.0 s | 20.0 s | 3.0 s | — |"
     )
+
+
+def test_dropped_sentences_come_from_the_grounding_check() -> None:
+    check = GroundingCheck(1, 2, True, ("Toma manzanilla.",))
+
+    assert dropped_sentences(ReplyTrace(grounding=check)) == ("Toma manzanilla.",)
+    assert dropped_sentences(ReplyTrace()) == () and dropped_sentences(None) == ()

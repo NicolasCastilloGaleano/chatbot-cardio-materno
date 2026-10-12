@@ -37,17 +37,22 @@ Cada turno en alcance hace hasta **tres solicitudes a Ollama**: análisis (LLM),
 Para decidir qué modelo usa cada etapa:
 
 1. Descarga los candidatos: `ollama pull qwen3:8b`, `ollama pull llama3.1:8b`, `ollama pull mistral-nemo:12b`.
-2. Ejecuta la comparación (cada combinación tarda entre 5 y 25 minutos según el modelo):
+2. Ejecuta la comparación (cada combinación tarda entre 5 y 25 minutos según el modelo). Cada argumento es `MODELO` (ambas etapas) o `ANÁLISIS+RESPUESTA`. **Ronda 2**, después de la ronda 1 del 2026-10-12 (ver ADR 0011):
    ```bash
-   .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b qwen3:8b+mistral-small3.1:24b qwen3:8b llama3.1:8b mistral-nemo:12b
+   .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b mistral-nemo:12b
    ```
-   Cada argumento es `MODELO` (ambas etapas) o `ANÁLISIS+RESPUESTA`. Para qwen3, agrega `OLLAMA_THINK=false` antes del comando si el razonamiento lo hace lento.
+   qwen3 va en un comando aparte, con su razonamiento desactivado (la variable solo aplica a ese comando):
+   ```bash
+   OLLAMA_THINK=false .venv/bin/python scripts/benchmark_models.py qwen3:8b
+   ```
 3. El informe se imprime y queda en `data/benchmarks/` (no se versiona). Columnas:
    - errores de JSON;
    - aciertos de alcance (9 casos);
-   - reglas detectadas por el filtro 2 (una frase por regla, 20 reglas);
+   - reglas detectadas por el filtro 2 en frases coloquiales que el filtro 1 no capta (`tests/live/colloquial_alarm_phrases.json`); las que sí capta se reportan y no cuentan;
    - turnos verificados, con texto literal, con abstención u otros (16 consultas de la sonda);
    - tiempos p50/p90 del turno, del análisis y de la respuesta.
+
+   En la salida de la consola, cada turno con texto literal lista sus frases descartadas: sirven para calibrar `min_support`.
 4. Lleva el informe al equipo: la decisión se registra en el ADR 0011 con los criterios que allí se proponen. **El filtro 2 no puede perder detecciones.**
 
 ## Pendiente

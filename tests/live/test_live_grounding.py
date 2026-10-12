@@ -43,6 +43,7 @@ def describe(question: str, result: TurnResult) -> str:
     else:
         check = trace.grounding
         kind = f"{check.supported}/{check.total} frases" + (" · literal" if check.literal else "")
+        kind += "".join(f"\n    descartada: {sentence}" for sentence in check.dropped)
     return f"{question} → {kind}\n    {result.reply}"
 
 

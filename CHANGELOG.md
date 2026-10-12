@@ -5,6 +5,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- Precalentamiento con las mismas opciones (`num_ctx`, `num_predict`) que las consultas: antes Ollama volvía a cargar el modelo en el primer turno (análisis de 37 s y RAG de 7,7 s en el guion del 2026-10-12).
+- Marcadores del prompt copiados por el modelo ("[N] días", "[lo que describió la persona]"): `analysis_prompt_v4` los prohíbe; se quitan del resumen y de la consulta de búsqueda, y los síntomas que los traen quedan marcados en `unstated_symptoms`.
+
+### Changed
+- `scripts/benchmark_models.py` mide el filtro 2 con frases coloquiales que el filtro 1 no capta (`tests/live/colloquial_alarm_phrases.json`, PROVISIONAL) e imprime las frases descartadas de las respuestas con texto literal; la prueba en vivo del respaldo también las imprime.
+- ADR 0011 con los resultados de la ronda 1 de la comparación de modelos; preguntas 3 y 4 en la solicitud de validación clínica.
+
 ### Added
 - Latencia (B-022, ADR 0011 propuesto): precalentamiento de los modelos de análisis, respuesta y embeddings al arrancar; límite de tokens por etapa (`OLLAMA_ANALYSIS_NUM_PREDICT`=600, `OLLAMA_REPLY_NUM_PREDICT`=500); `OLLAMA_THINK` opcional.
 - `scripts/benchmark_models.py`: compara combinaciones de modelos (alcance, filtro 2, respaldo y tiempos p50/p90) y guarda el informe en `data/benchmarks/`. Los casos de alcance pasan a `tests/live/scope_cases.json`, compartido con `test_live_scope.py`.

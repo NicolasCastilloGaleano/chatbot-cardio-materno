@@ -152,4 +152,9 @@ def test_warm_up_loads_the_model_without_messages() -> None:
 
     payload = json.loads(opener.requests[0].data)  # type: ignore[arg-type]
     assert opener.requests[0].full_url == "http://ollama.test:11434/api/chat"
-    assert payload == {"model": "mistral-small3.1:24b", "messages": [], "keep_alive": "30m"}
+    assert payload == {
+        "model": "mistral-small3.1:24b",
+        "messages": [],
+        "keep_alive": "30m",
+        "options": {"temperature": 0.3, "num_ctx": 4096},
+    }

@@ -5,11 +5,14 @@ usa el proyecto:
 
 - **Alcance:** aciertos en `tests/live/scope_cases.json`.
 - **Filtro 2:** reglas de alarma que se activan con los síntomas que reporta el análisis, con
-  la primera frase de cada regla de `tests/conversational/alarm_phrases.json`.
+  las frases coloquiales de `tests/live/colloquial_alarm_phrases.json`, que el filtro 1 no capta
+  (ahí es donde el modelo importa para la seguridad). Las que sí capta se reportan y no cuentan.
 - **Turnos completos:** las consultas de `tests/live/retrieval_probe.json` con el asistente
   armado como en producción: respuestas verificadas, con texto literal o con abstención, y
   tiempos por etapa.
 - **Errores:** respuestas del modelo que no cumplen el JSON esperado.
+
+Cuando un turno termina en texto literal, se imprimen las frases descartadas (para calibrar).
 
 Uso (en el PC de pruebas, con los modelos descargados):
     .venv/bin/python scripts/benchmark_models.py mistral-small3.1:24b qwen3:8b+mistral-small3.1:24b
@@ -68,7 +71,7 @@ from cardio_materno.domain.alarms import AlertOrigin  # noqa: E402
 from cardio_materno.domain.trace import ReplyTrace  # noqa: E402
 
 LIVE_DIR = PROJECT_ROOT / "tests" / "live"
-ALARM_PHRASES_FILE = PROJECT_ROOT / "tests" / "conversational" / "alarm_phrases.json"
+COLLOQUIAL_PHRASES_FILE = LIVE_DIR / "colloquial_alarm_phrases.json"
 REPORT_DIR = PROJECT_ROOT / "data" / "benchmarks"
 COMBO_SEPARATOR = "+"
 P90 = 0.9
@@ -78,8 +81,8 @@ SCOPE_KEYS = {
     "conversacional": Scope.CONVERSATIONAL,
 }
 TABLE_HEADER = (
-    "| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 | Verificadas | Literal | "
-    "Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |\n"
+    "| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | Verificadas | "
+    "Literal | Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |\n"
     "|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 )
 
@@ -174,17 +177,24 @@ def measure_scope(analyzer: OllamaLanguageModel, prompt: str, result: ComboResul
 def measure_alarms(
     analyzer: OllamaLanguageModel, prompt: str, policy: AlarmPolicy, result: ComboResult
 ) -> None:
-    """Reglas que se activan por los síntomas del análisis (filtro 2), una frase por regla."""
-    rules: dict[str, Any] = read_json(ALARM_PHRASES_FILE)["rules"]
-    for rule_id, cases in rules.items():
-        phrase = cases["debe_activar"][0]
+    """Reglas que capta el filtro 2 en frases coloquiales que el filtro 1 no capta."""
+    for case in read_json(COLLOQUIAL_PHRASES_FILE)["cases"]:
+        rule_id, phrase = case["rule"], case["phrase"]
+        if triggers(policy, [phrase], AlertOrigin.USER, rule_id):
+            print(f"  filtro 2 (no cuenta: la capta el filtro 1) {rule_id}: {phrase[:50]}")
+            continue
         analysis = analyze(analyzer, prompt, phrase, result)
         symptoms = analysis.reported_symptoms if analysis else ()
-        decision = policy.evaluate(symptoms, AlertOrigin.AGENT)
-        hit = decision is not None and rule_id in decision.rule_ids
+        hit = triggers(policy, symptoms, AlertOrigin.AGENT, rule_id)
         result.alarm_total += 1
         result.alarm_hits += hit
         print(f"  filtro 2 {'✅' if hit else '❌'} {rule_id}: {phrase[:50]} → {list(symptoms)}")
+
+
+def triggers(policy: AlarmPolicy, texts: Sequence[str], origin: AlertOrigin, rule_id: str) -> bool:
+    """True si los textos activan la regla indicada."""
+    decision = policy.evaluate(texts, origin)
+    return decision is not None and rule_id in decision.rule_ids
 
 
 def measure_turns(result: ComboResult) -> None:
@@ -210,6 +220,8 @@ def run_turn(service: ConversationService, text: str, result: ComboResult) -> No
     result.outcomes[kind] = result.outcomes.get(kind, 0) + 1
     record_stage_times(trace, result)
     print(f"  turno {kind}: {text[:60]}")
+    for sentence in dropped_sentences(trace):
+        print(f"      descartada: {sentence}")
 
 
 def outcome_kind(trace: ReplyTrace | None) -> str:
@@ -219,6 +231,11 @@ def outcome_kind(trace: ReplyTrace | None) -> str:
     if trace.grounding is None:
         return "abstención"
     return "literal" if trace.grounding.literal else "verificada"
+
+
+def dropped_sentences(trace: ReplyTrace | None) -> tuple[str, ...]:
+    """Frases que el verificador descartó en un turno (vacío si no hubo)."""
+    return trace.grounding.dropped if trace and trace.grounding else ()
 
 
 def record_stage_times(trace: ReplyTrace | None, result: ComboResult) -> None:

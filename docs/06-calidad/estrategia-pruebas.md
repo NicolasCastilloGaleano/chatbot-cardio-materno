@@ -17,4 +17,4 @@
 - La cobertura es orientativa (los lineamientos no la hacen determinante); el dominio debe acercarse al 100 %.
 
 ## Comparación de modelos (B-022)
-`scripts/benchmark_models.py` no es una prueba de aprobado/reprobado: mide combinaciones de modelos en el PC de pruebas (alcance, filtro 2, respaldo de las respuestas y tiempos) con los mismos casos de `tests/live/` y `tests/conversational/alarm_phrases.json`. Sus funciones puras tienen pruebas unitarias (`tests/unit/test_benchmark_models.py`). Ver [operacion.md](../08-despliegue/operacion.md).
+`scripts/benchmark_models.py` no es una prueba de aprobado/reprobado: mide combinaciones de modelos en el PC de pruebas (alcance, filtro 2, respaldo de las respuestas y tiempos) con los mismos casos de `tests/live/`: alcance, sonda y frases coloquiales que el filtro 1 no capta (`colloquial_alarm_phrases.json`, PROVISIONAL). Sus funciones puras tienen pruebas unitarias (`tests/unit/test_benchmark_models.py`). Ver [operacion.md](../08-despliegue/operacion.md).

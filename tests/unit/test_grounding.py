@@ -10,8 +10,10 @@ from cardio_materno.application.grounded_reply import (
 from cardio_materno.domain.grounding import (
     GroundingPolicy,
     content_stems,
+    has_placeholder,
     is_allowed_without_citation,
     is_supported,
+    remove_placeholders,
     stated_numbers,
     support_ratio,
     unstated_details,
@@ -147,3 +149,21 @@ def test_numbers_said_in_digits_or_words_are_not_flagged() -> None:
     symptoms = ["embarazo de 8 meses", "embarazo de 34 semanas"]
 
     assert unstated_details(symptoms, ["tengo ocho meses", "o sea 34 semanas"]) == ()
+
+
+def test_symptoms_with_prompt_placeholders_are_flagged() -> None:
+    symptoms = ["Contracciones desde hace [N] días", "Piel muy amarilla: [lo que describió], bebé"]
+
+    assert unstated_details(symptoms, ["tengo contracciones", "mi bebé está amarillo"]) == tuple(
+        symptoms
+    )
+    assert has_placeholder("[síntoma]") and not has_placeholder("presión 190/110")
+
+
+def test_placeholders_are_removed_from_text() -> None:
+    assert remove_placeholders("Fiebre: [lo que describió la persona], embarazo") == (
+        "Fiebre: , embarazo"
+    )
+    assert remove_placeholders("acidez en el embarazo de [N] semanas") == (
+        "acidez en el embarazo de semanas"
+    )

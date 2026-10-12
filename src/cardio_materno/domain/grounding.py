@@ -16,6 +16,9 @@ WORD_PATTERN = re.compile(r"[a-z]+|\d+")
 NUMBER_PATTERN = re.compile(r"\d+")
 REFUSAL_PATTERN = re.compile(r"\bno (puedo|podemos|es posible) (ayudar|orientar|responder|hablar)")
 QUESTION_MARK = "?"
+# Marcadores de los ejemplos del prompt ("[N]", "[lo que describió la persona]").
+PLACEHOLDER_PATTERN = re.compile(r"\[[^\]]*\]")
+SPACES_PATTERN = re.compile(r"\s{2,}")
 
 
 def word_set(text: str) -> frozenset[str]:
@@ -166,11 +169,12 @@ def stated_numbers(text: str) -> frozenset[str]:
 
 
 def unstated_details(symptoms: Iterable[str], user_texts: Iterable[str]) -> tuple[str, ...]:
-    """Síntomas con números (semanas, meses, edades) que la persona no escribió.
+    """Síntomas con números que la persona no escribió o con marcadores del prompt.
 
-    Sirve para detectar que el análisis inventó o arrastró un dato (incidente del
-    2026-10-11: "34 semanas" copiado de un ejemplo del prompt). Solo se marca para auditar:
-    el síntoma sigue revisándose con las reglas de alarma.
+    Sirve para detectar que el análisis inventó, arrastró o copió un dato (incidente del
+    2026-10-11: "34 semanas" copiado de un ejemplo del prompt; comparación de modelos del
+    2026-10-12: "desde hace [N] días"). Solo se marca para auditar: el síntoma sigue
+    revisándose con las reglas de alarma.
 
     Args:
         symptoms: Síntomas reportados por el análisis.
@@ -180,4 +184,18 @@ def unstated_details(symptoms: Iterable[str], user_texts: Iterable[str]) -> tupl
         Los síntomas que contienen algún número que no aparece en los mensajes.
     """
     said: frozenset[str] = frozenset().union(*(stated_numbers(text) for text in user_texts))
-    return tuple(symptom for symptom in symptoms if not stated_numbers(symptom) <= said)
+    return tuple(
+        symptom
+        for symptom in symptoms
+        if has_placeholder(symptom) or not stated_numbers(symptom) <= said
+    )
+
+
+def has_placeholder(text: str) -> bool:
+    """True si el texto trae un marcador de los ejemplos del prompt, como "[N]"."""
+    return PLACEHOLDER_PATTERN.search(text) is not None
+
+
+def remove_placeholders(text: str) -> str:
+    """Quita los marcadores copiados de los ejemplos del prompt."""
+    return SPACES_PATTERN.sub(" ", PLACEHOLDER_PATTERN.sub("", text)).strip(" ,:;")

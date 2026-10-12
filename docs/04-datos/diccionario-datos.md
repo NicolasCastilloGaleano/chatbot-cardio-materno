@@ -53,7 +53,7 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `timings` | objeto | Segundos por etapa: `análisis`, `RAG`, `respuesta` | `{"análisis": 3.1, "RAG": 0.4, "respuesta": 6.2}` |
 | `scope` | enum o null | Alcance aplicado: `en_alcance`, `conversacional` (los `fuera_de_alcance` no se guardan) | `en_alcance` |
 | `scope_reason` | string | Motivo corto de la decisión de alcance | `consulta de acidez en el embarazo` |
-| `unstated_symptoms` | lista de string | Síntomas con números (semanas, meses, edades) que la persona no escribió en el hilo: el análisis los inventó o arrastró. Solo para auditar: el síntoma se sigue revisando con las reglas de alarma | `["acidez en el embarazo de 34 semanas"]` |
+| `unstated_symptoms` | lista de string | Síntomas con números (semanas, meses, edades) que la persona no escribió en el hilo, o con marcadores copiados del prompt ("[N]"): el análisis los inventó, arrastró o copió. Solo para auditar: el síntoma se sigue revisando con las reglas de alarma | `["acidez en el embarazo de 34 semanas"]` |
 | `search_query` | string | Consulta con la que se buscó la evidencia ("" si no se buscó) | `presión arterial alta` |
 | `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro) y `dropped` (frases descartadas). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"]}` |
 

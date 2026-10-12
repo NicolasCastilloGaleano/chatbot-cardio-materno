@@ -90,6 +90,20 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
     }
 
 
+def test_placeholders_are_removed_from_summary_and_search_query_but_not_symptoms() -> None:
+    data = analysis_json(
+        summary="Acidez en el embarazo de [N] semanas.",
+        search_query="acidez [síntoma]",
+        reported_symptoms=["acidez de [N] días"],
+    )
+
+    analysis = parse_analysis(data)
+
+    assert analysis.summary == "Acidez en el embarazo de semanas."
+    assert analysis.search_query == "acidez"
+    assert analysis.reported_symptoms == ("acidez de [N] días",)
+
+
 def test_search_query_is_optional_and_trimmed() -> None:
     assert parse_analysis(analysis_json()).search_query == ""
     assert parse_analysis(analysis_json(search_query=" acidez ")).search_query == "acidez"
