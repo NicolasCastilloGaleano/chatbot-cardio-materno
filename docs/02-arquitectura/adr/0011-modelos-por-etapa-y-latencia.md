@@ -55,11 +55,23 @@ Opciones que caben en 8 GB con `num_ctx` 4096:
 - **Los modelos pequeños copiaron los marcadores del prompt v3.** Por ejemplo, "[lo que describió la persona]" o "desde hace [N] días", lo que además inventa el dato. Se corrigió con el prompt v4 y con una protección determinista: los síntomas con marcadores quedan marcados y se quitan del resumen y de la consulta.
 - **Los errores de JSON de qwen3** probablemente vienen de su razonamiento, que agota el límite de tokens. Se repite con `OLLAMA_THINK=false`.
 
-### Ronda 2 (pendiente)
-Mide el filtro 2 con frases coloquiales que el filtro 1 **no** capta (`tests/live/colloquial_alarm_phrases.json`), imprime las frases descartadas y precalienta los modelos con las mismas opciones que las consultas. Candidatos: `mistral-small3.1:24b` (referencia), `mistral-nemo:12b` y `qwen3:8b` sin razonamiento.
+### Ronda 2 (2026-10-12): 18 frases coloquiales que el filtro 1 no captaba (catálogo v0.3.1)
+| Análisis | Respuesta | Errores JSON | Alcance | Filtro 2 (coloquiales) | Verificadas | Literal | Abstención | Otros | Turno p50 | Turno p90 | Análisis p50 | Respuesta p50 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mistral-small3.1:24b | mistral-small3.1:24b | 0 | 9/9 | 14/18 | 7 | 2 | 0 | 7 | 47.5 s | 55.9 s | 19.8 s | 35.5 s |
+| mistral-nemo:12b | mistral-nemo:12b | 0 | 9/9 | 12/18 | 6 | 2 | 0 | 8 | 10.7 s | 13.7 s | 5.9 s | 8.1 s |
+| qwen3:8b (sin razonar) | qwen3:8b (sin razonar) | 0 | 8/9 | 9/18 | 8 | 0 | 0 | 8 | 3.4 s | 5.3 s | 1.7 s | 2.6 s |
+
+**Lectura:**
+- **qwen3 no sirve para el análisis.** Sin razonar ya no tiene errores de JSON y redacta muy bien (8 verificadas, 0 literal), pero omite síntomas: dejó vacío "se cayó redondo y no respondía" y copia las palabras sin traducirlas.
+- **Parte de las fallas del filtro 2 eran de los patrones, no de los modelos.** Por ejemplo, "Vómito de todo lo que come o bebe" no activaba "Vomita todo…". Se ampliaron los patrones (catálogo v0.4.0, pendiente de aprobación clínica), con lo que el filtro 1 pasa a captar 7 de las 18 frases. Y se propone la solución de fondo, los códigos cerrados ([ADR 0012](0012-signos-reportados-como-codigos-cerrados.md)).
+- **Las frases descartadas eran de verdad agregados sin respaldo**, como "el dolor puede extenderse al brazo…" o "sigue una dieta saludable". El verificador acertó.
+
+### Ronda 3 (recomendada después del ADR 0012)
+Mismas 18 frases (el filtro 2 se mide por sí solo, con el mismo conjunto en todas las rondas), con `mistral-small3.1:24b` y `mistral-nemo:12b`.
 
 **Criterios propuestos** (los confirma el equipo):
-1. **Filtro 2 sin pérdida:** en las frases coloquiales que el filtro 1 no capta, las reglas detectadas no bajan frente a la opción A. Es seguridad clínica: no se negocia.
+1. **Filtro 2 sin pérdida:** en las 18 frases coloquiales (`colloquial_alarm_phrases.json`), las reglas que detecta el filtro 2 por sí solo no bajan frente a la opción A. Es seguridad clínica: no se negocia.
 2. **Alcance:** acierta los 9 casos compartidos.
 3. **JSON:** 0 errores.
 4. **Respuestas:** la proporción de texto literal no sube mucho frente a la opción A (si el modelo no parafrasea de cerca, el verificador lo reemplaza).

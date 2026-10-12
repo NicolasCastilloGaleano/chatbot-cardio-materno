@@ -1,6 +1,6 @@
 # Solicitud de validación clínica: reglas de alarma (borrador PROVISIONAL)
 
-*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.3.1 · Generado el 2026-10-10*
+*Fecha de envío: ____ · Catálogo `knowledge/alarm_rules.json` versión 0.4.0 · Generado el 2026-10-10*
 
 **Para:** Dra. Dolly Magnolia González Hoyos y equipo clínico del proyecto.
 **De:** equipo de desarrollo (Nicolas Castillo Galeano).
@@ -233,11 +233,26 @@ Hoy, la única regla de fiebre infantil es RN-MI-13 (*fiebre o temperatura baja 
 - ¿Debe haber una regla para la fiebre en menores de cierta edad (p. ej., < 3 meses) o con ciertos signos acompañantes? Edad límite: ______ · Signos: ______________________
 - ¿El asistente debe preguntar la edad del bebé antes de orientar? [ ] Sí · [ ] No
 
-### Pregunta 3: cómo se nombran algunos signos
-En la comparación de modelos del 2026-10-12, varios modelos describieron bien el síntoma, pero con palabras que la regla no reconoce:
-- "**No quiere** comer" frente a RN-MI-09 "**No puede** comer, beber o tomar el pecho". ¿Que un bebé no quiera comer debe activar la alerta, o solo cuando no puede? [ ] Ambos · [ ] Solo "no puede" · Comentario: ______________________
-- "Piel muy amarilla" (sin mencionar los labios) frente a RN-MI-14 "Piel o labios muy amarillos o morados". ¿Basta la piel amarilla? [ ] Sí · [ ] No · ¿Importa la edad? ______
-- "Respira rápido en el bebé" frente a RN-MI-12 "Respira rápido o con dificultad". ¿Basta "respira rápido"? [ ] Sí · [ ] No
+### Pregunta 3: "no quiere comer" frente a "no puede comer"
+En la comparación de modelos del 2026-10-12, varios modelos describieron "el bebé **no quiere** comer", y RN-MI-09 dice "**No puede** comer, beber o tomar el pecho". ¿Que un bebé no quiera comer debe activar la alerta, o solo cuando no puede? [ ] Ambos · [ ] Solo "no puede" · Comentario: ______________________
+
+### Cambios de la versión 0.4.0 (pendientes de aprobación)
+Descripciones correctas que no activaban su regla por diferencias de redacción. Se ampliaron los patrones **sin cambiar el signo, la severidad ni el mensaje** de ninguna regla:
+
+| Regla | Ahora también reconoce | Frases que NO deben activarla |
+|---|---|---|
+| RN-MI-02 | "la cabeza me va a estallar/explotar" en el embarazo | "la cabeza me va a estallar con tanto ruido" (sin embarazo) |
+| RN-MI-03 | "ojos en blanco" con temblores o rigidez; "le dio un ataque y se puso rígida" | "le dio un ataque de tos" |
+| RN-MI-10 | "vómito de todo lo que come"; "devuelve hasta el agua" | "el cajero me devuelve el cambio" |
+| RN-MI-12 | "respira rápido / con dificultad" seguido de "bebé", "niño"… | — |
+| RN-MI-13 | "fiebre en bebé de N días" (hasta 29); "bebé de N días… calientico" | "mi bebé de 3 meses tiene fiebre" |
+| RN-MI-14 | "piel / ojos (muy) amarillos o morados" seguido de "bebé", "niño"… | "el bebé tiene una camiseta amarilla" |
+| RN-CV-03 | "parálisis / debilidad / se le durmió" + "medio cuerpo / un lado del cuerpo" | "se me durmió el brazo por dormir encima" |
+| RN-CV-06 | "hipertenso", "hipertensa" (antes solo "hipertensión") | "tengo la presión normal" |
+
+- [ ] Aprobados · [ ] Aprobados con cambios: ______________________ · [ ] Rechazados
+
+**Propuesta de fondo (ADR 0012, B-015):** en lugar de seguir ampliando patrones, que el asistente marque el signo con un **código cerrado** del catálogo. La tabla de códigos, descripciones y ejemplos coloquiales la validaría este equipo.
 
 ### Pregunta 4: frases coloquiales de prueba
 `tests/live/colloquial_alarm_phrases.json` tiene 18 frases coloquiales sintéticas (p. ej., "el niño devuelve hasta el agua" → RN-MI-10; "mi tío se cayó redondo y no respondía" → RN-CV-04) con la regla que **debería** activar cada una. Las generó la IA. ¿Están bien asignadas? Marque las que no: ______________________

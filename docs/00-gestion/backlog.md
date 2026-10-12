@@ -20,7 +20,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-010 | Adaptador WhatsApp | — | Media | — | ⏳ |
 | B-011 | Panel o registro de métricas anonimizadas | — | Baja | — | ⏳ |
 | B-014 | Foco actual del hilo: campo `current_focus` en el JSON del agente, separado del `summary` (ver nota) | HU-06 | Media | — | ⏳ Diferido |
-| B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza | HU-03, HU-04 | **Alta** | Siguiente tras la demo | ⏳ |
+| B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza. **Propuesta: ADR 0012** (códigos en paralelo con el texto libre, cruce exacto en `domain/`); se recomienda antes de elegir el modelo (ADR 0011) | HU-03, HU-04 | **Alta** | Pendiente de la decisión del equipo | 📝 Propuesto |
 | B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (implementación propia, ADR 0010: `domain/grounding.py`, abstención sin LLM y texto literal) | HU-02 | Alta | 1 | 🔄 En verificación |
 | B-019 | Traer `kb_sync` (Google Sheets → `entries.jsonl`) y agregar a la hoja las columnas Fuente / Validado por / Fecha | HU-02 | Media | — | ⏳ |
 | B-020 | Control de alcance por intención (fuera de alcance / conversacional) | HU-07 | Alta | 1 | 🔄 En verificación |
@@ -57,7 +57,9 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
   - pruebas golden con frases coloquiales evaluadas contra el modelo real (marca `live`);
   - métricas: alertas por origen y casos que solo detectó el agente;
   - posible combinación con B-017 (intención del mensaje) en el mismo contrato JSON.
-- **Prioridad:** Alta; es el siguiente ítem después de la demo.
+- **Evidencia 3 (2026-10-12, comparación de modelos):** ocho descripciones correctas de varios modelos no activaban su regla ("vómito de todo lo que come", "fiebre en bebé de 10 días", "parálisis en la mitad del cuerpo", "soy hipertenso"…). Se ampliaron los patrones (catálogo v0.4.0, pendiente de aprobación clínica).
+- **Propuesta formal:** [ADR 0012](../02-arquitectura/adr/0012-signos-reportados-como-codigos-cerrados.md) (estado Propuesto).
+- **Prioridad:** Alta; se recomienda hacerlo antes de elegir el modelo (ADR 0011).
 
 ### B-017: Intención del mensaje ante una alarma (consulta vs. reporte)
 - **Idea (Nicolas Castillo Galeano, 2026-10-10):** una pregunta educativa como "¿por qué se pueden dar síntomas como secreciones de agüita rosada por abajo en embarazos de 7 meses?" activa la misma alarma que un reporte real. Propuesta original: un paso previo en el que el agente clasifique si el mensaje es una consulta o un reporte de síntomas, y responder distinto en cada caso.

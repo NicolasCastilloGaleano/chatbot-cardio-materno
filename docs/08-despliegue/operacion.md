@@ -48,7 +48,7 @@ Para decidir qué modelo usa cada etapa:
 3. El informe se imprime y queda en `data/benchmarks/` (no se versiona). Columnas:
    - errores de JSON;
    - aciertos de alcance (9 casos);
-   - reglas detectadas por el filtro 2 en frases coloquiales que el filtro 1 no capta (`tests/live/colloquial_alarm_phrases.json`); las que sí capta se reportan y no cuentan;
+   - reglas que detecta el filtro 2 por sí solo en 18 frases coloquiales (`tests/live/colloquial_alarm_phrases.json`); la consola marca las que también capta el filtro 1;
    - turnos verificados, con texto literal, con abstención u otros (16 consultas de la sonda);
    - tiempos p50/p90 del turno, del análisis y de la respuesta.
 

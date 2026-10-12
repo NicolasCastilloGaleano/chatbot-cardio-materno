@@ -1,6 +1,6 @@
 {
-  "version": "0.3.1",
-  "updated_at": "2026-10-10",
+  "version": "0.4.0",
+  "updated_at": "2026-10-12",
   "validation_status": "PROVISIONAL – borrador generado con IA a partir de signos de alarma públicos (MinSalud, OPS, AIEPI). NO validado por el equipo clínico. No usar con usuarios reales.",
   "validated_by": null,
   "notes": "Patrones sobre texto normalizado (minúsculas, sin tildes). Los patrones '^(?=...)(?=...)' exigen contexto (p. ej., embarazo) y signo en el mismo texto. Criterio conservador: no se interpretan negaciones (ADR 0007, riesgo R-09). Además de sus patrones, cada regla se activa si el texto contiene su nombre (campo sign) normalizado: el prompt le pide al agente usar esos nombres en reported_symptoms (puente hacia B-015).",
@@ -43,7 +43,8 @@
         "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(vision borrosa|veo (lucecitas|luces|puntos|estrellitas|borroso|nublado)|zumbido en (los )?oidos)\\b)",
         "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(me duele (mucho|muchisimo|demasiado|bastante|durisimo) la cabeza|(mucho|muchisimo|tremendo) dolor de cabeza|me (va a )?explota\\w* la cabeza)\\b)",
         "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(veo|estoy viendo|me aparecen) (como )?(unas? |unos )?(lucecitas|luces|puntos|puntitos|estrellitas|chispitas|manchitas|manchas|borroso|nublado|doble)\\b)",
-        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(se me nubla la vista|vista (borrosa|nublada)|veo todo (borroso|nublado))\\b)"
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\b(se me nubla la vista|vista (borrosa|nublada)|veo todo (borroso|nublado))\\b)",
+        "^(?=.*\\b(embarazad\\w*|embarazo|gestante|gestacion|prenada|semanas de embarazo|meses de embarazo|posparto|postparto|post parto|di a luz|dio a luz|recien parida|cesarea|puerperio|(tengo|estoy de|voy en|llevo) ([1-9]|[1-3]\\d) (meses|semanas)|([1-3]\\d) semanas de (embarazo|gestacion))\\b)(?=.*\\bla cabeza (me|le) va a (estallar|explotar|reventar)\\b)"
       ],
       "message_id": "urgencia_embarazo",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal)"
@@ -56,7 +57,10 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(convulsion\\w*|convulsiona\\w*|convulsiono|convulsiva\\w*)\\b",
-        "\\bse puso (rigid\\w*|tiesa?|tieso)\\b.{0,30}\\b(temblaba|temblando|sacudia|sacudiendo)\\b"
+        "\\bse puso (rigid\\w*|tiesa?|tieso)\\b.{0,30}\\b(temblaba|temblando|sacudia|sacudiendo)\\b",
+        "\\bojos en blanco\\b.{0,40}\\b(temblaba|temblando|temblores|sacudia|sacudiendo|rigid\\w*|tiesa?|tieso)\\b",
+        "\\b(temblores|temblaba|sacudidas)\\b.{0,40}\\bojos en blanco\\b",
+        "\\b(ataque|crisis)\\b.{0,30}\\bse puso (rigid\\w*|tiesa?|tieso)\\b"
       ],
       "message_id": "urgencia_general",
       "source": "Pendiente: MinSalud, signos de alarma en el embarazo y el posparto (RIAS materno-perinatal); Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
@@ -163,7 +167,9 @@
         "\\bvomita (todo|absolutamente todo|todo lo que)\\b",
         "\\btodo lo (vomita|devuelve|bota)\\b",
         "\\bno (le )?(retiene|aguanta|tolera) (nada|ni el agua|ni agua|la leche)\\b",
-        "\\bvomito (persistente|incoercible|con todo)\\b"
+        "\\bvomito (persistente|incoercible|con todo)\\b",
+        "\\bvomit(o|a) (de )?todo lo que (come|bebe|toma|recibe)\\b",
+        "\\bdevuelve (hasta el agua|hasta la leche|todo lo que (come|bebe|toma|recibe))\\b"
       ],
       "message_id": "urgencia_bebe",
       "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
@@ -189,7 +195,8 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\bdificultad (respiratoria|para respirar)\\b.{0,30}\\b(bebe|lactante|recien nacido|nino|nina)\\b",
-        "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(respira (muy )?(rapido|rapidito|agitad\\w*|con dificultad|feo|mal)|le cuesta respirar|se le hunden las costillas|se ahoga|no puede respirar|hace un quejido|tiraje)\\b"
+        "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(respira (muy )?(rapido|rapidito|agitad\\w*|con dificultad|feo|mal)|le cuesta respirar|se le hunden las costillas|se ahoga|no puede respirar|hace un quejido|tiraje)\\b",
+        "\\brespira (muy )?(rapido|rapidito|agitad\\w*|con dificultad)\\b.{0,30}\\b(bebe|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|lactante)\\b"
       ],
       "message_id": "urgencia_bebe",
       "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
@@ -202,7 +209,9 @@
       "severity": "urgencia_inmediata",
       "patterns": [
         "\\b(fiebre|hipotermia)\\b.{0,30}\\b(recien nacid\\w*|neonato)\\b",
-        "\\b(recien nacid\\w*|neonato|bebe de (\\d|[1-2]\\d) dias|bebe de (1|un) mes)\\b.{0,40}\\b(fiebre|calentura|muy caliente|muy frio|muy fria|hipotermia)\\b"
+        "\\b(recien nacid\\w*|neonato|bebe de (\\d|[1-2]\\d) dias|bebe de (1|un) mes)\\b.{0,40}\\b(fiebre|calentura|muy caliente|muy frio|muy fria|hipotermia)\\b",
+        "\\b(fiebre|calentura|hipotermia|temperatura baja|calientic\\w*)\\b.{0,30}\\b(bebe|bebito|bebita|nene|nena|hijo|hija) de (\\d|[1-2]\\d) dias\\b",
+        "\\b(bebe|bebito|bebita|nene|nena|hijo|hija) de (\\d|[1-2]\\d) dias\\b.{0,40}\\bcalientic\\w*\\b"
       ],
       "message_id": "urgencia_bebe",
       "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
@@ -216,7 +225,8 @@
       "patterns": [
         "\\b(ictericia|cianosis)\\b",
         "\\b(bebe|bebes|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|hijo|hija|lactante|chiquito|chiquita)\\b.{0,40}\\b(muy amarill\\w*|amarillit\\w*|morad\\w*|azulad\\w*|azul)\\b",
-        "\\b(labios|unas|piel) (morad\\w*|azulad\\w*|azules)\\b"
+        "\\b(labios|unas|piel) (morad\\w*|azulad\\w*|azules)\\b",
+        "\\b(piel|ojos) (muy )?(amarill\\w*|morad\\w*|azulad\\w*)\\b.{0,40}\\b(bebe|bebito|bebita|recien nacid\\w*|nene|nena|nino|nina|lactante)\\b"
       ],
       "message_id": "urgencia_bebe",
       "source": "Pendiente: OPS/OMS AIEPI, signos generales de peligro en menores de 5 años"
@@ -265,7 +275,8 @@
         "\\b(habla|hablando) (enredad\\w*|rar\\w*|arrastrad\\w*|incoherente)\\b",
         "\\b(no (puede|puedo) hablar|dificultad para hablar)\\b",
         "\\b(accidente cerebrovascular|derrame cerebral|acv|trombosis cerebral|ictus)\\b",
-        "\\bdolor de cabeza (muy fuerte )?(repentino|subito|de repente)\\b"
+        "\\bdolor de cabeza (muy fuerte )?(repentino|subito|de repente)\\b",
+        "\\b(paralisis|debilidad|adormecimiento|entumecimiento|se (le|me) durmio)\\b.{0,30}\\b(medio cuerpo|mitad del cuerpo|un lado del cuerpo|lado (derecho|izquierdo) del cuerpo)\\b"
       ],
       "message_id": "urgencia_cardio",
       "source": "Pendiente: OPS HEARTS / MinSalud, signos de alarma cardiovascular y ACV"
@@ -306,7 +317,7 @@
       "severity": "consulta_prioritaria",
       "patterns": [
         "\\b(presion|tension) (arterial )?(alta|elevada|muy alta)\\b",
-        "\\bhipertension\\b",
+        "\\bhipertens(o|a|os|as|ion)\\b",
         "\\b(presion|tension)\\b.{0,30}\\b1[4-7]\\d\\b"
       ],
       "message_id": "prioritaria_presion",
