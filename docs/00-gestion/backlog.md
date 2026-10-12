@@ -24,6 +24,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-018 | Verificación léxica de grounding: cada frase de salud de la respuesta debe estar en la evidencia citada (portar `safety/grounding.py` del piloto) | HU-02 | Alta | — | ⏳ |
 | B-019 | Traer `kb_sync` (Google Sheets → `entries.jsonl`) y agregar a la hoja las columnas Fuente / Validado por / Fecha | HU-02 | Media | — | ⏳ |
 | B-020 | Control de alcance por intención (fuera de alcance / conversacional) | HU-07 | Alta | 1 | 🔄 En verificación |
+| B-021 | Calidad de recuperación con frases coloquiales: en ACV y TVP la sonda pasa por puntaje, pero recupera una categoría equivocada aunque la base los cubre. Propuesta: que la sonda verifique la categoría esperada y luego ajustar la búsqueda (instrucción de consulta, pesos de BM25 o reformulación) | HU-02 | Por definir (equipo) | — | ⏳ |
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |
 | B-017 | Intención del mensaje (reporte / consulta general / ambiguo) para **adaptar** la respuesta a una alarma, nunca para suprimirla (ver nota) | HU-03, HU-04 | Media | — | ⏳ |
 

@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- Guion de verificación manual de HU-02/HU-07 actualizado en `docs/08-despliegue/instalacion.md` (abstención con una pregunta dentro del dominio, traza en el JSON del hilo, RAG no disponible y medición de latencia); B-021 en el backlog.
 - HU-07: control de alcance por intención. El análisis devuelve `scope` (`en_alcance` / `conversacional` / `fuera_de_alcance`) y `scope_reason`. Los mensajes completamente ajenos reciben un mensaje fijo, sin RAG ni llamada de respuesta, y no se registran. Los saludos se responden sin RAG. Los temas mencionados como contexto no descartan el mensaje; los síntomas de nuestros dominios y las alarmas siempre tienen prioridad. Prompts `analysis_prompt_v2` y `reply_prompt_v2`, ADR 0009 y riesgo R-11.
 - Latencia: `OLLAMA_KEEP_ALIVE` (30m) en todas las solicitudes y `OLLAMA_EMBED_NUM_GPU` (embedder en CPU); guía de diagnóstico en `docs/08-despliegue/operacion.md`.
 - Pruebas en vivo de alcance (`tests/live/test_live_scope.py`).
@@ -39,7 +40,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 - HU-03/HU-04 verificadas técnicamente en el PC de pruebas; CI en verde. Las reglas siguen PROVISIONALES hasta la validación clínica.
 
-- HU-02/HU-07: `pytest -m live` en verde en el PC de pruebas (17/17, sonda RAG 16/16). Se registraron vacíos temáticos de la base (ACV, TVP, diabetes gestacional) para decisión clínica. Queda pendiente el guion manual.
+- HU-02/HU-07: `pytest -m live` en verde en el PC de pruebas (17/17, sonda RAG 16/16). La sonda pasa por puntaje, pero en ACV y TVP recupera una categoría equivocada aunque la base sí los cubre (77 y 41 registros): es un problema del buscador (B-021). La diabetes gestacional no tiene registros en la base, y ampliarla es una decisión clínica. Queda pendiente el guion manual.
 
 ### Fixed
 - Un saludo o agradecimiento dentro de un hilo ya no cambia el dominio del caso a `ninguno`.
