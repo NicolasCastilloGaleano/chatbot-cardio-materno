@@ -20,6 +20,7 @@ from tests.unit.fakes import (
     make_alarm_policy,
     make_service,
     scoped,
+    signing,
 )
 
 
@@ -245,3 +246,12 @@ def test_debug_shows_the_search_query() -> None:
     )
 
     assert "[búsqueda: presión arterial alta]" in output
+
+
+def test_debug_shows_marked_sign_codes_and_their_alert_origin() -> None:
+    agent = ScriptedAgent(signing(agent_json(), "SANGRADO_VAGINAL"))
+
+    output = run_console(["me sale agüita rosada", "salir"], agent, show_thread_debug=True)
+
+    assert "[signos marcados: SANGRADO_VAGINAL]" in output
+    assert any("T-URG urgencia_inmediata (agente_codigo)" in line for line in output)

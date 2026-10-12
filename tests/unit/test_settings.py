@@ -163,3 +163,11 @@ def test_think_is_optional() -> None:
 def test_invalid_embed_num_gpu_raises_configuration_error(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError, match="OLLAMA_EMBED_NUM_GPU"):
         load_rag_settings({"OLLAMA_EMBED_NUM_GPU": "mucho"}, tmp_path)
+
+
+def test_think_can_be_set_per_stage_with_global_fallback() -> None:
+    env = {"OLLAMA_THINK": "true", "OLLAMA_ANALYSIS_THINK": "false"}
+
+    assert load_stage_settings(env, "OLLAMA_ANALYSIS_MODEL").think is False
+    assert load_stage_settings(env, "OLLAMA_REPLY_MODEL").think is True
+    assert load_stage_settings({}, "OLLAMA_REPLY_MODEL").think is None

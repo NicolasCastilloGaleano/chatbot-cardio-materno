@@ -1,6 +1,6 @@
 # ADR 0012: Signos reportados como códigos cerrados del catálogo (B-015)
 
-- **Estado:** Propuesto. **Falta la decisión del equipo**, porque cambia cómo funciona el filtro 2 de seguridad (AGENTS.md §5)
+- **Estado:** **Aceptado provisionalmente** por Nicolas Castillo Galeano (2026-10-12) para implementarlo y mostrar resultados. **Pendiente de ratificación del equipo**, porque cambia cómo funciona el filtro 2 de seguridad (AGENTS.md §5). Ver [pendientes de aprobación](../../00-gestion/pendientes-aprobacion.md)
 - **Fecha:** 2026-10-12
 - **Propone:** Claude Code (Opus 5.5), a pedido de Nicolas Castillo Galeano
 - **Relacionado:** ADR 0004 (reglas deterministas), ADR 0007 (doble filtro), ADR 0011 (modelos y latencia), B-015, riesgo R-09
@@ -44,6 +44,15 @@ Cada vez se amplían los patrones (catálogo v0.2.0, v0.3.0, v0.3.1 y v0.4.0), p
 - ⚠️ **Contenido clínico:** los códigos, sus descripciones y sus ejemplos coloquiales los valida el equipo clínico, igual que el catálogo actual (PROVISIONAL hasta entonces).
 - ⚠️ El modelo puede marcar un código de más: es un falso positivo, aceptado por criterio conservador y visible en la traza.
 - ⚠️ El prompt crece: hay que medir el tiempo del análisis en la ronda 3.
+
+## Implementación (2026-10-12, para la demostración)
+- **Catálogo v0.5.0:** cada regla tiene `code` (p. ej., `VOMITA_TODO`, `SIGNOS_ACV`) y `examples` (2 expresiones coloquiales por signo, generadas con IA y distintas de las frases del benchmark). El cargador valida el formato y que los códigos no se repitan.
+- **Dominio:** `rules_for_codes` hace el cruce exacto y existe el origen de alerta `agente_codigo`. En la aplicación, `AlarmPolicy.evaluate_codes` y `codes`.
+- **Contrato:** `analysis_schema(codes)` limita `reported_signs` por `enum` y `parse_analysis` rechaza los códigos desconocidos. El servicio arma el esquema a partir del catálogo cargado.
+- **Filtro 2:** primero por texto (`agente`) y luego por código (`agente_codigo`), sin repetir reglas. Un mensaje con signos marcados nunca queda fuera de alcance.
+- **Prompt de análisis v5:** tabla `CÓDIGO: signo (ej.: …)` e instrucciones para marcar por significado.
+- **Traza y consola:** `reported_signs` y la línea `[signos marcados: …]`.
+- **Benchmark:** dice por qué vía acertó y agrega la columna "Filtro 2 por código".
 
 ## Decisiones que pide al equipo
 1. ¿Se aprueba el enfoque (códigos cerrados en paralelo con el texto libre)?

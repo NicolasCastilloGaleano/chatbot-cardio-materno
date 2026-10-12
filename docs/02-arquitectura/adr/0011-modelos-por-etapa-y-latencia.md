@@ -67,8 +67,8 @@ Opciones que caben en 8 GB con `num_ctx` 4096:
 - **Parte de las fallas del filtro 2 eran de los patrones, no de los modelos.** Por ejemplo, "Vómito de todo lo que come o bebe" no activaba "Vomita todo…". Se ampliaron los patrones (catálogo v0.4.0, pendiente de aprobación clínica), con lo que el filtro 1 pasa a captar 7 de las 18 frases. Y se propone la solución de fondo, los códigos cerrados ([ADR 0012](0012-signos-reportados-como-codigos-cerrados.md)).
 - **Las frases descartadas eran de verdad agregados sin respaldo**, como "el dolor puede extenderse al brazo…" o "sigue una dieta saludable". El verificador acertó.
 
-### Ronda 3 (recomendada después del ADR 0012)
-Mismas 18 frases (el filtro 2 se mide por sí solo, con el mismo conjunto en todas las rondas), con `mistral-small3.1:24b` y `mistral-nemo:12b`.
+### Ronda 3 (pendiente, con el ADR 0012 implementado)
+Mismas 18 frases (el filtro 2 se mide por sí solo, con el mismo conjunto en todas las rondas) y **todas** las combinaciones de la ronda 1, para ver cómo cambian con los códigos cerrados. Comandos en [operacion.md](../../08-despliegue/operacion.md).
 
 **Criterios propuestos** (los confirma el equipo):
 1. **Filtro 2 sin pérdida:** en las 18 frases coloquiales (`colloquial_alarm_phrases.json`), las reglas que detecta el filtro 2 por sí solo no bajan frente a la opción A. Es seguridad clínica: no se negocia.

@@ -120,6 +120,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `OLLAMA_ANALYSIS_NUM_PREDICT` | `600` | Máximo de tokens de la llamada de análisis (`auto` = sin límite) |
 | `OLLAMA_REPLY_NUM_PREDICT` | `500` | Máximo de tokens de la llamada de respuesta (`auto` = sin límite) |
 | `OLLAMA_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 |
+| `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK` | (vacío = `OLLAMA_THINK`) | Lo mismo, pero solo para una etapa (p. ej., qwen3 en el análisis y mistral en la respuesta) |
 
 ### Problemas frecuentes
 | Mensaje | Solución |

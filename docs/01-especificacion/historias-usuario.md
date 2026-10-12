@@ -193,6 +193,13 @@ Escenario: Cada síntoma reportado se revisa por separado (regresión del 2026-1
   Cuando se revisan los síntomas reportados
   Entonces no se activa RN-MI-07 (fiebre en el embarazo), porque el contexto de un síntoma no se combina con el signo de otro
 
+Escenario: El agente marca el código del signo (ADR 0012, provisional)
+  Dado que mi mensaje no coincide con ninguna regla ("el niño no retiene ni el suero")
+  Cuando el análisis marca el código VOMITA_TODO en "reported_signs"
+  Entonces se activa RN-MI-10 por cruce exacto y se muestra el mensaje fijo de urgencia
+  Y la alerta queda registrada con origen "agente_codigo"
+  Y un código que no está en el catálogo es un error del modelo y no se guarda nada
+
 Escenario: El análisis no agrega datos que la persona no dijo (regresión del 2026-10-11)
   Dado un hilo sobre "tengo acidez en el embarazo" (sin semanas)
   Cuando escribo "¿y qué más puedo comer?"

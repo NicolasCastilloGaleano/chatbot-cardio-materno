@@ -5,6 +5,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- **Códigos cerrados de signos (B-015, ADR 0012 aceptado provisionalmente para la demostración):** catálogo v0.5.0 con `code` y `examples` por regla; el análisis marca `reported_signs` (lista cerrada por `enum`, prompt de análisis v5) y el filtro 2 los cruza de forma exacta con las reglas, además de revisar los síntomas en texto. Alertas con el origen `agente_codigo`, traza `reported_signs` y línea `[signos marcados: …]`. Pendiente de ratificación del equipo y de aprobación clínica de los códigos y ejemplos.
+- `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK`: razonamiento por etapa (respaldo en `OLLAMA_THINK`).
+
+### Changed
+- `scripts/benchmark_models.py` evalúa el filtro 2 por texto y por código, dice la vía de cada acierto y agrega la columna "Filtro 2 por código"; las pruebas en vivo usan el esquema con los códigos del catálogo.
+
 ### Changed
 - Catálogo de alarmas **v0.4.0** (PROVISIONAL, implementado para la demostración por decisión de Nicolas y pendiente de aprobación clínica): se amplían los patrones de RN-MI-02/03/10/12/13/14 y RN-CV-03/06 para reconocer descripciones correctas que no activaban su regla (p. ej., "vómito de todo lo que come", "fiebre en bebé de 10 días", "soy hipertenso"). No cambian signos, severidades ni mensajes. Frases de referencia nuevas (positivas y negativas) en `alarm_phrases.json`.
 - `scripts/benchmark_models.py` mide el filtro 2 por sí solo sobre las 18 frases coloquiales (mismo conjunto en todas las rondas) y marca las que también capta el filtro 1.

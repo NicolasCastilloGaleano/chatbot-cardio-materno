@@ -8,7 +8,7 @@ Se separan para que la evidencia del RAG nunca influya en los síntomas que revi
 reglas de alarma.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -33,28 +33,45 @@ class Scope(StrEnum):
     OUT_OF_SCOPE = "fuera_de_alcance"
 
 
-# JSON Schema de la llamada de análisis.
-ANALYSIS_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
-        "domain": {"type": "string", "enum": [d.value for d in Domain]},
-        "summary": {"type": "string"},
-        "reported_symptoms": {"type": "array", "items": {"type": "string"}},
-        "search_query": {"type": "string"},
-        "scope": {"type": "string", "enum": [s.value for s in Scope]},
-        "scope_reason": {"type": "string"},
-    },
-    "required": [
-        "thread_action",
-        "domain",
-        "summary",
-        "reported_symptoms",
-        "search_query",
-        "scope",
-        "scope_reason",
-    ],
-}
+def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
+    """JSON Schema de la llamada de análisis; `reported_signs` se limita a los códigos dados.
+
+    Args:
+        sign_codes: Códigos de signos del catálogo (ADR 0012). Sin códigos, la lista debe ir vacía.
+
+    Returns:
+        El esquema que Ollama usa para restringir la salida.
+    """
+    signs: dict[str, Any] = {"type": "array", "items": {"type": "string", "enum": list(sign_codes)}}
+    if not sign_codes:
+        signs = {"type": "array", "items": {"type": "string"}, "maxItems": 0}
+    return {
+        "type": "object",
+        "properties": {
+            "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
+            "domain": {"type": "string", "enum": [d.value for d in Domain]},
+            "summary": {"type": "string"},
+            "reported_symptoms": {"type": "array", "items": {"type": "string"}},
+            "reported_signs": signs,
+            "search_query": {"type": "string"},
+            "scope": {"type": "string", "enum": [s.value for s in Scope]},
+            "scope_reason": {"type": "string"},
+        },
+        "required": [
+            "thread_action",
+            "domain",
+            "summary",
+            "reported_symptoms",
+            "reported_signs",
+            "search_query",
+            "scope",
+            "scope_reason",
+        ],
+    }
+
+
+# Esquema sin códigos de signos (catálogo sin códigos o pruebas).
+ANALYSIS_SCHEMA: dict[str, Any] = analysis_schema(())
 
 MSG_INVALID_TURN = "El modelo no devolvió la estructura esperada ({detail})."
 # Valor de "evidence_id" de una frase que no cita evidencia (cortesía, aclaración o pregunta).
@@ -74,6 +91,7 @@ class AnalysisTurn:
         scope_reason: Motivo corto de la decisión de alcance (para auditar).
         search_query: Consulta de salud reformulada para buscar evidencia (B-021); vacía si
             no hay consulta de salud.
+        reported_signs: Códigos de signos del catálogo que la persona describe (ADR 0012).
     """
 
     thread_action: ThreadAction
@@ -83,6 +101,7 @@ class AnalysisTurn:
     scope: Scope = Scope.IN_SCOPE
     scope_reason: str = ""
     search_query: str = ""
+    reported_signs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -111,14 +130,19 @@ class DraftSentence:
     evidence_id: str | None = None
 
 
-def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
+def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> AnalysisTurn:
     """Valida el JSON de la llamada de análisis.
 
     Quita del resumen y de la consulta los marcadores copiados de los ejemplos del prompt
     ("[N]"). Los síntomas se conservan tal cual para el filtro 2 y se marcan en la traza.
 
+    Args:
+        data: JSON devuelto por el modelo.
+        sign_codes: Códigos de signos válidos; `reported_signs` puede faltar (= vacío).
+
     Raises:
-        LanguageModelError: Si falta un campo, está vacío o tiene un valor no permitido.
+        LanguageModelError: Si falta un campo, está vacío, tiene un valor no permitido o
+            marca un código de signo que no está en el catálogo.
     """
     return AnalysisTurn(
         thread_action=_parse_enum(ThreadAction, data, "thread_action"),
@@ -128,6 +152,7 @@ def parse_analysis(data: dict[str, Any]) -> AnalysisTurn:
         scope=_parse_enum(Scope, data, "scope"),
         scope_reason=_optional_text(data, "scope_reason"),
         search_query=remove_placeholders(_optional_text(data, "search_query")),
+        reported_signs=_sign_codes(data, sign_codes),
     )
 
 
@@ -203,6 +228,16 @@ def _parse_sentence(item: Any, labels: Sequence[str]) -> DraftSentence:
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
     text = _optional_text(item, "text")
     return DraftSentence(text, None if label == NO_CITATION else label)
+
+
+def _sign_codes(data: dict[str, Any], sign_codes: Collection[str]) -> tuple[str, ...]:
+    """Códigos de signos marcados, sin repetir; rechaza los que no están en el catálogo."""
+    marked = _text_list(data, "reported_signs") if "reported_signs" in data else ()
+    unknown = sorted(set(marked) - set(sign_codes))
+    if unknown:
+        detail = f"código de signo desconocido: {', '.join(unknown)}"
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
+    return tuple(dict.fromkeys(marked))
 
 
 def _required_text(data: dict[str, Any], field: str) -> str:

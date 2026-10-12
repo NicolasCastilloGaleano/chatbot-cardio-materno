@@ -79,6 +79,7 @@ class ReplyTrace:
         grounding: Verificación del respaldo (None si no hubo redacción con evidencia).
         unstated_symptoms: Síntomas con datos (números) que la persona no escribió (auditoría).
         search_query: Consulta con la que se buscó la evidencia ("" si no se buscó).
+        reported_signs: Códigos de signos que marcó el análisis (ADR 0012).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -92,6 +93,7 @@ class ReplyTrace:
     grounding: GroundingCheck | None = None
     unstated_symptoms: tuple[str, ...] = ()
     search_query: str = ""
+    reported_signs: tuple[str, ...] = ()
 
     @property
     def uncited(self) -> bool:

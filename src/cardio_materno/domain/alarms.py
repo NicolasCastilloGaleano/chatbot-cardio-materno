@@ -33,6 +33,7 @@ class AlertOrigin(StrEnum):
 
     USER = "usuario"
     AGENT = "agente"
+    AGENT_CODE = "agente_codigo"  # Código de signo marcado por el análisis (ADR 0012).
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,9 @@ class AlarmRule:
         patterns: Expresiones regulares ya compiladas sobre texto normalizado.
         message_id: Mensaje fijo que se muestra al activarse.
         source: Fuente clínica de la regla.
+        code: Código estable del signo, que el análisis puede marcar en `reported_signs`
+            (ADR 0012); vacío si la regla no tiene código.
+        examples: Expresiones coloquiales del signo, para el prompt de análisis.
     """
 
     id: str
@@ -58,6 +62,8 @@ class AlarmRule:
     patterns: tuple[re.Pattern[str], ...]
     message_id: str
     source: str
+    code: str = ""
+    examples: tuple[str, ...] = ()
 
     def matches(self, normalized_text: str) -> bool:
         """Indica si el texto normalizado contiene el nombre del signo o algún patrón.
@@ -119,6 +125,20 @@ def detect_alarms(texts: Iterable[str], rules: Sequence[AlarmRule]) -> list[Alar
     """
     normalized = [normalize_text(text) for text in texts if text.strip()]
     return [rule for rule in rules if any(rule.matches(text) for text in normalized)]
+
+
+def rules_for_codes(codes: Iterable[str], rules: Sequence[AlarmRule]) -> list[AlarmRule]:
+    """Reglas cuyo código está entre los marcados, en el orden del catálogo (cruce exacto).
+
+    Args:
+        codes: Códigos de signos marcados por el análisis.
+        rules: Catálogo de reglas.
+
+    Returns:
+        Reglas activadas por esos códigos (vacío si no hay ninguno).
+    """
+    marked = set(codes)
+    return [rule for rule in rules if rule.code and rule.code in marked]
 
 
 def most_severe(rules: Sequence[AlarmRule]) -> AlarmRule:

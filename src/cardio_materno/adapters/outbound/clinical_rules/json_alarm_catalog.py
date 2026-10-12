@@ -15,7 +15,17 @@ from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.domain.alarms import AlarmRule, Severity, compile_pattern
 from cardio_materno.domain.conversation import Domain
 
-RULE_FIELDS = ("id", "domain", "population", "sign", "severity", "patterns", "message_id")
+RULE_FIELDS = (
+    "id",
+    "code",
+    "domain",
+    "population",
+    "sign",
+    "severity",
+    "patterns",
+    "message_id",
+)
+CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
 class AlarmCatalogError(ValueError):
@@ -37,7 +47,8 @@ def load_alarm_policy(path: Path) -> AlarmPolicy:
     data = _read_json(path)
     messages = _parse_messages(data.get("messages"))
     rules = [_parse_rule(item, messages) for item in _rule_items(data)]
-    _check_unique_ids(rules)
+    _check_unique("IDs de regla", [rule.id for rule in rules])
+    _check_unique("Códigos de signo", [rule.code for rule in rules])
     return AlarmPolicy(rules, messages)
 
 
@@ -87,6 +98,8 @@ def _parse_rule(item: Any, messages: Mapping[str, str]) -> AlarmRule:
         patterns=_compile_patterns(item["patterns"], rule_id),
         message_id=str(item["message_id"]),
         source=str(item.get("source", "")),
+        code=_parse_code(item["code"], rule_id),
+        examples=_parse_examples(item.get("examples", []), rule_id),
     )
 
 
@@ -108,9 +121,22 @@ def _parse_enum[E: (Domain, Severity)](enum_type: type[E], raw: Any, rule_id: st
         raise AlarmCatalogError(f"{rule_id}: '{name}' inválido: {raw}") from error
 
 
-def _check_unique_ids(rules: list[AlarmRule]) -> None:
-    """Verifica que no haya identificadores de regla repetidos."""
-    ids = [rule.id for rule in rules]
-    duplicated = sorted({rule_id for rule_id in ids if ids.count(rule_id) > 1})
+def _parse_code(raw: Any, rule_id: str) -> str:
+    """Valida el código del signo: MAYÚSCULAS, números y guiones bajos (ADR 0012)."""
+    if not isinstance(raw, str) or not CODE_PATTERN.match(raw):
+        raise AlarmCatalogError(f"{rule_id}: 'code' debe ser p. ej. VOMITA_TODO, no {raw!r}")
+    return raw
+
+
+def _parse_examples(raw: Any, rule_id: str) -> tuple[str, ...]:
+    """Valida los ejemplos coloquiales del signo (lista de textos, puede faltar)."""
+    if not isinstance(raw, list) or not all(isinstance(e, str) and e.strip() for e in raw):
+        raise AlarmCatalogError(f"{rule_id}: 'examples' debe ser una lista de textos")
+    return tuple(example.strip() for example in raw)
+
+
+def _check_unique(label: str, values: list[str]) -> None:
+    """Verifica que no haya valores repetidos (IDs de regla o códigos de signo)."""
+    duplicated = sorted({value for value in values if values.count(value) > 1})
     if duplicated:
-        raise AlarmCatalogError(f"IDs de regla repetidos: {', '.join(duplicated)}")
+        raise AlarmCatalogError(f"{label} repetidos: {', '.join(duplicated)}")

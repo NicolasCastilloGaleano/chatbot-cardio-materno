@@ -5,8 +5,9 @@ Flujo de cada turno (ADR 0007 y 0008):
    se responde con el mensaje fijo, sin consultar al agente ni buscar evidencia.
 2. **Llamada de análisis (sin evidencia):** decide el hilo, resume y lista los síntomas que
    reporta la persona.
-3. **Filtro 2:** las mismas reglas revisan cada síntoma por separado. El agente solo suma
-   alarmas. Si hay urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
+3. **Filtro 2:** las mismas reglas revisan cada síntoma por separado y, por cruce exacto,
+   los códigos de signos que marcó el análisis (ADR 0012). El agente solo suma alarmas. Si hay
+   urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
 4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
    un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia y
    nunca se abre un hilo.
@@ -27,12 +28,12 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
 from cardio_materno.application.agent_turn import (
-    ANALYSIS_SCHEMA,
     AnalysisTurn,
     DraftSentence,
     ReplyTurn,
     Scope,
     ThreadAction,
+    analysis_schema,
     grounded_reply_schema,
     parse_analysis,
     parse_grounded_reply,
@@ -201,6 +202,8 @@ class ConversationService:
         self._ports = ports
         self._config = config
         self._active_thread_id: str | None = None
+        self._sign_codes = config.alarm_policy.codes
+        self._analysis_schema = analysis_schema(self._sign_codes)
 
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje del usuario y devuelve la respuesta.
@@ -240,7 +243,8 @@ class ConversationService:
             if pre is None:
                 raise
             return TurnOutcome(compose_reply([pre], None), (pre,))
-        decisions = tuple(d for d in (pre, self._post_filter(analysis, pre)) if d is not None)
+        post = self._post_filter(analysis, pre)
+        decisions = (pre, *post) if pre is not None else post
         return with_unstated_details(self._route(analysis, turn, decisions, timer), turn)
 
     def _route(
@@ -313,7 +317,8 @@ class ConversationService:
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
         context = analysis_context(self._config.analysis_prompt, current, turn)
-        return parse_analysis(self._ports.analyzer.complete_json(context, ANALYSIS_SCHEMA))
+        data = self._ports.analyzer.complete_json(context, self._analysis_schema)
+        return parse_analysis(data, self._sign_codes)
 
     def _conversational_reply(self, analysis: AnalysisTurn, turn: TurnInput) -> ReplyTurn:
         """Llamada de respuesta sin evidencia (saludos): texto simple, sin citas."""
@@ -332,18 +337,19 @@ class ConversationService:
 
     def _post_filter(
         self, analysis: AnalysisTurn, pre: AlarmDecision | None
-    ) -> AlarmDecision | None:
-        """Filtro 2: revisa cada síntoma reportado sin repetir las reglas ya detectadas.
+    ) -> tuple[AlarmDecision, ...]:
+        """Filtro 2: síntomas en texto y códigos de signos, sin repetir reglas ya detectadas.
 
         Cada síntoma se evalúa por separado: el contexto de uno ("en el embarazo") no se combina
-        con el signo de otro ("fiebre en el bebé").
+        con el signo de otro ("fiebre en el bebé"). Los códigos marcados (ADR 0012) se cruzan
+        de forma exacta con las reglas. Las dos vías solo suman alarmas.
         """
-        if not analysis.reported_symptoms:
-            return None
-        exclude = pre.rule_ids if pre is not None else ()
-        return self._config.alarm_policy.evaluate(
-            analysis.reported_symptoms, AlertOrigin.AGENT, exclude
-        )
+        policy = self._config.alarm_policy
+        exclude = set(pre.rule_ids) if pre is not None else set()
+        by_text = policy.evaluate(analysis.reported_symptoms, AlertOrigin.AGENT, exclude)
+        exclude |= set(by_text.rule_ids) if by_text is not None else set()
+        by_code = policy.evaluate_codes(analysis.reported_signs, exclude)
+        return tuple(d for d in (by_text, by_code) if d is not None)
 
     # --- Hilo y registro --------------------------------------------------------------
 
@@ -451,6 +457,7 @@ def build_trace(
     )
     return ReplyTrace(
         reported_symptoms=analysis.reported_symptoms,
+        reported_signs=analysis.reported_signs,
         evidence=evidence,
         cited_evidence=cited,
         retrieval_status=retrieval.status,
@@ -468,6 +475,7 @@ def analysis_trace(
     """Traza de un turno que no buscó evidencia (urgencia, fuera de alcance o conversacional)."""
     return ReplyTrace(
         reported_symptoms=analysis.reported_symptoms,
+        reported_signs=analysis.reported_signs,
         timings=timings,
         scope=str(scope),
         scope_reason=analysis.scope_reason,

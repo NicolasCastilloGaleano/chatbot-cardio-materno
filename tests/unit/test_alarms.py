@@ -11,12 +11,14 @@ from cardio_materno.application.alarm_policy import (
     compose_reply,
     render_system_prompt,
 )
+from cardio_materno.bootstrap.main import ANALYSIS_PROMPT_FILE
 from cardio_materno.domain.alarms import (
     AlertOrigin,
     Severity,
     detect_alarms,
     most_severe,
     normalize_text,
+    rules_for_codes,
 )
 from tests.unit.fakes import PRIORITY_MESSAGE, URGENT_MESSAGE, make_alarm_policy
 
@@ -90,7 +92,10 @@ def test_render_system_prompt_inserts_unique_sign_names() -> None:
 
     prompt = render_system_prompt(template, make_alarm_policy())
 
-    assert prompt == "Reglas.\n- Sangrado vaginal\n- Presión alta\nFin."
+    assert prompt == (
+        "Reglas.\n- SANGRADO_VAGINAL: Sangrado vaginal (ej.: me sangra)\n"
+        "- PRESION_ALTA: Presión alta\nFin."
+    )
 
 
 def test_render_system_prompt_without_rules_says_so() -> None:
@@ -102,6 +107,28 @@ def test_render_system_prompt_without_rules_says_so() -> None:
 def test_current_system_prompt_has_the_signs_placeholder() -> None:
     prompts = Path(__file__).resolve().parents[2] / "src" / "cardio_materno" / "prompts"
 
-    assert ALARM_SIGNS_PLACEHOLDER in (prompts / "analysis_prompt_v2.md").read_text(
+    assert ALARM_SIGNS_PLACEHOLDER in (prompts / ANALYSIS_PROMPT_FILE.name).read_text(
         encoding="utf-8"
     )
+
+
+def test_rules_for_codes_is_an_exact_match_in_catalog_order() -> None:
+    rules = make_alarm_policy().rules
+
+    assert [r.id for r in rules_for_codes(["PRESION_ALTA", "SANGRADO_VAGINAL"], rules)] == [
+        "T-URG",
+        "T-PRI",
+    ]
+    assert rules_for_codes(["sangrado_vaginal", "OTRO"], rules) == []
+
+
+def test_policy_evaluates_codes_with_agent_code_origin_and_exclusions() -> None:
+    policy = make_alarm_policy()
+
+    decision = policy.evaluate_codes(["SANGRADO_VAGINAL"])
+
+    assert decision is not None and decision.origin is AlertOrigin.AGENT_CODE
+    assert decision.rule_ids == ("T-URG",) and decision.message == URGENT_MESSAGE
+    assert policy.evaluate_codes(["SANGRADO_VAGINAL"], exclude={"T-URG"}) is None
+    assert policy.evaluate_codes([]) is None
+    assert policy.codes == ("SANGRADO_VAGINAL", "PRESION_ALTA")

@@ -29,6 +29,11 @@ ANALYSIS_MODEL_VARIABLE = "OLLAMA_ANALYSIS_MODEL"
 REPLY_MODEL_VARIABLE = "OLLAMA_REPLY_MODEL"
 # Límite de tokens por etapa (variable, valor por defecto). Holgado: el JSON del análisis
 # suele ocupar 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
+# Razonamiento por etapa (variable de la etapa; si está vacía, OLLAMA_THINK).
+STAGE_THINK = {
+    ANALYSIS_MODEL_VARIABLE: "OLLAMA_ANALYSIS_THINK",
+    REPLY_MODEL_VARIABLE: "OLLAMA_REPLY_THINK",
+}
 STAGE_NUM_PREDICT = {
     ANALYSIS_MODEL_VARIABLE: ("OLLAMA_ANALYSIS_NUM_PREDICT", "600"),
     REPLY_MODEL_VARIABLE: ("OLLAMA_REPLY_NUM_PREDICT", "500"),
@@ -111,7 +116,8 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     """Configuración de Ollama para una etapa (análisis o respuesta).
 
     Si la variable de modelo de la etapa está vacía, se usa OLLAMA_MODEL. El límite de tokens
-    sale de OLLAMA_ANALYSIS_NUM_PREDICT u OLLAMA_REPLY_NUM_PREDICT ("auto" = sin límite).
+    sale de OLLAMA_ANALYSIS_NUM_PREDICT u OLLAMA_REPLY_NUM_PREDICT ("auto" = sin límite), y el
+    razonamiento de OLLAMA_ANALYSIS_THINK u OLLAMA_REPLY_THINK (si están vacías, OLLAMA_THINK).
 
     Args:
         env: Variables de entorno.
@@ -123,7 +129,13 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     base = load_ollama_settings(env)
     predict_variable, predict_default = STAGE_NUM_PREDICT.get(model_variable, ("", AUTO_VALUE))
     num_predict = _get_int_or_auto(env, predict_variable, predict_default)
-    return replace(base, model=_get(env, model_variable, base.model), num_predict=num_predict)
+    stage_think = _get_optional_bool(env, STAGE_THINK.get(model_variable, ""))
+    return replace(
+        base,
+        model=_get(env, model_variable, base.model),
+        num_predict=num_predict,
+        think=base.think if stage_think is None else stage_think,
+    )
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:
@@ -216,5 +228,5 @@ def _get_int_or_auto(env: Mapping[str, str], name: str, default: str) -> int | N
 
 def _get_optional_bool(env: Mapping[str, str], name: str) -> bool | None:
     """Lee una variable booleana opcional (None si está vacía)."""
-    raw = env.get(name, "").strip()
+    raw = env.get(name, "").strip() if name else ""
     return raw.lower() in TRUE_VALUES if raw else None

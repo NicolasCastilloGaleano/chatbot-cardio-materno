@@ -1,10 +1,12 @@
 """Pruebas de ConversationService: hilos, alarmas, dos llamadas y evidencia (HU-06/03/04/02)."""
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
@@ -27,6 +29,7 @@ from tests.unit.fakes import (
     make_alarm_policy,
     make_service,
     scoped,
+    signing,
     thread_of,
 )
 
@@ -225,6 +228,41 @@ def test_each_reported_symptom_is_checked_on_its_own() -> None:
     result = make_service(agent, config={"alarm_policy": policy}).send("mi bebé tiene fiebre")
 
     assert result.alerts == () and result.reply == "r"
+
+
+def test_sign_code_marked_by_analysis_triggers_the_rule_without_rag_or_reply() -> None:
+    agent = ScriptedAgent(signing(agent_json(), "SANGRADO_VAGINAL"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, config=ALARMS, retriever=retriever).send(
+        "me está saliendo como agüita rosada"
+    )
+
+    assert result.reply == URGENT_MESSAGE
+    assert [(a.rule_ids, a.origin) for a in result.alerts] == [(("T-URG",), AlertOrigin.AGENT_CODE)]
+    assert retriever.queries == [] and agent.responder.calls == []
+    schema = agent.analyzer.schemas[0]["properties"]["reported_signs"]
+    assert schema["items"]["enum"] == ["SANGRADO_VAGINAL", "PRESION_ALTA"]
+
+
+def test_rule_found_by_text_and_code_is_recorded_once() -> None:
+    agent = ScriptedAgent(
+        signing(agent_json("r", reported_symptoms=["presion alta"]), "PRESION_ALTA")
+    )
+
+    result = make_service(agent, config=ALARMS).send("mi papá anda con la tensión subida")
+
+    assert [(a.rule_ids, a.origin) for a in result.alerts] == [(("T-PRI",), AlertOrigin.AGENT)]
+
+
+def test_unknown_sign_code_is_a_model_error_and_saves_nothing() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(signing(agent_json(), "INVENTADO"))
+
+    with pytest.raises(LanguageModelError, match="INVENTADO"):
+        make_service(agent, repo, ALARMS).send("x")
+
+    assert repo.threads == {}
 
 
 def test_priority_user_message_shows_fixed_notice_then_agent_reply() -> None:
@@ -638,3 +676,17 @@ def test_greeting_never_opens_a_thread_nor_changes_the_active_one() -> None:
         "presión",
     )
     assert [m.content for m in repo.messages["hilo-1"]][-2:] == ["hola", "¡Hola!"]
+
+
+def test_real_catalog_code_catches_a_phrase_that_no_pattern_covers() -> None:
+    policy = load_alarm_policy(Path(__file__).resolve().parents[2] / "knowledge/alarm_rules.json")
+    phrase = "el niño no retiene ni el suero"
+    agent = ScriptedAgent(signing(agent_json(), "VOMITA_TODO"))
+
+    assert policy.evaluate([phrase], AlertOrigin.USER) is None  # el filtro 1 no la capta
+    result = make_service(agent, config={"alarm_policy": policy}).send(phrase)
+
+    assert [(a.rule_ids, a.origin) for a in result.alerts] == [
+        (("RN-MI-10",), AlertOrigin.AGENT_CODE)
+    ]
+    assert result.reply == policy.evaluate_codes(["VOMITA_TODO"]).message  # type: ignore[union-attr]

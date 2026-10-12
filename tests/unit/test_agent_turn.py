@@ -10,6 +10,7 @@ from cardio_materno.application.agent_turn import (
     DraftSentence,
     Scope,
     ThreadAction,
+    analysis_schema,
     grounded_reply_schema,
     parse_analysis,
     parse_grounded_reply,
@@ -84,10 +85,30 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
         "domain",
         "summary",
         "reported_symptoms",
+        "reported_signs",
         "search_query",
         "scope",
         "scope_reason",
     }
+    assert properties["reported_signs"]["maxItems"] == 0
+
+
+def test_analysis_schema_restricts_signs_to_catalog_codes() -> None:
+    schema = analysis_schema(["VOMITA_TODO", "SIGNOS_ACV"])
+
+    assert schema["properties"]["reported_signs"]["items"]["enum"] == ["VOMITA_TODO", "SIGNOS_ACV"]
+
+
+def test_reported_signs_are_parsed_without_duplicates_and_may_be_missing() -> None:
+    data = analysis_json(reported_signs=["VOMITA_TODO", "VOMITA_TODO"])
+
+    assert parse_analysis(data, {"VOMITA_TODO"}).reported_signs == ("VOMITA_TODO",)
+    assert parse_analysis(analysis_json()).reported_signs == ()
+
+
+def test_unknown_sign_code_raises_error() -> None:
+    with pytest.raises(LanguageModelError, match="INVENTADO"):
+        parse_analysis(analysis_json(reported_signs=["INVENTADO"]), {"VOMITA_TODO"})
 
 
 def test_placeholders_are_removed_from_summary_and_search_query_but_not_symptoms() -> None:

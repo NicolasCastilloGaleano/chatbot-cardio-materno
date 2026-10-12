@@ -26,9 +26,11 @@ def effective_scope(analysis: AnalysisTurn) -> Scope:
         analysis: Resultado de la llamada de análisis.
 
     Returns:
-        `en_alcance` si hay síntomas reportados y el dominio no es "ninguno"; si no, el
-        alcance que decidió el análisis.
+        `en_alcance` si hay signos del catálogo marcados, o síntomas reportados con un dominio
+        distinto de "ninguno"; si no, el alcance que decidió el análisis.
     """
+    if analysis.reported_signs:
+        return Scope.IN_SCOPE
     if analysis.reported_symptoms and analysis.domain is not Domain.NONE:
         return Scope.IN_SCOPE
     return analysis.scope
