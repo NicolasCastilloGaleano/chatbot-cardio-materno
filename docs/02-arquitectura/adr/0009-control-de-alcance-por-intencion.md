@@ -33,3 +33,11 @@ El criterio del usuario: se descarta un mensaje **solo si todo el mensaje** es a
 - ✅ El asistente se mantiene en su propósito sin descartar consultas reales. Además, los mensajes fuera de alcance y los saludos son más rápidos, porque no buscan evidencia y, en el primer caso, tampoco hacen la llamada de respuesta.
 - ⚠️ La clasificación depende del LLM (riesgo R-11), mitigada con "ante la duda, en alcance", la salvaguarda de síntomas, las alarmas primero y el `scope_reason` para auditar.
 - ⚠️ Los mensajes fuera de alcance no quedan registrados. Si se necesitan métricas de uso indebido, se agregará un contador anónimo en el futuro.
+
+## Actualización 2026-10-17: los síntomas de origen incierto no se descartan
+- **Motivo:** "tengo un dolor muy fuerte en el brazo por que me asustó una gallina" se descartaba como fuera de alcance. Un dolor de brazo (sobre todo el izquierdo) puede ser cardíaco aunque la persona lo atribuya a otra causa.
+- **Decisión** (Nicolas Castillo Galeano):
+  - el prompt de análisis v6 marca "en_alcance" todo mensaje que reporte un síntoma o malestar cuya relación con nuestros dominios no se pueda descartar;
+  - "fuera_de_alcance" queda **solo** para mensajes ajenos **sin síntomas** (fútbol, tareas, política);
+  - **regla determinista** (`application/scope.py`): basta con que haya `reported_symptoms` para quedar en alcance, aunque el dominio sea "ninguno". Antes, además, se exigía un dominio distinto de "ninguno".
+- **Consecuencia:** algunos síntomas que quizás no son de nuestros dominios, como un dolor de muela, ahora pasan a la búsqueda de evidencia. Si no hay evidencia suficiente, reciben la abstención fija (ADR 0010), no un descarte. Que el asistente **pregunte** para aclarar el origen del síntoma, en lugar de abstenerse, es el siguiente paso previsto.
