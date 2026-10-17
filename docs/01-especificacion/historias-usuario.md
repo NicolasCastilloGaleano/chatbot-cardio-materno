@@ -416,4 +416,4 @@ Escenario: Los canales actuales no cambian
   Cuando uso la consola o la interfaz web local
   Entonces funcionan igual que antes, con su repositorio JSON
 ```
-Estado: 🔄 Aprobada (2026-10-17); en implementación. Fase 2 (persistencia SQLite por usuario) hecha y probada automáticamente; falta la fase 3 (webhook, cola y envío)
+Estado: 🔄 Aprobada (2026-10-17); en implementación. Fases 2 (persistencia SQLite por usuario) y 3 (webhook, cola y envío) implementadas y probadas automáticamente; falta la prueba real con Meta y ngrok en el PC de pruebas

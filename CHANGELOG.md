@@ -8,10 +8,21 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ### Added
 - **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
 - **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
+- **Canal WhatsApp (HU-09, fase 3, ADR 0014):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`).
+  - Webhook FastAPI con verificación de Meta, firma `X-Hub-Signature-256` obligatoria, 200 inmediato y `/health`.
+  - Cola de un trabajador (`MessageDispatcher`) que procesa en orden de llegada.
+  - Caso de uso `HandleIncomingMessage`: usuario por HMAC del número, deduplicación, acuse de lectura con "escribiendo…", cierre del hilo inactivo, servicio acotado al usuario, aviso de espera, respuestas largas en varias partes y registro sin texto.
+  - Envío con `WhatsAppCloudSender` (Graph API, biblioteca estándar).
+  - Nuevos `IncomingMessage`, el puerto `MessageSender`/`DelayedActions` y `ChannelDeliveryError`.
+  - Sin dependencias nuevas.
+- Variables `.env` (secciones 9 y 10): `WHATSAPP_APP_SECRET`, `WHATSAPP_API_VERSION`, `WHATSAPP_HOST`, `WHATSAPP_PORT`, `WHATSAPP_SEND_TIMEOUT_SECONDS`, `WHATSAPP_WAIT_NOTICE_SECONDS`, `WHATSAPP_MAX_PENDING`, `USER_ID_HASH_SECRET`, `DATABASE_PATH`, `THREAD_IDLE_TIMEOUT_HOURS`. El servidor solo escucha en loopback; ngrok publica la URL.
+- Guía paso a paso de Meta Developers, ngrok y el webhook en `instalacion.md`.
 - `ConversationService` acepta `active_thread_id` (opcional) para retomar el hilo abierto de un usuario; sin él, se comporta exactamente igual que antes.
 - Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
 
 ### Changed
+- `bootstrap/main.py`: `build_conversation` arma los puertos y la configuración del agente; `build_service` la usa y la consola y la web no cambian. `load_web_settings` reutiliza la validación de host local y puerto.
+- `.env.example`: la sección "Canales y persistencia (fases siguientes)" se reemplaza por "Canal WhatsApp" y "Persistencia por usuario"; `DATABASE_URL` pasa a ser `DATABASE_PATH`.
 - **Prompt de análisis v6:** un mensaje que reporta un síntoma o malestar de origen incierto siempre está en alcance (caso real: "dolor muy fuerte en el brazo por que me asustó una gallina"); "fuera_de_alcance" queda solo para mensajes ajenos sin síntomas. La regla determinista de alcance ya no exige un dominio para respetar los síntomas reportados (ADR 0009, actualización). Casos nuevos en `tests/live/scope_cases.json`.
 
 ### Fixed

@@ -49,6 +49,23 @@ DEFAULT_WEB_PORT = "8000"
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 MIN_PORT = 1
 MAX_PORT = 65535
+# Canal WhatsApp (ADR 0014) y base SQLite por usuario (ADR 0015).
+DEFAULT_WHATSAPP_HOST = "127.0.0.1"
+DEFAULT_WHATSAPP_PORT = "8001"
+DEFAULT_WHATSAPP_API_VERSION = "v23.0"
+DEFAULT_WHATSAPP_SEND_TIMEOUT_SECONDS = "15"
+DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS = "10"
+DEFAULT_WHATSAPP_MAX_PENDING = "100"
+DEFAULT_THREAD_IDLE_TIMEOUT_HOURS = "12"
+DEFAULT_DATABASE_PATH = "data/cardio_materno.db"
+DEFAULT_LOG_LEVEL = "INFO"
+WHATSAPP_REQUIRED = (
+    "WHATSAPP_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_VERIFY_TOKEN",
+    "WHATSAPP_APP_SECRET",
+    "USER_ID_HASH_SECRET",
+)
 
 
 class ConfigurationError(Exception):
@@ -215,14 +232,97 @@ def load_web_settings(env: Mapping[str, str]) -> WebSettings:
         ConfigurationError: Si el host no es local (la interfaz no se expone en la red) o el
             puerto no es válido.
     """
-    host = _get(env, "WEB_HOST", DEFAULT_WEB_HOST)
+    return WebSettings(
+        _get_loopback_host(env, "WEB_HOST", DEFAULT_WEB_HOST),
+        _get_port(env, "WEB_PORT", DEFAULT_WEB_PORT),
+    )
+
+
+@dataclass(frozen=True)
+class WhatsAppSettings:
+    """Configuración del canal WhatsApp (ADR 0014) y de su base SQLite (ADR 0015).
+
+    Attributes:
+        token: Token de acceso de Meta.
+        phone_number_id: Identificador del número emisor.
+        verify_token: Token que se registra en Meta al configurar el webhook.
+        app_secret: App Secret de Meta, para verificar las firmas.
+        user_hash_secret: Secreto del HMAC que seudonimiza las identidades.
+        api_version: Versión de la Graph API.
+        host: Dirección de escucha (solo loopback; ngrok publica la URL).
+        port: Puerto del webhook.
+        send_timeout_seconds: Tiempo máximo de cada envío a Meta.
+        wait_notice_seconds: Espera antes del aviso de "estoy revisando".
+        idle_timeout_hours: Inactividad que cierra el hilo abierto.
+        max_pending: Mensajes en cola antes de pedir a Meta que reintente.
+        database_path: Archivo SQLite.
+        log_level: Nivel de los registros del proceso.
+    """
+
+    token: str
+    phone_number_id: str
+    verify_token: str
+    app_secret: str
+    user_hash_secret: str
+    api_version: str
+    host: str
+    port: int
+    send_timeout_seconds: float
+    wait_notice_seconds: float
+    idle_timeout_hours: float
+    max_pending: int
+    database_path: Path
+    log_level: str
+
+
+def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsAppSettings:
+    """Lee la configuración del canal WhatsApp.
+
+    Raises:
+        ConfigurationError: Si falta un secreto, el host no es local o un número no es válido.
+    """
+    missing = [name for name in WHATSAPP_REQUIRED if not env.get(name, "").strip()]
+    if missing:
+        raise ConfigurationError(f"Faltan variables en .env: {', '.join(missing)}.")
+    return WhatsAppSettings(
+        token=_get(env, "WHATSAPP_TOKEN", ""),
+        phone_number_id=_get(env, "WHATSAPP_PHONE_NUMBER_ID", ""),
+        verify_token=_get(env, "WHATSAPP_VERIFY_TOKEN", ""),
+        app_secret=_get(env, "WHATSAPP_APP_SECRET", ""),
+        user_hash_secret=_get(env, "USER_ID_HASH_SECRET", ""),
+        api_version=_get(env, "WHATSAPP_API_VERSION", DEFAULT_WHATSAPP_API_VERSION),
+        host=_get_loopback_host(env, "WHATSAPP_HOST", DEFAULT_WHATSAPP_HOST),
+        port=_get_port(env, "WHATSAPP_PORT", DEFAULT_WHATSAPP_PORT),
+        send_timeout_seconds=_get_float(
+            env, "WHATSAPP_SEND_TIMEOUT_SECONDS", DEFAULT_WHATSAPP_SEND_TIMEOUT_SECONDS
+        ),
+        wait_notice_seconds=_get_float(
+            env, "WHATSAPP_WAIT_NOTICE_SECONDS", DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS
+        ),
+        idle_timeout_hours=_get_float(
+            env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
+        ),
+        max_pending=_get_int(env, "WHATSAPP_MAX_PENDING", DEFAULT_WHATSAPP_MAX_PENDING),
+        database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
+        log_level=_get(env, "LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
+    )
+
+
+def _get_loopback_host(env: Mapping[str, str], name: str, default: str) -> str:
+    """Lee una dirección de escucha que solo puede ser la propia máquina."""
+    host = _get(env, name, default)
     if host not in LOOPBACK_HOSTS:
         allowed = ", ".join(sorted(LOOPBACK_HOSTS))
-        raise ConfigurationError(f"WEB_HOST debe ser local ({allowed}), se recibió '{host}'.")
-    port = _get_int(env, "WEB_PORT", DEFAULT_WEB_PORT)
+        raise ConfigurationError(f"{name} debe ser local ({allowed}), se recibió '{host}'.")
+    return host
+
+
+def _get_port(env: Mapping[str, str], name: str, default: str) -> int:
+    """Lee un puerto TCP válido."""
+    port = _get_int(env, name, default)
     if not MIN_PORT <= port <= MAX_PORT:
-        raise ConfigurationError(f"WEB_PORT debe estar entre 1 y 65535, se recibió '{port}'.")
-    return WebSettings(host, port)
+        raise ConfigurationError(f"{name} debe estar entre 1 y 65535, se recibió '{port}'.")
+    return port
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:

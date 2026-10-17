@@ -98,3 +98,11 @@ class ChannelLog(Protocol):
     def record_outbound(self, record: OutboundRecord) -> None:
         """Registra un mensaje enviado."""
         ...
+
+    def fail_unfinished(self, error_code: str) -> int:
+        """Marca como fallidos los mensajes que quedaron sin terminar (p. ej., tras un reinicio).
+
+        Returns:
+            Cuántos mensajes se marcaron.
+        """
+        ...

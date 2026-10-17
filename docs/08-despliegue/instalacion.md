@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-12 (HU-08: interfaz local)*
+*Última actualización: 2026-10-17 (HU-09: canal WhatsApp)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -48,6 +48,52 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 ### Interfaz local de chat y auditoría (HU-08)
 Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
 
+### Canal WhatsApp (HU-09, ADR 0014 y 0015)
+El canal corre en el PC de pruebas (donde está Ollama). Meta envía cada mensaje a una URL pública HTTPS (el **webhook**); **ngrok** la publica y la reenvía al servidor local `run_whatsapp.py`, que escucha solo en `127.0.0.1:8001`. Cada persona tiene su usuario (identificado por un hash del número, nunca el número) y sus hilos en `data/cardio_materno.db`.
+
+```
+Teléfono ─► Meta (WhatsApp Cloud API) ─► https://<dominio>.ngrok-free.app/webhooks/whatsapp
+            ▲                                   │ ngrok
+            └──── respuesta (Graph API) ◄──── run_whatsapp.py (127.0.0.1:8001) ─► cola ─► agente
+```
+
+**1. Datos de la app en Meta** (developers.facebook.com → tu app → *WhatsApp → API Setup / Configuración de la API*)
+1. Copia el **Phone number ID** (el identificador del número de prueba, no el número) a `WHATSAPP_PHONE_NUMBER_ID`.
+2. Genera el **token de acceso temporal** (dura 24 h) y cópialo a `WHATSAPP_TOKEN`.
+3. En **To / Para**, agrega y verifica con el código que llega por WhatsApp cada número del equipo que va a probar (máximo 5). El número de prueba solo conversa con esos números.
+4. Opcional: "Send message" envía la plantilla `hello_world` a tu número; si llega, el token y el ID están bien.
+5. En *App settings → Basic / Configuración de la app → Básica*, muestra el **App Secret** y cópialo a `WHATSAPP_APP_SECRET`.
+6. Inventa dos cadenas largas y aleatorias (p. ej., `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`): una para `WHATSAPP_VERIFY_TOKEN` y otra para `USER_ID_HASH_SECRET`. Guarda una copia de `USER_ID_HASH_SECRET`: si se pierde, las personas quedan desligadas de su historial.
+7. Revisa la versión de la Graph API que muestran los ejemplos del panel (p. ej., `v23.0`) y ponla en `WHATSAPP_API_VERSION`.
+
+**2. ngrok** (una sola vez)
+1. Crea una cuenta gratuita en ngrok.com e instala ngrok (`sudo snap install ngrok` o el paquete de su página).
+2. `ngrok config add-authtoken <tu-token>` (el token está en el panel de ngrok).
+3. En *Domains*, reclama tu **dominio estático gratuito** (p. ej., `algo.ngrok-free.app`). Así la URL no cambia entre arranques y no hay que reconfigurar Meta.
+
+**3. Arrancar** (dos terminales, en este orden)
+```bash
+.venv/bin/python run_whatsapp.py                      # terminal 1: modelos, RAG, base y webhook
+ngrok http --url=algo.ngrok-free.app 8001            # terminal 2: URL pública
+```
+Comprueba `https://algo.ngrok-free.app/health` en el navegador: debe responder `{"status":"ok"}`.
+
+**4. Webhook en Meta** (*WhatsApp → Configuration / Configuración*), con los dos procesos corriendo
+1. **Callback URL:** `https://algo.ngrok-free.app/webhooks/whatsapp`.
+2. **Verify token:** el mismo valor de `WHATSAPP_VERIFY_TOKEN`.
+3. "Verify and save": Meta hace un GET con `hub.challenge` y nuestro servidor lo devuelve si el token coincide. En la terminal de ngrok aparece `GET /webhooks/whatsapp 200`.
+4. En **Webhook fields**, pulsa *Manage* y suscríbete a **`messages`**. Sin esto Meta no envía nada.
+
+**5. Probar**: desde un teléfono verificado escribe "hola" al número de prueba. Verás el mensaje como leído, "escribiendo…", el aviso de espera si tarda más de 10 s y luego la respuesta. El inspector de ngrok (`http://127.0.0.1:4040`) muestra cada notificación; con *Replay* puedes reenviarla y comprobar que no se responde dos veces.
+
+**Token permanente** (cuando el flujo funcione; el temporal vence en 24 h): en business.facebook.com → *Configuración del negocio → Usuarios del sistema*, crea un usuario del sistema (admin), asígnale la app y la cuenta de WhatsApp Business, y genera un token sin vencimiento con los permisos `whatsapp_business_messaging` y `whatsapp_business_management`. Reemplaza `WHATSAPP_TOKEN` y reinicia `run_whatsapp.py`.
+
+**Revisar la base** (`sudo apt install sqlite3`):
+```bash
+sqlite3 data/cardio_materno.db "SELECT id, last_seen_at FROM users;"
+sqlite3 data/cardio_materno.db "SELECT user_id, status, domain, summary FROM threads ORDER BY updated_at DESC;"
+sqlite3 data/cardio_materno.db "SELECT channel_message_id, kind, status, error_code FROM inbound_events;"
+```
 ### Líneas de depuración (con `SHOW_THREAD_DEBUG=true`)
 | Línea | Qué muestra |
 |---|---|
@@ -109,7 +155,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 **1. General y servidor de Ollama**
 | Variable | Por defecto | Para qué |
 |---|---|---|
-| `APP_ENV` / `LOG_LEVEL` / `CHANNEL` | `development` / `INFO` / `console` | Entorno, nivel de registro y canal |
+| `APP_ENV` / `LOG_LEVEL` / `CHANNEL` | `development` / `INFO` / `console` | Entorno, nivel de registro (lo usa `run_whatsapp.py`) y canal |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
 | `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
 
@@ -157,6 +203,21 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
 | `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
 
+**7. Canal WhatsApp y persistencia por usuario (ADR 0014 y 0015)**
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `WHATSAPP_TOKEN` | (obligatoria) | Token de acceso de Meta (temporal de 24 h o permanente de un usuario del sistema) |
+| `WHATSAPP_PHONE_NUMBER_ID` | (obligatoria) | Identificador del número emisor |
+| `WHATSAPP_VERIFY_TOKEN` | (obligatoria) | Cadena inventada que se registra en Meta para verificar el webhook |
+| `WHATSAPP_APP_SECRET` | (obligatoria) | App Secret: verifica la firma `X-Hub-Signature-256` de cada notificación |
+| `USER_ID_HASH_SECRET` | (obligatoria) | Secreto del HMAC que seudonimiza los números; respaldarlo |
+| `WHATSAPP_API_VERSION` | `v23.0` | Versión de la Graph API |
+| `WHATSAPP_HOST` / `WHATSAPP_PORT` | `127.0.0.1` / `8001` | Escucha del webhook; solo loopback (ngrok publica la URL) |
+| `WHATSAPP_SEND_TIMEOUT_SECONDS` | `15` | Espera máxima de cada envío a Meta |
+| `WHATSAPP_WAIT_NOTICE_SECONDS` | `10` | Segundos antes del aviso "Estoy revisando tu mensaje" |
+| `WHATSAPP_MAX_PENDING` | `100` | Mensajes en cola antes de pedir a Meta que reintente (503) |
+| `DATABASE_PATH` | `data/cardio_materno.db` | Base SQLite de usuarios, hilos y eventos (no se versiona) |
+| `THREAD_IDLE_TIMEOUT_HOURS` | `12` | Horas sin actividad tras las cuales se cierra el hilo abierto |
 Al arrancar, la consola muestra el modelo de cada etapa y el umbral efectivo del RAG (`… · umbral 0.50`).
 
 ### Problemas frecuentes
@@ -168,6 +229,11 @@ Al arrancar, la consola muestra el modelo de cada etapa y el umbral efectivo del
 | "⚠️ RAG no disponible: … Índice … ausente" | `.venv/bin/python run_build_kb_index.py` |
 | "… se construyó con '…' y OLLAMA_EMBED_MODEL es '…'" / "La base … cambió" | Reconstruye el índice |
 | `error: externally-managed-environment` al usar pip | Usa el entorno virtual: `.venv/bin/pip …` |
+| "Faltan variables en .env: WHATSAPP_…" | Completa la sección 9 de `.env` (ver "Canal WhatsApp") |
+| Meta no verifica el webhook ("The callback URL or verify token couldn't be validated") | `run_whatsapp.py` y ngrok deben estar corriendo; la URL termina en `/webhooks/whatsapp`; el token es idéntico a `WHATSAPP_VERIFY_TOKEN` |
+| Llega el mensaje (POST 200 en ngrok) pero no hay respuesta | Mira la terminal 1: `131030 … allowed list` = el número no está verificado en "To"; `190 … expired` = token vencido; `100 … Invalid parameter` = revisa `WHATSAPP_PHONE_NUMBER_ID` |
+| POST con 401 en ngrok | `WHATSAPP_APP_SECRET` no coincide con el App Secret de la app |
+| No llega ningún POST | Falta suscribirse al campo `messages` en Webhook fields |
 
 ## B. Desarrollo (Windows o Linux; no requiere Ollama)
 ```bash

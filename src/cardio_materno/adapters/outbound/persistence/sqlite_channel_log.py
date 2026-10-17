@@ -61,6 +61,16 @@ class SqliteChannelLog:
             if cursor.rowcount == 0:
                 raise KeyError(f"No está registrado el mensaje {channel_message_id!r}")
 
+    def fail_unfinished(self, error_code: str) -> int:
+        """Marca como fallidos los mensajes recibidos o en proceso; devuelve cuántos."""
+        unfinished = (str(InboundStatus.RECEIVED), str(InboundStatus.PROCESSING))
+        with self._db.transaction() as connection:
+            cursor = connection.execute(
+                "UPDATE inbound_events SET status = ?, error_code = ? WHERE status IN (?, ?)",
+                (str(InboundStatus.FAILED), error_code, *unfinished),
+            )
+            return cursor.rowcount
+
     def record_outbound(self, record: OutboundRecord) -> None:
         """Registra un mensaje enviado."""
         with self._db.transaction() as connection:

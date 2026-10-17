@@ -18,6 +18,7 @@ from cardio_materno.bootstrap.settings import (
     load_rag_settings,
     load_stage_settings,
     load_web_settings,
+    load_whatsapp_settings,
 )
 
 
@@ -241,3 +242,34 @@ def test_web_settings_reject_network_hosts_and_invalid_ports(
 ) -> None:
     with pytest.raises(ConfigurationError, match=name):
         load_web_settings(env)
+
+
+WHATSAPP_ENV = {
+    "WHATSAPP_TOKEN": "t",
+    "WHATSAPP_PHONE_NUMBER_ID": "123",
+    "WHATSAPP_VERIFY_TOKEN": "v",
+    "WHATSAPP_APP_SECRET": "s",
+    "USER_ID_HASH_SECRET": "h",
+}
+
+
+def test_whatsapp_settings_defaults(tmp_path: Path) -> None:
+    settings = load_whatsapp_settings(WHATSAPP_ENV, tmp_path)
+
+    assert (settings.host, settings.port) == ("127.0.0.1", 8001)
+    assert settings.api_version == "v23.0"
+    assert settings.wait_notice_seconds == 10.0
+    assert settings.idle_timeout_hours == 12.0
+    assert settings.database_path == tmp_path / "data" / "cardio_materno.db"
+
+
+def test_whatsapp_settings_require_every_secret(tmp_path: Path) -> None:
+    env = WHATSAPP_ENV | {"WHATSAPP_APP_SECRET": " ", "USER_ID_HASH_SECRET": ""}
+
+    with pytest.raises(ConfigurationError, match="WHATSAPP_APP_SECRET, USER_ID_HASH_SECRET"):
+        load_whatsapp_settings(env, tmp_path)
+
+
+def test_whatsapp_server_only_listens_on_loopback(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="WHATSAPP_HOST"):
+        load_whatsapp_settings(WHATSAPP_ENV | {"WHATSAPP_HOST": "0.0.0.0"}, tmp_path)
