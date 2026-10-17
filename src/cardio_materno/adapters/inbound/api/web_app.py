@@ -1,4 +1,4 @@
-"""AplicaciÃ³n web local para conversar y auditar las trazas del agente."""
+"""Aplicación web local para conversar y auditar las trazas del agente."""
 
 from pathlib import Path
 from typing import Any
@@ -13,11 +13,12 @@ from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread
 from cardio_materno.domain.knowledge import KnowledgeEntry
-from cardio_materno.domain.trace import ReplyTrace
+from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace
 
 STATIC_DIR = Path(__file__).with_name("static")
-APP_TITLE = "Chat cardio-materno: demostraciÃ³n y auditorÃ­a"
+APP_TITLE = "Chat cardio-materno: demostración y auditoría"
 ERROR_MODEL_MESSAGE = "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
+MISSING_ENTRY_TEXT = "Registro no disponible"
 
 
 class SendMessageRequest(BaseModel):
@@ -31,15 +32,15 @@ def create_app(
     repository: ThreadRepository,
     entries: list[KnowledgeEntry],
 ) -> FastAPI:
-    """Construye la aplicaciÃ³n HTTP con sus dependencias inyectadas.
+    """Construye la aplicación HTTP con sus dependencias inyectadas.
 
     Args:
-        service: Caso de uso conversacional de una sesiÃ³n.
+        service: Caso de uso conversacional de una sesión.
         repository: Repositorio de solo lectura para consultar el historial.
-        entries: Registros de conocimiento usados para ampliar la evidencia de auditorÃ­a.
+        entries: Registros de conocimiento usados para ampliar la evidencia de auditoría.
 
     Returns:
-        AplicaciÃ³n FastAPI lista para servir en loopback.
+        Aplicación FastAPI lista para servir en loopback.
     """
     app = FastAPI(title=APP_TITLE, docs_url=None, redoc_url=None)
     entry_index = {entry.id: entry for entry in entries}
@@ -50,7 +51,8 @@ def create_app(
 
 
 def _add_page_routes(app: FastAPI) -> None:
-    """Registra la pÃ¡gina y los archivos estÃ¡ticos locales."""
+    """Registra la página y los archivos estáticos locales."""
+
     @app.get("/", include_in_schema=False)
     def home() -> FileResponse:
         """Entrega el cliente web."""
@@ -58,7 +60,7 @@ def _add_page_routes(app: FastAPI) -> None:
 
     @app.get("/static/{asset_name}", include_in_schema=False)
     def static_asset(asset_name: str) -> FileResponse:
-        """Entrega archivos estÃ¡ticos limitados al directorio de la interfaz."""
+        """Entrega archivos estáticos limitados al directorio de la interfaz."""
         asset = (STATIC_DIR / asset_name).resolve()
         if asset.parent != STATIC_DIR.resolve() or not asset.is_file():
             raise HTTPException(status_code=404, detail="Recurso no encontrado")
@@ -68,13 +70,14 @@ def _add_page_routes(app: FastAPI) -> None:
 def _add_message_routes(
     app: FastAPI, service: ConversationService, entries: dict[str, KnowledgeEntry]
 ) -> None:
-    """Registra los endpoints para enviar mensajes y cerrar la sesiÃ³n activa."""
+    """Registra los endpoints para enviar mensajes y cerrar la sesión activa."""
+
     @app.post("/api/messages")
     def send_message(request: SendMessageRequest) -> dict[str, Any]:
-        """Procesa un mensaje y devuelve respuesta y datos de auditorÃ­a."""
+        """Procesa un mensaje y devuelve respuesta y datos de auditoría."""
         text = request.text.strip()
         if not text:
-            raise HTTPException(status_code=422, detail="El mensaje no puede estar vacÃ­o")
+            raise HTTPException(status_code=422, detail="El mensaje no puede estar vacío")
         try:
             result = service.send(text)
         except LanguageModelError as error:
@@ -83,7 +86,7 @@ def _add_message_routes(
 
     @app.post("/api/session/end")
     def end_session() -> dict[str, str]:
-        """Cierra el hilo activo antes de iniciar una sesiÃ³n nueva desde la interfaz."""
+        """Cierra el hilo activo antes de iniciar una sesión nueva desde la interfaz."""
         service.end_session()
         return {"status": "cerrada"}
 
@@ -92,6 +95,7 @@ def _add_history_routes(
     app: FastAPI, repository: ThreadRepository, entries: dict[str, KnowledgeEntry]
 ) -> None:
     """Registra endpoints de consulta de hilos persistidos."""
+
     @app.get("/api/threads")
     def list_threads() -> list[dict[str, Any]]:
         """Lista hilos guardados para su consulta de solo lectura."""
@@ -104,15 +108,12 @@ def _add_history_routes(
         if thread is None:
             raise HTTPException(status_code=404, detail="Hilo no encontrado")
         messages = [
-            message_to_dict(message, entries)
-            for message in repository.all_messages(thread_id)
+            message_to_dict(message, entries) for message in repository.all_messages(thread_id)
         ]
         return {"thread": thread_to_dict(thread), "messages": messages}
 
 
-def turn_to_dict(
-    result: TurnResult, entries: dict[str, KnowledgeEntry]
-) -> dict[str, Any]:
+def turn_to_dict(result: TurnResult, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
     """Convierte el turno y las alertas al contrato HTTP del cliente.
 
     Args:
@@ -136,7 +137,7 @@ def thread_to_dict(thread: ConversationThread) -> dict[str, str]:
     """Serializa los datos visibles de un hilo.
 
     Args:
-        thread: Hilo que se expondrÃ¡ a la interfaz.
+        thread: Hilo que se expondrá a la interfaz.
 
     Returns:
         Identificador, resumen, dominio, estado y fechas en formato JSON.
@@ -151,9 +152,7 @@ def thread_to_dict(thread: ConversationThread) -> dict[str, str]:
     }
 
 
-def message_to_dict(
-    message: ChatMessage, entries: dict[str, KnowledgeEntry]
-) -> dict[str, Any]:
+def message_to_dict(message: ChatMessage, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
     """Serializa un mensaje y su traza, si existe.
 
     Args:
@@ -171,9 +170,7 @@ def message_to_dict(
     }
 
 
-def trace_to_dict(
-    trace: ReplyTrace, entries: dict[str, KnowledgeEntry]
-) -> dict[str, Any]:
+def trace_to_dict(trace: ReplyTrace, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
     """Serializa la traza y resuelve la evidencia recuperada.
 
     Args:
@@ -181,22 +178,8 @@ def trace_to_dict(
         entries: Registros de conocimiento indexados por identificador.
 
     Returns:
-        Datos de auditorÃ­a con evidencia, citas, verificaciÃ³n y tiempos.
+        Datos de auditoría con evidencia, citas, verificación y tiempos.
     """
-    evidence = []
-    for ref in trace.evidence:
-        entry = entries.get(ref.entry_id)
-        evidence.append(
-            {
-                "label": ref.label,
-                "entry_id": ref.entry_id,
-                "score": ref.score,
-                "category": ref.category,
-                "question": entry.question if entry else "Registro no disponible",
-                "answer": entry.answer if entry else "",
-            }
-        )
-    grounding = trace.grounding
     return {
         "reported_symptoms": list(trace.reported_symptoms),
         "reported_signs": list(trace.reported_signs),
@@ -206,20 +189,49 @@ def trace_to_dict(
         "scope_reason": trace.scope_reason,
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
         "best_score": trace.best_score,
-        "evidence": evidence,
+        "evidence": [evidence_to_dict(ref, entries) for ref in trace.evidence],
         "cited_evidence": list(trace.cited_evidence),
         "uncited": trace.uncited,
-        "grounding": (
-            {
-                "supported": grounding.supported,
-                "total": grounding.total,
-                "literal": grounding.literal,
-                "dropped": list(grounding.dropped),
-            }
-            if grounding
-            else None
-        ),
-        "timings": [{"stage": timing.stage, "seconds": timing.seconds} for timing in trace.timings],
+        "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
+        "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
+    }
+
+
+def evidence_to_dict(ref: EvidenceRef, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
+    """Serializa una referencia de evidencia con la pregunta y la respuesta del registro.
+
+    Args:
+        ref: Referencia guardada en la traza (etiqueta, id, puntaje, categoría).
+        entries: Registros de conocimiento indexados por identificador.
+
+    Returns:
+        La referencia con el texto del registro, o un aviso si ya no está en la base.
+    """
+    entry = entries.get(ref.entry_id)
+    return {
+        "label": ref.label,
+        "entry_id": ref.entry_id,
+        "score": ref.score,
+        "category": ref.category,
+        "question": entry.question if entry else MISSING_ENTRY_TEXT,
+        "answer": entry.answer if entry else "",
+    }
+
+
+def grounding_to_dict(check: GroundingCheck) -> dict[str, Any]:
+    """Serializa la verificación del respaldo de la respuesta (ADR 0010).
+
+    Args:
+        check: Resultado de la verificación guardado en la traza.
+
+    Returns:
+        Frases mostradas, total, uso del texto literal y frases descartadas.
+    """
+    return {
+        "supported": check.supported,
+        "total": check.total,
+        "literal": check.literal,
+        "dropped": list(check.dropped),
     }
 
 

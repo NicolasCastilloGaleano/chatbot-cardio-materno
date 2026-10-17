@@ -12,10 +12,12 @@ from cardio_materno.bootstrap.rag_setup import apply_policy_overrides
 from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     ConfigurationError,
+    WebSettings,
     load_conversation_settings,
     load_ollama_settings,
     load_rag_settings,
     load_stage_settings,
+    load_web_settings,
 )
 
 
@@ -221,3 +223,21 @@ def test_invalid_evidence_thresholds_raise_configuration_error(
 ) -> None:
     with pytest.raises(ConfigurationError, match=name):
         load_rag_settings({name: value}, tmp_path)
+
+
+def test_web_settings_default_to_loopback_and_accept_local_hosts() -> None:
+    assert load_web_settings({}) == WebSettings("127.0.0.1", 8000)
+    assert load_web_settings({"WEB_HOST": "localhost", "WEB_PORT": "8080"}) == WebSettings(
+        "localhost", 8080
+    )
+
+
+@pytest.mark.parametrize(
+    ("env", "name"),
+    [({"WEB_HOST": "0.0.0.0"}, "WEB_HOST"), ({"WEB_PORT": "70000"}, "WEB_PORT")],
+)
+def test_web_settings_reject_network_hosts_and_invalid_ports(
+    env: dict[str, str], name: str
+) -> None:
+    with pytest.raises(ConfigurationError, match=name):
+        load_web_settings(env)

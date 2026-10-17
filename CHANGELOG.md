@@ -6,6 +6,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Fixed
+- Interfaz web (revisión de la rama `feat/interfaz-web-auditoria`): formato de `ruff` (la CI fallaba en los 4 commits, así que mypy y pytest no corrían); tildes dañadas por doble codificación en 5 archivos Python (p. ej., el título "demostración y auditoría" y el error "El mensaje no puede estar vacío"); `trace_to_dict` dividida según el estándar de funciones cortas; `use_utf8_streams` pasa a ser pública (antes se importaba una función privada).
+
+### Added
+- `WEB_HOST` y `WEB_PORT` en `.env` (sección 8); la configuración rechaza cualquier host que no sea local, porque la interfaz muestra datos de salud sin autenticación.
+- `tests/unit/test_text_encoding.py`: detecta tildes dañadas por doble codificación en `src`, `tests`, `scripts`, `docs` y `knowledge`.
+
+### Fixed
 - El punto de entrada `run_web.py` agrega `src/` al `sys.path`, igual que `run_console.py`, para permitir ejecutar el proyecto sin instalarlo como paquete.
 
 ### Added

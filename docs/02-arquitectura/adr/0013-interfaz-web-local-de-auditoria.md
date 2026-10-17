@@ -26,3 +26,7 @@ Telegram y WhatsApp aún no están disponibles para demostrar el flujo. La conso
 - ✅ El núcleo conversacional y las reglas clínicas permanecen independientes del canal.
 - ⚠️ El prototipo es de una sesión activa por proceso y no debe exponerse en una red ni usarse con usuarios reales.
 - ⚠️ El historial de archivos JSON no está diseñado para acceso concurrente multiusuario.
+
+## Actualización 2026-10-17 (revisión de la rama)
+- El host y el puerto se configuran en `.env` (`WEB_HOST`, `WEB_PORT`), según la convención de AGENTS.md §3, y la configuración **rechaza cualquier host que no sea local**. Así, "solo en loopback" se garantiza por código.
+- Se corrigieron tildes dañadas por doble codificación en 5 archivos Python, incluidos textos visibles para el usuario. Se agregó `tests/unit/test_text_encoding.py` para detectarlo en adelante.

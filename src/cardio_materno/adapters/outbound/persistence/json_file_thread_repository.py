@@ -65,22 +65,22 @@ class JsonFileThreadRepository:
         return thread_from_dict(data) if data else None
 
     def list_threads(self) -> list[ConversationThread]:
-        """Devuelve los hilos guardados del mÃ¡s reciente al mÃ¡s antiguo.
+        """Devuelve los hilos guardados del más reciente al más antiguo.
 
         Returns:
-            Hilos ordenados por fecha de modificaciÃ³n descendente.
+            Hilos ordenados por fecha de modificación descendente.
         """
         threads = [thread_from_dict(data) for data in self._read_all()]
         return sorted(threads, key=lambda thread: thread.updated_at, reverse=True)
 
     def all_messages(self, thread_id: str) -> list[ChatMessage]:
-        """Devuelve todos los mensajes de un hilo en orden cronolÃ³gico.
+        """Devuelve todos los mensajes de un hilo en orden cronológico.
 
         Args:
             thread_id: Identificador del hilo consultado.
 
         Returns:
-            Mensajes del hilo, o una lista vacÃ­a si no existe.
+            Mensajes del hilo, o una lista vacía si no existe.
         """
         data = self._read(thread_id)
         if data is None:

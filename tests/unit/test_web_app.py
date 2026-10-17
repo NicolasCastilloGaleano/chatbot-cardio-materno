@@ -30,18 +30,25 @@ def make_client(
 
 
 def test_send_message_returns_trace_and_full_evidence() -> None:
-    client, _ = make_client([scoped({
-        "thread_action": "nuevo",
-        "domain": "materno_infantil",
-        "summary": "Consulta de alimentación",
-        "reported_symptoms": ["acidez"],
-        "reported_signs": [],
-        "search_query": "alimentación y acidez",
-        "scope": "en_alcance",
-        "scope_reason": "consulta de salud",
-        "reply": "Orientación validada para la prueba",
-        "evidence_ids": ["E1"],
-    }, "en_alcance")])
+    client, _ = make_client(
+        [
+            scoped(
+                {
+                    "thread_action": "nuevo",
+                    "domain": "materno_infantil",
+                    "summary": "Consulta de alimentación",
+                    "reported_symptoms": ["acidez"],
+                    "reported_signs": [],
+                    "search_query": "alimentación y acidez",
+                    "scope": "en_alcance",
+                    "scope_reason": "consulta de salud",
+                    "reply": "Orientación validada para la prueba",
+                    "evidence_ids": ["E1"],
+                },
+                "en_alcance",
+            )
+        ]
+    )
 
     response = client.post("/api/messages", json={"text": "Tengo acidez"})
 
@@ -56,24 +63,26 @@ def test_send_message_returns_trace_and_full_evidence() -> None:
 
 
 def test_out_of_scope_reply_is_not_added_to_persisted_thread() -> None:
-    client, repository = make_client([
-        scoped(
-            {
-                "thread_action": "nuevo",
-                "domain": "ninguno",
-                "summary": "sin hilo",
-                "reported_symptoms": [],
-                "reported_signs": [],
-                "search_query": "",
-                "scope": "fuera_de_alcance",
-                "scope_reason": "tema ajeno",
-                "reply": "No puedo ayudar con ese tema.",
-                "evidence_ids": [],
-            },
-            "fuera_de_alcance",
-            "tema ajeno",
-        )
-    ])
+    client, repository = make_client(
+        [
+            scoped(
+                {
+                    "thread_action": "nuevo",
+                    "domain": "ninguno",
+                    "summary": "sin hilo",
+                    "reported_symptoms": [],
+                    "reported_signs": [],
+                    "search_query": "",
+                    "scope": "fuera_de_alcance",
+                    "scope_reason": "tema ajeno",
+                    "reply": "No puedo ayudar con ese tema.",
+                    "evidence_ids": [],
+                },
+                "fuera_de_alcance",
+                "tema ajeno",
+            )
+        ]
+    )
 
     response = client.post("/api/messages", json={"text": "¿Quién ganó el partido?"})
 
@@ -84,20 +93,22 @@ def test_out_of_scope_reply_is_not_added_to_persisted_thread() -> None:
 
 
 def test_saved_thread_can_be_listed_and_opened_read_only() -> None:
-    client, _ = make_client([
-        {
-            "thread_action": "nuevo",
-            "domain": "materno_infantil",
-            "summary": "Consulta guardada",
-            "reported_symptoms": [],
-            "reported_signs": [],
-            "search_query": "consulta guardada",
-            "scope": "en_alcance",
-            "scope_reason": "",
-            "reply": "Orientación validada para la prueba",
-            "evidence_ids": ["E1"],
-        }
-    ])
+    client, _ = make_client(
+        [
+            {
+                "thread_action": "nuevo",
+                "domain": "materno_infantil",
+                "summary": "Consulta guardada",
+                "reported_symptoms": [],
+                "reported_signs": [],
+                "search_query": "consulta guardada",
+                "scope": "en_alcance",
+                "scope_reason": "",
+                "reply": "Orientación validada para la prueba",
+                "evidence_ids": ["E1"],
+            }
+        ]
+    )
     client.post("/api/messages", json={"text": "Consulta guardada"})
 
     listed = client.get("/api/threads")
@@ -127,20 +138,22 @@ def test_language_model_failure_is_a_clear_gateway_error() -> None:
 
 
 def test_new_session_closes_the_active_thread() -> None:
-    client, repository = make_client([
-        {
-            "thread_action": "nuevo",
-            "domain": "materno_infantil",
-            "summary": "Consulta guardada",
-            "reported_symptoms": [],
-            "reported_signs": [],
-            "search_query": "consulta guardada",
-            "scope": "en_alcance",
-            "scope_reason": "",
-            "reply": "Orientación validada para la prueba",
-            "evidence_ids": ["E1"],
-        }
-    ])
+    client, repository = make_client(
+        [
+            {
+                "thread_action": "nuevo",
+                "domain": "materno_infantil",
+                "summary": "Consulta guardada",
+                "reported_symptoms": [],
+                "reported_signs": [],
+                "search_query": "consulta guardada",
+                "scope": "en_alcance",
+                "scope_reason": "",
+                "reply": "Orientación validada para la prueba",
+                "evidence_ids": ["E1"],
+            }
+        ]
+    )
     client.post("/api/messages", json={"text": "Consulta guardada"})
 
     assert client.post("/api/session/end").json() == {"status": "cerrada"}

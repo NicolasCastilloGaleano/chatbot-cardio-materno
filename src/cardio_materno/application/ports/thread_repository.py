@@ -18,21 +18,21 @@ class ThreadRepository(Protocol):
         ...
 
     def list_threads(self) -> list[ConversationThread]:
-        """Devuelve los hilos guardados del mÃ¡s reciente al mÃ¡s antiguo.
+        """Devuelve los hilos guardados del más reciente al más antiguo.
 
         Returns:
-            Hilos ordenados por fecha de modificaciÃ³n descendente.
+            Hilos ordenados por fecha de modificación descendente.
         """
         ...
 
     def all_messages(self, thread_id: str) -> list[ChatMessage]:
-        """Devuelve todos los mensajes de un hilo en orden cronolÃ³gico.
+        """Devuelve todos los mensajes de un hilo en orden cronológico.
 
         Args:
             thread_id: Identificador del hilo consultado.
 
         Returns:
-            Mensajes del hilo, del mÃ¡s antiguo al mÃ¡s reciente.
+            Mensajes del hilo, del más antiguo al más reciente.
         """
         ...
 

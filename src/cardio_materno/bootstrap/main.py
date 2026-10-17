@@ -55,7 +55,7 @@ def main() -> int:
     Returns:
         Código de salida del proceso (0 si terminó bien, 1 si hubo un error de arranque).
     """
-    _use_utf8_streams()
+    use_utf8_streams()
     try:
         load_env_file(ENV_FILE)
         settings = load_conversation_settings(os.environ, PROJECT_ROOT)
@@ -67,7 +67,7 @@ def main() -> int:
     return EXIT_OK
 
 
-def _use_utf8_streams() -> None:
+def use_utf8_streams() -> None:
     """Fuerza UTF-8 en la entrada y la salida (Windows usa cp1252 por defecto)."""
     for stream in (sys.stdin, sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -81,7 +81,7 @@ def build_service(
     """Carga alarmas, modelos y RAG, y arma el caso de uso.
 
     Args:
-        settings: ConfiguraciÃ³n de hilos y reglas.
+        settings: Configuración de hilos y reglas.
         repository: Repositorio opcional compartido con otro adaptador de entrada.
 
     Returns:
