@@ -1,3 +1,5 @@
-# Dependencias de ejecución (ADR 0008). Instalar en un entorno virtual:
+# Dependencias de ejecución (ADR 0008 y ADR 0013). Instalar en un entorno virtual:
 #   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 numpy==2.2.6
+fastapi==0.143.0
+uvicorn==0.54.0

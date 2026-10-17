@@ -43,6 +43,12 @@ STAGE_NUM_PREDICT_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "600", REPLY_MODEL_VARIAB
 MIN_FRACTION = 0.0
 MAX_FRACTION = 1.0
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
+# Interfaz web local (ADR 0013): solo puede escuchar en la propia máquina.
+DEFAULT_WEB_HOST = "127.0.0.1"
+DEFAULT_WEB_PORT = "8000"
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+MIN_PORT = 1
+MAX_PORT = 65535
 
 
 class ConfigurationError(Exception):
@@ -187,6 +193,36 @@ def stage_environment(env: Mapping[str, str], prefix: str) -> dict[str, str]:
         if value:
             merged[GLOBAL_PREFIX + field_name] = value
     return merged
+
+
+@dataclass(frozen=True)
+class WebSettings:
+    """Configuración de la interfaz web local (ADR 0013).
+
+    Attributes:
+        host: Dirección de escucha; solo se admite la propia máquina (loopback).
+        port: Puerto TCP.
+    """
+
+    host: str
+    port: int
+
+
+def load_web_settings(env: Mapping[str, str]) -> WebSettings:
+    """Lee `WEB_HOST` y `WEB_PORT`.
+
+    Raises:
+        ConfigurationError: Si el host no es local (la interfaz no se expone en la red) o el
+            puerto no es válido.
+    """
+    host = _get(env, "WEB_HOST", DEFAULT_WEB_HOST)
+    if host not in LOOPBACK_HOSTS:
+        allowed = ", ".join(sorted(LOOPBACK_HOSTS))
+        raise ConfigurationError(f"WEB_HOST debe ser local ({allowed}), se recibió '{host}'.")
+    port = _get_int(env, "WEB_PORT", DEFAULT_WEB_PORT)
+    if not MIN_PORT <= port <= MAX_PORT:
+        raise ConfigurationError(f"WEB_PORT debe estar entre 1 y 65535, se recibió '{port}'.")
+    return WebSettings(host, port)
 
 
 def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> ConversationSettings:

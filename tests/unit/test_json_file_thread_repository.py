@@ -42,6 +42,26 @@ def test_saved_thread_can_be_read_back(tmp_path: Path) -> None:
     assert repo.get_thread("no-existe") is None
 
 
+def test_list_threads_orders_by_most_recent_update(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    first = open_thread("t1", Domain.CARDIOVASCULAR, "primero", NOW)
+    second = open_thread("t2", Domain.MATERNAL_CHILD, "segundo", NOW.replace(second=1))
+    repo.save_thread(first)
+    repo.save_thread(second)
+
+    assert [thread.id for thread in repo.list_threads()] == ["t2", "t1"]
+
+
+def test_all_messages_returns_complete_history(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    repo.save_thread(open_thread("t1", Domain.NONE, "saludo", NOW))
+    repo.append_message(ChatMessage(Role.USER, "hola", "t1", NOW))
+    repo.append_message(ChatMessage(Role.ASSISTANT, "buenas", "t1", NOW))
+
+    assert [message.content for message in repo.all_messages("t1")] == ["hola", "buenas"]
+    assert repo.all_messages("missing") == []
+
+
 def test_file_is_readable_json_with_thread_and_messages(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "acidez", NOW))

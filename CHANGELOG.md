@@ -5,6 +5,21 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- Interfaz web (revisión de la rama `feat/interfaz-web-auditoria`): formato de `ruff` (la CI fallaba en los 4 commits, así que mypy y pytest no corrían); tildes dañadas por doble codificación en 5 archivos Python (p. ej., el título "demostración y auditoría" y el error "El mensaje no puede estar vacío"); `trace_to_dict` dividida según el estándar de funciones cortas; `use_utf8_streams` pasa a ser pública (antes se importaba una función privada).
+
+### Added
+- `WEB_HOST` y `WEB_PORT` en `.env` (sección 8); la configuración rechaza cualquier host que no sea local, porque la interfaz muestra datos de salud sin autenticación.
+- `tests/unit/test_text_encoding.py`: detecta tildes dañadas por doble codificación en `src`, `tests`, `scripts`, `docs` y `knowledge`.
+
+### Fixed
+- El punto de entrada `run_web.py` agrega `src/` al `sys.path`, igual que `run_console.py`, para permitir ejecutar el proyecto sin instalarlo como paquete.
+
+### Added
+- **HU-08 / B-023:** interfaz web local con FastAPI para conversar con el agente, inspeccionar las trazas y evidencias completas por respuesta y consultar hilos guardados en modo de solo lectura. `python run_web.py` sirve en `127.0.0.1:8000`; se agregan FastAPI/Uvicorn y el ADR 0013.
+- La interfaz indica cuándo el agente está procesando un mensaje y mantiene los paneles de auditoría e hilos visibles mientras el historial del chat se desplaza dentro de su área.
+- Enter envía el mensaje desde el campo de chat; Shift+Enter conserva el salto de línea.
+
 ### Changed
 - **ADR 0011 aceptado:** se midió la combinación elegida (análisis `mistral-small3.1:24b` + respuesta `qwen3:8b`): alcance 9/9, filtro 2 16/18, turno p50 de 46,5 s. Se prioriza la seguridad; la meta de 15 s queda como trabajo futuro. B-022 cerrado.
 

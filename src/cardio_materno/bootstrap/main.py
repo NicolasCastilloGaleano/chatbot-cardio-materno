@@ -24,6 +24,7 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
 )
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.rag_setup import RagSetup, setup_rag
 from cardio_materno.bootstrap.settings import (
@@ -54,7 +55,7 @@ def main() -> int:
     Returns:
         Código de salida del proceso (0 si terminó bien, 1 si hubo un error de arranque).
     """
-    _use_utf8_streams()
+    use_utf8_streams()
     try:
         load_env_file(ENV_FILE)
         settings = load_conversation_settings(os.environ, PROJECT_ROOT)
@@ -66,7 +67,7 @@ def main() -> int:
     return EXIT_OK
 
 
-def _use_utf8_streams() -> None:
+def use_utf8_streams() -> None:
     """Fuerza UTF-8 en la entrada y la salida (Windows usa cp1252 por defecto)."""
     for stream in (sys.stdin, sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -74,14 +75,27 @@ def _use_utf8_streams() -> None:
             reconfigure(encoding="utf-8")
 
 
-def build_service(settings: ConversationSettings) -> ConversationService:
-    """Carga alarmas, modelos y RAG, y arma el caso de uso."""
+def build_service(
+    settings: ConversationSettings, repository: ThreadRepository | None = None
+) -> ConversationService:
+    """Carga alarmas, modelos y RAG, y arma el caso de uso.
+
+    Args:
+        settings: Configuración de hilos y reglas.
+        repository: Repositorio opcional compartido con otro adaptador de entrada.
+
+    Returns:
+        Servicio conversacional con los puertos conectados.
+    """
     alarm_policy = _load_alarm_policy(settings)
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
     ports = ConversationPorts(
-        analyzer, responder, JsonFileThreadRepository(settings.threads_dir), rag.retriever
+        analyzer,
+        responder,
+        repository or JsonFileThreadRepository(settings.threads_dir),
+        rag.retriever,
     )
     config = ConversationConfig(
         analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),

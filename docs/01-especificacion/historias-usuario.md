@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-10 (HU-03/HU-04)*
+*Última actualización: 2026-10-12 (HU-08)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -287,3 +287,50 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema)
+
+### HU-08: Interfaz local de conversación y auditoría
+**Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.
+
+```gherkin
+Escenario: Conversar y revisar una respuesta
+  Dado que la interfaz local está iniciada
+  Cuando envío una consulta de salud y selecciono la respuesta del asistente
+  Entonces veo el resumen, dominio y estado del hilo, síntomas, signos, búsqueda, evidencia completa, citas, verificación y tiempos disponibles
+
+Escenario: Mensaje en procesamiento
+  Dado que envié un mensaje mientras el agente prepara la respuesta
+  Entonces la interfaz muestra que está procesando el mensaje y pide esperar
+
+Escenario: Enviar desde el teclado
+  Cuando escribo un mensaje y presiono Enter
+  Entonces el mensaje se envía
+  Y Shift+Enter inserta una nueva línea sin enviarlo
+
+Escenario: Chat extenso con auditoría a la vista
+  Dado que el chat tiene más mensajes de los que caben en su panel
+  Cuando continúo la conversación
+  Entonces puedo desplazar el historial dentro del panel del chat
+  Y los paneles laterales de trazabilidad e hilos permanecen visibles
+
+Escenario: Consultar un hilo guardado
+  Dado que hay hilos persistidos
+  Cuando selecciono un hilo del historial
+  Entonces puedo leer sus mensajes y abrir la traza de sus respuestas
+  Y el historial permanece en modo de solo lectura
+
+Escenario: Iniciar una nueva sesión
+  Dado que hay una sesión conversacional activa
+  Cuando selecciono "Nueva sesión"
+  Entonces el hilo activo se cierra y el siguiente mensaje inicia una sesión nueva
+
+Escenario: Mensaje fuera de alcance
+  Cuando envío un mensaje completamente ajeno al servicio
+  Entonces veo la respuesta fija durante la sesión actual
+  Y el mensaje no se agrega al hilo persistido
+
+Escenario: Error del modelo
+  Dado que el modelo no responde
+  Cuando envío un mensaje
+  Entonces veo un error claro y no una traza inventada
+```
+Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local.

@@ -1,5 +1,6 @@
-# Desarrollo y pruebas: incluye las dependencias de ejecución (requirements.txt, ADR 0008).
+# Desarrollo y pruebas: incluye las dependencias de ejecución (requirements.txt).
 -r requirements.txt
 pytest==8.3.5
 ruff==0.11.8
 mypy==1.15.0
+httpx==0.28.1

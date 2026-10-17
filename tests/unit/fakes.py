@@ -235,6 +235,12 @@ class InMemoryThreadRepository:
     def get_thread(self, thread_id: str) -> ConversationThread | None:
         return self.threads.get(thread_id)
 
+    def list_threads(self) -> list[ConversationThread]:
+        return sorted(self.threads.values(), key=lambda thread: thread.updated_at, reverse=True)
+
+    def all_messages(self, thread_id: str) -> list[ChatMessage]:
+        return list(self.messages.get(thread_id, []))
+
     def append_message(self, message: ChatMessage) -> None:
         if message.thread_id not in self.messages:
             raise KeyError(message.thread_id)

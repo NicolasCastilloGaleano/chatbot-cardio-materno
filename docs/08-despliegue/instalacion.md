@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-10 (HU-02: RAG)*
+*Última actualización: 2026-10-12 (HU-08: interfaz local)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -26,6 +26,9 @@ cp .env.example .env
 
 # Chat
 .venv/bin/python run_console.py
+
+# Interfaz web local para demostración y auditoría
+.venv/bin/python run_web.py
 ```
 
 ### Las siguientes veces
@@ -34,10 +37,16 @@ git pull
 .venv/bin/pip install -r requirements.txt     # por si cambiaron las dependencias
 .venv/bin/python run_build_kb_index.py        # solo si cambió knowledge/kb/entries.jsonl o OLLAMA_EMBED_MODEL
 .venv/bin/python run_console.py
+# Alternativa de demostración: interfaz de chat y auditoría en http://127.0.0.1:8000
+.venv/bin/python run_web.py
 ```
+Si acabas de cambiar a una rama que incorpora dependencias nuevas, instala primero las versiones de esa rama con `.venv/bin/pip install -r requirements.txt`.
 Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
 
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
+
+### Interfaz local de chat y auditoría (HU-08)
+Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
 
 ### Líneas de depuración (con `SHOW_THREAD_DEBUG=true`)
 | Línea | Qué muestra |
@@ -134,7 +143,13 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `GROUNDING_MAX_FREE_SENTENCES` | (archivo: `2`) | Frases sin cita permitidas (preguntas de aclaración, cortesía) |
 | `GROUNDING_MAX_FREE_WORDS` | (archivo: `20`) | Palabras máximas de una frase sin cita |
 
-**5. Alarmas, hilos y consola**
+**5. Interfaz web local (ADR 0013)**
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `WEB_HOST` | `127.0.0.1` | Dirección de escucha. Solo `127.0.0.1`, `localhost` o `::1`: cualquier otra impide arrancar, porque la interfaz muestra datos de salud sin autenticación |
+| `WEB_PORT` | `8000` | Puerto |
+
+**6. Alarmas, hilos y consola**
 | Variable | Por defecto | Para qué |
 |---|---|---|
 | `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (PROVISIONAL) |
