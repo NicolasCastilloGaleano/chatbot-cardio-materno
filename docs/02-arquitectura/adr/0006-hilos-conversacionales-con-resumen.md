@@ -32,3 +32,6 @@ En la HU-00 el contexto era una lista de los últimos 20 mensajes, sin noción d
 ## Actualización 2026-10-10: dos llamadas (ADR 0008)
 - La respuesta estructurada se divide en **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms`) y **respuesta** (`reply`, `evidence_ids`). Era la alternativa "dos llamadas" de este ADR, y la motivó la integración del RAG.
 - **Resumen:** lo escribe el análisis, antes de que exista la respuesta del turno. Cada respuesta queda completa en los mensajes recientes del turno siguiente y entra al resumen en ese turno. Excepción: la última respuesta de un hilo que se cierra no queda en el resumen (sí en `messages`). Si hace falta, se resolverá con un resumen de cierre.
+
+## Actualización 2026-10-17: base de datos por usuario (ADR 0015)
+- Se cumplió lo previsto en las consecuencias: `SqliteThreadRepository` implementa el mismo puerto, acotado a un usuario, y pasa las mismas pruebas de contrato que el repositorio JSON. La consola y la web siguen con JSON. El cierre por inactividad se agrega como regla determinista; la decisión `continuar`/`nuevo` sigue siendo del análisis.

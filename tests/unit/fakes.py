@@ -16,6 +16,7 @@ from cardio_materno.application.ports.knowledge_retriever import (
     EvidenceQuery,
     KnowledgeRetriever,
 )
+from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
@@ -185,13 +186,15 @@ def evidence_result(*entries: KnowledgeEntry) -> RetrievalResult:
 
 def make_service(
     agent: "ScriptedAgent",
-    repo: "InMemoryThreadRepository | None" = None,
+    repo: ThreadRepository | None = None,
     config: dict[str, Any] | None = None,
     retriever: KnowledgeRetriever | None = None,
+    active_thread_id: str | None = None,
 ) -> ConversationService:
     """Servicio con dobles: reloj, ids y tiempos deterministas.
 
     Sin `retriever`, la evidencia respalda la respuesta guionizada (`BackingRetriever`).
+    `active_thread_id` retoma un hilo abierto, como en los canales de chat continuo.
     """
     ports = ConversationPorts(
         agent.analyzer,
@@ -205,7 +208,9 @@ def make_service(
         "timer": FakeTimer(),
     }
     return ConversationService(
-        ports, ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {})))
+        ports,
+        ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {}))),
+        active_thread_id,
     )
 
 

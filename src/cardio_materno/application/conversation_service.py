@@ -192,16 +192,23 @@ class TurnOutcome:
 class ConversationService:
     """Coordina alarmas, agente, evidencia y repositorio para una sesión de un usuario."""
 
-    def __init__(self, ports: ConversationPorts, config: ConversationConfig) -> None:
+    def __init__(
+        self,
+        ports: ConversationPorts,
+        config: ConversationConfig,
+        active_thread_id: str | None = None,
+    ) -> None:
         """Crea el servicio.
 
         Args:
             ports: Modelos, repositorio y buscador de evidencia.
             config: Prompts, contexto, alarmas, reloj, ids y medidor de tiempos.
+            active_thread_id: Hilo abierto que retoma la sesión (canales de chat continuo,
+                ADR 0015). None para empezar sin hilo activo, como la consola.
         """
         self._ports = ports
         self._config = config
-        self._active_thread_id: str | None = None
+        self._active_thread_id = active_thread_id
         self._sign_codes = config.alarm_policy.codes
         self._analysis_schema = analysis_schema(self._sign_codes)
 

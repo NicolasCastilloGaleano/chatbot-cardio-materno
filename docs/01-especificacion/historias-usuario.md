@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-12 (HU-08)*
+*Última actualización: 2026-10-17 (HU-09 propuesta)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -340,3 +340,80 @@ Escenario: Error del modelo
   Entonces veo un error claro y no una traza inventada
 ```
 Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local.
+
+### HU-09: Atención por WhatsApp con historial por persona
+**Como** persona de la comunidad, **quiero** consultar al asistente desde mi WhatsApp en un solo chat continuo, **para** recibir orientación sin instalar nada y sin que mis consultas se mezclen con las de otras personas.
+
+Notas técnicas (ADR 0014 y 0015): WhatsApp Cloud API con webhook en FastAPI, cola con un solo trabajador y persistencia SQLite con usuarios, identidades de canal, hilos, mensajes, alertas y eventos. **El agente no cambia:** recibe el mismo contexto que en la consola (prompt de análisis, JSON del hilo activo, últimos N mensajes del hilo, evidencia solo en la respuesta). El aislamiento se logra con un repositorio de hilos acotado a cada usuario. En esta fase solo se atiende a los números de prueba del equipo; el consentimiento (HU-01) queda para la fase siguiente.
+
+```gherkin
+Escenario: Verificación del webhook
+  Dado que el servidor de WhatsApp está iniciado con WHATSAPP_VERIFY_TOKEN
+  Cuando Meta solicita la verificación con hub.mode "subscribe", el token correcto y un challenge
+  Entonces el servidor responde el challenge
+  Y con un token incorrecto responde 403
+
+Escenario: Solo se aceptan notificaciones firmadas por Meta
+  Cuando llega una notificación cuya firma X-Hub-Signature-256 no coincide con WHATSAPP_APP_SECRET
+  Entonces se rechaza con 401 y no se procesa
+
+Escenario: Primer mensaje de una persona
+  Dado que un número nunca ha escrito
+  Cuando envía "tengo 30 semanas y mucha acidez"
+  Entonces se crea un usuario ligado al hash del número (nunca el número en claro)
+  Y el mensaje se procesa con el mismo flujo de la consola (análisis, filtros, RAG, verificación)
+  Y la respuesta llega a ese mismo chat
+
+Escenario: Dos personas no comparten contexto
+  Dado que la persona A tiene un hilo abierto sobre acidez en el embarazo
+  Y la persona B tiene un hilo abierto sobre presión alta
+  Cuando las dos escriben de forma intercalada
+  Entonces el contexto enviado al agente en cada turno solo contiene el hilo y los mensajes de quien escribió
+  Y cada respuesta llega solo al chat de quien escribió
+
+Escenario: El chat continuo retoma el hilo abierto
+  Dado que la persona tiene un hilo abierto con actividad reciente
+  Cuando escribe "¿y qué más puedo comer?"
+  Entonces el mensaje continúa ese hilo, como en la consola
+
+Escenario: Un hilo inactivo se cierra
+  Dado que el hilo abierto de la persona lleva más de THREAD_IDLE_TIMEOUT_HOURS sin actividad
+  Cuando escribe un mensaje nuevo
+  Entonces ese hilo queda "cerrado" antes de procesar el mensaje
+  Y el agente recibe el mensaje sin hilo activo, igual que al iniciar una sesión de consola
+
+Escenario: Un mensaje repetido por Meta no se responde dos veces
+  Dado que un mensaje ya fue recibido
+  Cuando Meta vuelve a enviar la misma notificación (mismo identificador)
+  Entonces no se procesa de nuevo ni se envía otra respuesta
+
+Escenario: Espera mientras se genera la respuesta
+  Cuando envío un mensaje
+  Entonces se marca como leído y aparece "escribiendo…"
+  Y si la respuesta tarda más de WHATSAPP_WAIT_NOTICE_SECONDS, recibo un aviso corto de que se está revisando
+  Y si la respuesta llega antes, no recibo el aviso
+
+Escenario: Urgencia por WhatsApp
+  Cuando escribo "estoy embarazada y tengo un sangrado"
+  Entonces recibo solo el mensaje fijo de urgencia, sin consultar al modelo de lenguaje
+  Y la alerta queda registrada en un hilo de mi usuario
+
+Escenario: Mensaje que no es texto
+  Cuando envío una nota de voz, una imagen o un sticker
+  Entonces recibo un aviso de que por ahora solo se leen mensajes de texto
+  Y no se consulta al agente
+
+Escenario: Respuesta larga
+  Dado que la respuesta supera el límite de 4096 caracteres de WhatsApp
+  Entonces se envía en varios mensajes, sin cortar palabras
+
+Escenario: Error del modelo
+  Dado que el modelo no responde y no hay alarma
+  Cuando envío un mensaje
+  Entonces recibo un mensaje de error claro, no se guarda nada en el hilo y el evento queda como "fallido"
+
+Escenario: Los canales actuales no cambian
+  Cuando uso la consola o la interfaz web local
+  Entonces funcionan igual que antes, con su repositorio JSON
+```
+Estado: 🔄 Aprobada (2026-10-17); en implementación. Fase 2 (persistencia SQLite por usuario) hecha y probada automáticamente; falta la fase 3 (webhook, cola y envío)

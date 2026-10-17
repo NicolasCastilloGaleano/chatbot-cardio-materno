@@ -5,6 +5,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
+- **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
+- `ConversationService` acepta `active_thread_id` (opcional) para retomar el hilo abierto de un usuario; sin él, se comporta exactamente igual que antes.
+- Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
+
 ### Changed
 - **Prompt de análisis v6:** un mensaje que reporta un síntoma o malestar de origen incierto siempre está en alcance (caso real: "dolor muy fuerte en el brazo por que me asustó una gallina"); "fuera_de_alcance" queda solo para mensajes ajenos sin síntomas. La regla determinista de alcance ya no exige un dominio para respetar los síntomas reportados (ADR 0009, actualización). Casos nuevos en `tests/live/scope_cases.json`.
 

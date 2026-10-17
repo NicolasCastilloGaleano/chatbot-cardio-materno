@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-12 (HU-08)*
+*Última actualización: 2026-10-17 (HU-09 propuesta)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -20,6 +20,11 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-08 | Hilos guardados en consulta de solo lectura y sesión nueva | `ThreadRepository`, `JsonFileThreadRepository`, `bootstrap/web.py` | `test_web_app.py`, `test_json_file_thread_repository.py` | ✅ (automática); recorrido visual pendiente |
 | HU-06 | Calidad real de la decisión de hilo y del resumen | prompt v2 | Guion manual en el PC de pruebas (2026-10-10) | ✅ |
 | HU-01 / RN-01 | Primer contacto → aviso + consentimiento | TODO | TODO | ⏳ |
+| HU-09 | Dos personas no comparten contexto (el agente recibe solo el hilo de quien escribe) | `sqlite_thread_repository.py` (acotado por usuario), `sqlite_user_thread_store.py`, `ConversationService(active_thread_id)` | `test_conversation_per_user.py::test_interleaved_users_never_share_context`, `test_sqlite_persistence.py::test_a_user_never_sees_threads_or_messages_of_another`, `test_a_user_cannot_write_into_another_users_thread` | ✅ (automática; fase 2) |
+| HU-09 | El chat continuo retoma el hilo abierto con el mismo contexto que la consola | `UserThreadStore.open_thread`, `ConversationService(active_thread_id)` | `test_resumed_thread_gets_the_same_context_as_a_console_session`, `test_new_topic_closes_the_users_thread_and_keeps_one_open`, `test_only_one_open_thread_per_user` | ✅ (automática; fase 2) |
+| HU-09 | Base para el cierre por inactividad y la deduplicación | `domain/user.py::is_idle`, `last_activity_at`, `sqlite_channel_log.py` | `test_user.py`, `test_last_activity_follows_messages_even_without_thread_update`, `test_inbound_messages_are_deduplicated` | ✅ regla y datos (automática); ⏳ uso en el caso de uso (fase 3) |
+| HU-09 | Los canales actuales no cambian (JSON y SQLite cumplen el mismo contrato) | `JsonFileThreadRepository`, `SqliteThreadRepository` | `test_thread_repository_contract.py` (3 variantes), suite completa sin cambios de comportamiento | ✅ (automática) |
+| HU-09 | Webhook verificado y firmado; espera; urgencia; no-texto; respuesta larga; error del modelo | TODO (fase 3, ADR 0014) | TODO | ⏳ |
 | HU-03 / RN-02 / RN-MI-xx | Urgencia en el mensaje del usuario → solo el mensaje fijo, sin LLM | `domain/alarms.py`, `application/alarm_policy.py`, `conversation_service.py::send` | `test_conversation_service.py::test_urgent_user_message_skips_agent_and_opens_alarm_thread` | ✅ (automática) |
 | HU-03 / RN-MI-xx | Alarma detectada en los síntomas reportados por el agente | `conversation_service.py::_post_filter` | `test_agent_reported_symptom_triggers_urgent_alarm_and_discards_reply` | ✅ (automática) |
 | HU-03 / RN-MI-01 | Descripción coloquial de un sangrado (regresión del 2026-10-10) | `knowledge/alarm_rules.json` v0.2.0 | `tests/conversational/alarm_phrases.json` (RN-MI-01) | ✅ (automática) |

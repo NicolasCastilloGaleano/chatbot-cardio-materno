@@ -26,7 +26,15 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - Por eso solo puede escuchar en la propia máquina: `WEB_HOST` admite únicamente `127.0.0.1`, `localhost` o `::1`, y cualquier otra dirección impide arrancar (`bootstrap/settings.py::load_web_settings`).
 - Es para demostración y depuración con datos ficticios. **No se expone en una red ni se usa con usuarios reales.** Antes de un piloto harían falta autenticación, cifrado y control de acceso por persona.
 
+## Usuarios y base SQLite (HU-09, ADR 0015)
+- **Identidad seudonimizada:** de cada canal solo se guarda `HMAC-SHA256(USER_ID_HASH_SECRET, identificador)`. No se guardan el teléfono ni el nombre de perfil de WhatsApp. El identificador en claro solo vive en memoria mientras se procesa el mensaje, para poder responder.
+- **Aislamiento:** cada persona solo accede a sus propios hilos (repositorio acotado por usuario); hay pruebas automáticas que lo verifican.
+- **Eventos sin texto:** el registro de mensajes recibidos y enviados (`inbound_events`, `outbound_messages`) solo guarda identificadores, tipos y estados.
+- El texto de los mensajes y las trazas se guardan en `messages`, igual que en el JSON: datos de salud en un archivo (`data/cardio_materno.db`) que no se versiona.
+- `USER_ID_HASH_SECRET` va en `.env` y se respalda junto con la base: si se pierde, las personas quedan desligadas de su historial.
+- Esta fase es solo con números de prueba del equipo. El consentimiento (HU-01) es obligatorio antes de atender a personas reales.
+
 ## Pendientes
 - TODO: texto del aviso de privacidad validado por los aliados.
-- TODO: política de retención y eliminación.
+- TODO: política de retención y eliminación (incluye borrar todos los datos de un usuario a petición suya).
 - TODO: autorización de los aliados si alguna vez se usan datos reales con servicios de IA.
