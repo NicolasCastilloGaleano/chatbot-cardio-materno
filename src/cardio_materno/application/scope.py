@@ -6,7 +6,6 @@ las reglas deterministas de seguridad sobre esa decisión.
 """
 
 from cardio_materno.application.agent_turn import AnalysisTurn, Scope
-from cardio_materno.domain.conversation import Domain
 
 OUT_OF_SCOPE_MESSAGE = (
     "Este servicio solo orienta sobre salud del corazón y la presión arterial, el embarazo, "
@@ -20,17 +19,19 @@ CONVERSATIONAL_CONTEXT = (
 
 
 def effective_scope(analysis: AnalysisTurn) -> Scope:
-    """Alcance que se aplica: quien reporta síntomas de nuestros dominios nunca se descarta.
+    """Alcance que se aplica: quien reporta un síntoma nunca se descarta.
+
+    Desde el 2026-10-17 (prompt de análisis v6, decisión de Nicolas Castillo Galeano), un
+    síntoma reportado basta aunque su dominio sea incierto ("ninguno"): un dolor de brazo
+    atribuido a un susto puede ser cardíaco, y se indaga en lugar de descartarlo.
 
     Args:
         analysis: Resultado de la llamada de análisis.
 
     Returns:
-        `en_alcance` si hay signos del catálogo marcados, o síntomas reportados con un dominio
-        distinto de "ninguno"; si no, el alcance que decidió el análisis.
+        `en_alcance` si hay signos del catálogo marcados o síntomas reportados; si no, el
+        alcance que decidió el análisis.
     """
-    if analysis.reported_signs:
-        return Scope.IN_SCOPE
-    if analysis.reported_symptoms and analysis.domain is not Domain.NONE:
+    if analysis.reported_signs or analysis.reported_symptoms:
         return Scope.IN_SCOPE
     return analysis.scope

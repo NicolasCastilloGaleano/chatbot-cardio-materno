@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Changed
+- **Prompt de análisis v6:** un mensaje que reporta un síntoma o malestar de origen incierto siempre está en alcance (caso real: "dolor muy fuerte en el brazo por que me asustó una gallina"); "fuera_de_alcance" queda solo para mensajes ajenos sin síntomas. La regla determinista de alcance ya no exige un dominio para respetar los síntomas reportados (ADR 0009, actualización). Casos nuevos en `tests/live/scope_cases.json`.
+
 ### Fixed
 - Interfaz web (revisión de la rama `feat/interfaz-web-auditoria`): formato de `ruff` (la CI fallaba en los 4 commits, así que mypy y pytest no corrían); tildes dañadas por doble codificación en 5 archivos Python (p. ej., el título "demostración y auditoría" y el error "El mensaje no puede estar vacío"); `trace_to_dict` dividida según el estándar de funciones cortas; `use_utf8_streams` pasa a ser pública (antes se importaba una función privada).
 

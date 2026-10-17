@@ -22,10 +22,12 @@ def test_without_symptoms_the_analysis_decision_is_kept(scope: Scope) -> None:
     assert effective_scope(analysis(scope, Domain.CARDIOVASCULAR)) is scope
 
 
-def test_symptoms_with_domain_none_do_not_force_scope() -> None:
-    result = effective_scope(analysis(Scope.OUT_OF_SCOPE, Domain.NONE, ("dolor de muela",)))
+def test_symptoms_of_uncertain_domain_are_never_discarded() -> None:
+    symptom = ("dolor muy fuerte en el brazo",)
 
-    assert result is Scope.OUT_OF_SCOPE
+    result = effective_scope(analysis(Scope.OUT_OF_SCOPE, Domain.NONE, symptom))
+
+    assert result is Scope.IN_SCOPE
 
 
 def test_marked_sign_code_keeps_the_message_in_scope() -> None:

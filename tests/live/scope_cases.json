@@ -1,10 +1,12 @@
 {
-  "_description": "Casos de alcance (HU-07, ADR 0009) que comparten tests/live/test_live_scope.py y scripts/benchmark_models.py. 'en_alcance' son mensajes que mencionan otros temas como contexto o son mixtos; 'fuera_de_alcance' son mensajes completamente ajenos; 'conversacional' son saludos y agradecimientos.",
+  "_description": "Casos de alcance (HU-07, ADR 0009) que comparten tests/live/test_live_scope.py y scripts/benchmark_models.py. 'en_alcance' son mensajes que mencionan otros temas como contexto o son mixtos; 'fuera_de_alcance' son mensajes completamente ajenos; 'conversacional' son saludos y agradecimientos. Desde el prompt de análisis v6 (2026-10-17), los mensajes que reportan un síntoma de origen incierto también son 'en_alcance' (caso real: el dolor de brazo atribuido a un susto).",
   "en_alcance": [
     "estaba cocinando unos frijoles y empecé a sentir acidez en el estómago, tengo 34 semanas de embarazo, ¿es normal?",
     "estaba viendo el partido y el corazón me empezó a latir muy rápido",
     "¿quién ganó el partido? ah, y tengo la presión alta",
-    "¿es malo comer mucha sal?"
+    "¿es malo comer mucha sal?",
+    "tengo un dolor muy fuerte en el brazo por que me asustó una gallina",
+    "me duele mucho la espalda desde ayer"
   ],
   "fuera_de_alcance": [
     "¿qué opinas del fútbol?",

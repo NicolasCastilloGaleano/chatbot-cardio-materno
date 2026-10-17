@@ -256,6 +256,12 @@ Escenario: Mensaje completamente ajeno
   Y no busca evidencia ni hace la llamada de respuesta
   Y no se registra nada en el hilo
 
+Escenario: Síntoma de origen incierto (prompt de análisis v6, 2026-10-17)
+  Cuando escribo "tengo un dolor muy fuerte en el brazo por que me asustó una gallina"
+  Entonces el mensaje no se descarta: se atiende como consulta de salud
+  Y aunque el análisis no sepa a qué dominio pertenece, reportar un síntoma basta para quedar en alcance
+  Y un mensaje sin síntomas y ajeno al servicio ("¿qué opinas del fútbol?") sigue recibiendo el mensaje fijo de alcance
+
 Escenario: Otro tema mencionado solo como contexto
   Cuando escribo "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?"
   Entonces el mensaje se atiende como consulta de salud materna, con evidencia
