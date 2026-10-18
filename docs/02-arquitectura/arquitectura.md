@@ -107,8 +107,22 @@ flowchart LR
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```
-- **Interfaz local (HU-08):** FastAPI sirve la vista y las operaciones de conversación, lista e historial. Se inicia con `python run_web.py`; `WEB_HOST`/`WEB_PORT` (`.env`, por defecto `127.0.0.1:8000`) y la configuración rechaza cualquier host que no sea local (`load_web_settings`). Las respuestas seleccionables muestran los datos de `ReplyTrace`; los `entry_id` se resuelven contra la base para mostrar pregunta y respuesta completas. El historial guardado es de solo lectura. `POST /api/session/end` cierra el hilo activo antes de iniciar otro.
-- **Lectura de hilos:** `ThreadRepository.list_threads` y `all_messages` soportan auditoría sin alterar los datos persistidos. El acceso sigue limitado al repositorio local de archivos JSON.
+- **Interfaz local (HU-08, HU-10):** se inicia con `python run_web.py` (`bootstrap/web.py`). `WEB_HOST` solo admite loopback (`load_web_settings`).
+  - **Desde la HU-10** lee y escribe en la base SQLite de todos los canales: `DirectChat` para escribir y `SqliteChatAudit` para leer.
+  - La API está en `adapters/inbound/api/web_app.py` y el contrato JSON en `serializers.py`:
+
+    | Ruta | Uso |
+    |---|---|
+    | `GET /api/config` | Tamaño de página, frecuencia de actualización y canales |
+    | `GET /api/chats` | Lista de chats, con filtro `channel` y `limit`/`offset` |
+    | `POST /api/chats` | Nueva sesión: crea un chat web |
+    | `GET /api/chats/{id}` | Resumen del chat, `writable` y motivo del bloqueo |
+    | `GET /api/chats/{id}/messages` | `before` para las páginas anteriores, `after` para lo nuevo; incluye `pending` |
+    | `POST /api/chats/{id}/messages` | 403 en WhatsApp, Telegram, histórico o consola abierta; 409 si ya hay un turno en curso en ese chat |
+    | `POST /api/chats/{id}/release` | Libera un chat de consola que quedó marcado |
+
+  - Los `entry_id` de la traza se resuelven contra la base de conocimiento para mostrar la pregunta y la respuesta completas.
+  - La consola (`bootstrap/console.py`) también usa SQLite: un chat por arranque, bloqueado para la web mientras está abierta.
 - **Hilos por usuario (HU-09, fase 2, [ADR 0015](adr/0015-persistencia-sqlite-y-usuarios.md)):** para los canales de chat continuo se crea un `ConversationService` por mensaje con `ports.repository = UserThreadStore.scoped(user_id)` y `active_thread_id` = hilo abierto del usuario. El agente recibe el mismo contexto que en la consola (`test_conversation_per_user.py` lo compara llamada por llamada) y no puede ver hilos de otra persona. Base SQLite: `sqlite_database.py` (esquema versionado, transacciones). La usa el canal de WhatsApp (siguiente punto).
 - **Chats por usuario en todos los canales (HU-10, [ADR 0016](adr/0016-auditoria-multicanal-y-chats-por-usuario.md), en implementación):**
   - `application/user_conversations.py::UserConversations`: cierra el hilo inactivo y crea el `ConversationService` del usuario. Lo comparten WhatsApp (`HandleIncomingMessage`), la consola y la web.

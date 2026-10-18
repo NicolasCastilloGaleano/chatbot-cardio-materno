@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-18 (HU-09: suscripción de la cuenta de WhatsApp Business)*
+*Última actualización: 2026-10-18 (HU-10: consola y web sobre SQLite)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -43,7 +43,7 @@ git pull
 Si acabas de cambiar a una rama que incorpora dependencias nuevas, instala primero las versiones de esa rama con `.venv/bin/pip install -r requirements.txt`.
 Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
 
-Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
+Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). **Desde la HU-10**, cada arranque de la consola crea su propio chat en `data/cardio_materno.db` y muestra su identificador corto ("Chat de consola 1a2b3c4d…"). Al salir, ese chat se continúa en la interfaz web; la consola no retoma chats anteriores. Si la consola se cierra de golpe, el chat queda "en uso en la consola" hasta liberarlo desde la web.
 
 ### Interfaz local de chat y auditoría (HU-08)
 Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
@@ -210,6 +210,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 |---|---|---|
 | `WEB_HOST` | `127.0.0.1` | Dirección de escucha. Solo `127.0.0.1`, `localhost` o `::1`: cualquier otra impide arrancar, porque la interfaz muestra datos de salud sin autenticación |
 | `WEB_PORT` | `8000` | Puerto |
+| `WEB_PAGE_SIZE` | `30` | Mensajes por página al abrir un chat o subir con el scroll (1 a 200) |
+| `WEB_POLL_SECONDS` | `3` | Segundos entre consultas de mensajes nuevos (actualización automática) |
 
 **6. Alarmas, hilos y consola**
 | Variable | Por defecto | Para qué |
@@ -217,7 +219,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (PROVISIONAL) |
 | `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
 | `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
-| `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
+| `THREADS_DIR` | `data/threads` | Carpeta de los hilos JSON anteriores a la HU-10; solo la usa `run_import_history.py` |
 
 **7. Canal WhatsApp y persistencia por usuario (ADR 0014 y 0015)**
 | Variable | Por defecto | Para qué |

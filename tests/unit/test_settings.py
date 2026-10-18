@@ -273,3 +273,15 @@ def test_whatsapp_settings_require_every_secret(tmp_path: Path) -> None:
 def test_whatsapp_server_only_listens_on_loopback(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError, match="WHATSAPP_HOST"):
         load_whatsapp_settings(WHATSAPP_ENV | {"WHATSAPP_HOST": "0.0.0.0"}, tmp_path)
+
+
+def test_web_page_size_and_poll_interval() -> None:
+    defaults = load_web_settings({})
+    custom = load_web_settings({"WEB_PAGE_SIZE": "50", "WEB_POLL_SECONDS": "1.5"})
+
+    assert (defaults.page_size, defaults.poll_seconds) == (30, 3.0)
+    assert (custom.page_size, custom.poll_seconds) == (50, 1.5)
+    with pytest.raises(ConfigurationError, match="WEB_PAGE_SIZE"):
+        load_web_settings({"WEB_PAGE_SIZE": "0"})
+    with pytest.raises(ConfigurationError, match="WEB_POLL_SECONDS"):
+        load_web_settings({"WEB_POLL_SECONDS": "0"})

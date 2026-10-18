@@ -17,6 +17,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
   - Importación única del histórico JSON (`run_import_history.py`), idempotente.
   - Configuración común `PersistenceSettings` (`DATABASE_PATH`, `THREAD_IDLE_TIMEOUT_HOURS`).
   - La consola y la web todavía no usan estos componentes (fases 3 a 5).
+- **HU-10, fases 3 y 4 (consola y API web sobre SQLite):**
+  - **Consola** (`bootstrap/console.py`): cada arranque crea un chat en SQLite, muestra su identificador y lo bloquea para la web mientras está abierta. Al salir cierra el hilo y lo libera. `ConsoleChat` recibe la sesión por un `Protocol`.
+  - **API web nueva:** lista de chats con filtro por canal, chat nuevo, páginas por `before`/`after`, mensajes en proceso, envío con 403 en chats de solo lectura y 409 si ya hay un turno en curso, y liberación de chats de consola.
+  - El contrato JSON pasa a `serializers.py`.
+  - Variables `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
+  - **La interfaz gráfica (fase 5) todavía usa la API anterior y no funciona con esta versión.**
 - **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
 - **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
 - **Canal WhatsApp (HU-09, fase 3, ADR 0014):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`).
@@ -31,6 +37,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - **HU-09 verificada en el PC de pruebas (2026-10-18)** con el número de prueba de Meta y dos teléfonos. ADR 0014 actualizado con el posible cobro de los mensajes de servicio desde octubre de 2026 (pendiente de confirmar en la facturación de Meta).
 - `ConversationService` acepta `active_thread_id` (opcional) para retomar el hilo abierto de un usuario; sin él, se comporta exactamente igual que antes.
 - Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
+
+### Removed
+- Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
 - `bootstrap/main.py`: `build_conversation` arma los puertos y la configuración del agente; `build_service` la usa y la consola y la web no cambian. `load_web_settings` reutiliza la validación de host local y puerto.

@@ -30,3 +30,6 @@ Telegram y WhatsApp aún no están disponibles para demostrar el flujo. La conso
 ## Actualización 2026-10-17 (revisión de la rama)
 - El host y el puerto se configuran en `.env` (`WEB_HOST`, `WEB_PORT`), según la convención de AGENTS.md §3, y la configuración **rechaza cualquier host que no sea local**. Así, "solo en loopback" se garantiza por código.
 - Se corrigieron tildes dañadas por doble codificación en 5 archivos Python, incluidos textos visibles para el usuario. Se agregó `tests/unit/test_text_encoding.py` para detectarlo en adelante.
+
+## Actualización 2026-10-18: auditoría multicanal (ADR 0016)
+- La interfaz deja de tener una sola sesión por proceso y de leer los JSON: muestra los chats de todos los canales desde SQLite, permite escribir solo en los de consola y web y se actualiza sola cada `WEB_POLL_SECONDS`. Se mantiene el resto de esta decisión, en especial **solo loopback**.

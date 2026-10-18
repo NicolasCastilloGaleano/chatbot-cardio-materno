@@ -92,18 +92,18 @@ def is_idle(last_activity: datetime, now: datetime, timeout: timedelta) -> bool:
     return now - last_activity > timeout
 
 
-def chat_lock(channel: Channel, user: User) -> ChatLock | None:
+def chat_lock(channel: Channel, live_session_at: datetime | None) -> ChatLock | None:
     """Indica si la interfaz puede escribir en el chat y, si no, por qué (ADR 0016).
 
     Args:
         channel: Canal del chat.
-        user: Dueño del chat.
+        live_session_at: Desde cuándo una consola tiene abierto el chat (None si ninguna).
 
     Returns:
         None si se puede escribir; si no, el motivo del bloqueo.
     """
     if channel in READ_ONLY_CHANNELS:
         return ChatLock.CHANNEL
-    if user.live_session_at is not None:
+    if live_session_at is not None:
         return ChatLock.LIVE_CONSOLE
     return None

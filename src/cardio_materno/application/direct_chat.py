@@ -94,7 +94,7 @@ class DirectChat:
             LanguageModelError: Si el modelo falla y no hay alarma.
         """
         owner = self._owner(user_id)
-        lock = chat_lock(owner.channel, owner.user)
+        lock = chat_lock(owner.channel, owner.user.live_session_at)
         if lock is not None and not (from_console and lock is ChatLock.LIVE_CONSOLE):
             raise ChatReadOnlyError(lock)
         self._users.save(seen_user(owner.user, self._clock()))

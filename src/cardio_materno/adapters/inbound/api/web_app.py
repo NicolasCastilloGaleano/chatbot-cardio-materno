@@ -1,52 +1,112 @@
-"""Aplicación web local para conversar y auditar las trazas del agente."""
+"""Interfaz web local de auditoría multicanal y chat directo (HU-08, HU-10, ADR 0013 y 0016).
 
+Audita los chats de todos los canales (uno por persona) y permite seguir conversando en los
+de consola y web. WhatsApp, Telegram y el histórico son de solo lectura: el servidor rechaza
+los envíos a esos chats, no solo la interfaz.
+"""
+
+import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from cardio_materno.application.conversation_service import ConversationService, TurnResult
-from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.ports.thread_repository import ThreadRepository
-from cardio_materno.domain.alarms import Alert
-from cardio_materno.domain.conversation import ChatMessage, ConversationThread
+from cardio_materno.adapters.inbound.api.serializers import (
+    CHANNEL_LABELS,
+    LOCK_TEXTS,
+    Entries,
+    chat_to_dict,
+    entry_to_dict,
+    turn_to_dict,
+)
+from cardio_materno.application.conversation_service import TurnResult
+from cardio_materno.application.direct_chat import DirectChat
+from cardio_materno.application.errors import (
+    ChatNotFoundError,
+    ChatReadOnlyError,
+    LanguageModelError,
+)
+from cardio_materno.application.ports.chat_audit import ChatAudit, ChatPage, ChatSummary
 from cardio_materno.domain.knowledge import KnowledgeEntry
-from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace
+from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
 STATIC_DIR = Path(__file__).with_name("static")
-APP_TITLE = "Chat cardio-materno: demostración y auditoría"
+APP_TITLE = "Chat cardio-materno: auditoría multicanal"
 ERROR_MODEL_MESSAGE = "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
-MISSING_ENTRY_TEXT = "Registro no disponible"
+CHAT_NOT_FOUND = "Chat no encontrado"
+CHAT_BUSY = "Ya se está procesando un mensaje en este chat. Espera la respuesta."
+NOT_LIVE = "El chat no está en uso en una consola."
+EMPTY_TEXT = "El mensaje no puede estar vacío"
+MAX_LIMIT = 200
+DEFAULT_CHAT_LIMIT = 50
+
+
+@dataclass(frozen=True)
+class WebOptions:
+    """Opciones de la interfaz.
+
+    Attributes:
+        page_size: Mensajes por página al abrir un chat o subir con el scroll.
+        poll_seconds: Cada cuánto la interfaz busca mensajes nuevos.
+    """
+
+    page_size: int
+    poll_seconds: float
 
 
 class SendMessageRequest(BaseModel):
-    """Mensaje enviado desde la interfaz."""
+    """Mensaje enviado desde la interfaz.
+
+    Attributes:
+        text: Texto del mensaje.
+        after: Último `seq` que tiene la interfaz, para devolver solo lo nuevo.
+    """
 
     text: str = Field(min_length=1, max_length=4000)
+    after: int = Field(default=0, ge=0)
+
+
+class ChatLocks:
+    """Un turno a la vez por chat dentro de este proceso."""
+
+    def __init__(self) -> None:
+        """Crea el registro de candados."""
+        self._guard = threading.Lock()
+        self._locks: dict[str, threading.Lock] = {}
+
+    def try_acquire(self, user_id: str) -> bool:
+        """Toma el candado del chat sin esperar; False si otro turno lo tiene."""
+        with self._guard:
+            lock = self._locks.setdefault(user_id, threading.Lock())
+        return lock.acquire(blocking=False)
+
+    def release(self, user_id: str) -> None:
+        """Libera el candado del chat."""
+        self._locks[user_id].release()
 
 
 def create_app(
-    service: ConversationService,
-    repository: ThreadRepository,
-    entries: list[KnowledgeEntry],
+    chats: DirectChat, audit: ChatAudit, entries: list[KnowledgeEntry], options: WebOptions
 ) -> FastAPI:
     """Construye la aplicación HTTP con sus dependencias inyectadas.
 
     Args:
-        service: Caso de uso conversacional de una sesión.
-        repository: Repositorio de solo lectura para consultar el historial.
-        entries: Registros de conocimiento usados para ampliar la evidencia de auditoría.
+        chats: Chats directos de consola y web (crear, escribir, liberar).
+        audit: Lectura de los chats de todos los canales.
+        entries: Registros de conocimiento para ampliar la evidencia de la auditoría.
+        options: Tamaño de página y frecuencia de actualización.
 
     Returns:
         Aplicación FastAPI lista para servir en loopback.
     """
-    app = FastAPI(title=APP_TITLE, docs_url=None, redoc_url=None)
+    app = FastAPI(title=APP_TITLE, docs_url=None, redoc_url=None, openapi_url=None)
     entry_index = {entry.id: entry for entry in entries}
     _add_page_routes(app)
-    _add_message_routes(app, service, entry_index)
-    _add_history_routes(app, repository, entry_index)
+    _add_chat_routes(app, chats, audit, options)
+    _add_message_routes(app, chats, audit, entry_index, options)
     return app
 
 
@@ -67,186 +127,154 @@ def _add_page_routes(app: FastAPI) -> None:
         return FileResponse(asset)
 
 
-def _add_message_routes(
-    app: FastAPI, service: ConversationService, entries: dict[str, KnowledgeEntry]
+def _add_chat_routes(
+    app: FastAPI, chats: DirectChat, audit: ChatAudit, options: WebOptions
 ) -> None:
-    """Registra los endpoints para enviar mensajes y cerrar la sesión activa."""
+    """Registra la configuración, la lista de chats, el chat nuevo y la liberación."""
 
-    @app.post("/api/messages")
-    def send_message(request: SendMessageRequest) -> dict[str, Any]:
-        """Procesa un mensaje y devuelve respuesta y datos de auditoría."""
+    @app.get("/api/config")
+    def config() -> dict[str, Any]:
+        """Tamaño de página, frecuencia de actualización y canales para los filtros."""
+        channels = [{"id": str(c), "label": label} for c, label in CHANNEL_LABELS.items()]
+        return {
+            "page_size": options.page_size,
+            "poll_seconds": options.poll_seconds,
+            "channels": channels,
+        }
+
+    @app.get("/api/chats")
+    def list_chats(
+        channel: str | None = None,
+        limit: int = Query(DEFAULT_CHAT_LIMIT, ge=1, le=MAX_LIMIT),
+        offset: int = Query(0, ge=0),
+    ) -> list[dict[str, Any]]:
+        """Chats del más reciente al más antiguo, opcionalmente de un canal."""
+        selected = parse_channel(channel)
+        return [chat_to_dict(chat) for chat in audit.list_chats(selected, limit, offset)]
+
+    @app.post("/api/chats", status_code=201)
+    def new_chat() -> dict[str, Any]:
+        """Nueva sesión: crea un chat web vacío."""
+        return chat_to_dict(require_chat(audit, chats.start(Channel.WEB)))
+
+    @app.get("/api/chats/{user_id}")
+    def get_chat(user_id: str) -> dict[str, Any]:
+        """Resumen de un chat y si se puede escribir en él."""
+        return chat_to_dict(require_chat(audit, user_id))
+
+    @app.post("/api/chats/{user_id}/release")
+    def release(user_id: str) -> dict[str, Any]:
+        """Libera un chat de consola que quedó marcado tras un cierre abrupto."""
+        chat = require_chat(audit, user_id)
+        if chat_lock(chat.channel, chat.live_session_at) is not ChatLock.LIVE_CONSOLE:
+            raise HTTPException(status_code=409, detail=NOT_LIVE)
+        chats.release_console(user_id)
+        return chat_to_dict(require_chat(audit, user_id))
+
+
+def _add_message_routes(
+    app: FastAPI, chats: DirectChat, audit: ChatAudit, entries: Entries, options: WebOptions
+) -> None:
+    """Registra la lectura por páginas y el envío de mensajes."""
+    locks = ChatLocks()
+
+    @app.get("/api/chats/{user_id}/messages")
+    def messages(
+        user_id: str,
+        before: int | None = Query(None, ge=1),
+        after: int | None = Query(None, ge=0),
+        limit: int | None = Query(None, ge=1, le=MAX_LIMIT),
+    ) -> dict[str, Any]:
+        """Página de mensajes: la más reciente, la anterior a `before` o lo nuevo tras `after`."""
+        chat = require_chat(audit, user_id)
+        size = limit or options.page_size
+        page = (
+            audit.messages_after(user_id, after, MAX_LIMIT)
+            if after is not None
+            else audit.message_page(user_id, before, size)
+        )
+        return page_to_dict(chat, page, audit.pending_inbound(user_id), entries)
+
+    @app.post("/api/chats/{user_id}/messages")
+    def send(user_id: str, request: SendMessageRequest) -> dict[str, Any]:
+        """Procesa un mensaje en un chat de consola o web y devuelve lo nuevo del chat."""
         text = request.text.strip()
         if not text:
-            raise HTTPException(status_code=422, detail="El mensaje no puede estar vacío")
+            raise HTTPException(status_code=422, detail=EMPTY_TEXT)
+        target = require_chat(audit, user_id)
+        if not locks.try_acquire(user_id):
+            raise HTTPException(status_code=409, detail=CHAT_BUSY)
         try:
-            result = service.send(text)
-        except LanguageModelError as error:
-            raise HTTPException(status_code=502, detail=ERROR_MODEL_MESSAGE) from error
-        return turn_to_dict(result, entries)
-
-    @app.post("/api/session/end")
-    def end_session() -> dict[str, str]:
-        """Cierra el hilo activo antes de iniciar una sesión nueva desde la interfaz."""
-        service.end_session()
-        return {"status": "cerrada"}
+            turn = run_turn(chats, target, text)
+        finally:
+            locks.release(user_id)
+        page = audit.messages_after(user_id, request.after, MAX_LIMIT)
+        chat = require_chat(audit, user_id)
+        return {"turn": turn_to_dict(turn, entries), **page_to_dict(chat, page, 0, entries)}
 
 
-def _add_history_routes(
-    app: FastAPI, repository: ThreadRepository, entries: dict[str, KnowledgeEntry]
-) -> None:
-    """Registra endpoints de consulta de hilos persistidos."""
+def run_turn(chats: DirectChat, chat: ChatSummary, text: str) -> TurnResult:
+    """Envía el mensaje y traduce los errores del caso de uso a respuestas HTTP.
 
-    @app.get("/api/threads")
-    def list_threads() -> list[dict[str, Any]]:
-        """Lista hilos guardados para su consulta de solo lectura."""
-        return [thread_to_dict(thread) for thread in repository.list_threads()]
-
-    @app.get("/api/threads/{thread_id}")
-    def get_thread(thread_id: str) -> dict[str, Any]:
-        """Devuelve un hilo y sus mensajes completos con las trazas ampliadas."""
-        thread = repository.get_thread(thread_id)
-        if thread is None:
-            raise HTTPException(status_code=404, detail="Hilo no encontrado")
-        messages = [
-            message_to_dict(message, entries) for message in repository.all_messages(thread_id)
-        ]
-        return {"thread": thread_to_dict(thread), "messages": messages}
+    Raises:
+        HTTPException: 404 si el chat no existe, 403 si es de solo lectura o está en uso en
+            una consola, 502 si falla el modelo.
+    """
+    try:
+        return chats.send(chat.user_id, text)
+    except ChatNotFoundError as error:
+        raise HTTPException(status_code=404, detail=CHAT_NOT_FOUND) from error
+    except ChatReadOnlyError as error:
+        label = CHANNEL_LABELS[chat.channel]
+        detail = LOCK_TEXTS[ChatLock(error.reason)].format(channel=label)
+        raise HTTPException(status_code=403, detail=detail) from error
+    except LanguageModelError as error:
+        raise HTTPException(status_code=502, detail=ERROR_MODEL_MESSAGE) from error
 
 
-def turn_to_dict(result: TurnResult, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
-    """Convierte el turno y las alertas al contrato HTTP del cliente.
+def page_to_dict(
+    chat: ChatSummary, page: ChatPage, pending: int, entries: Entries
+) -> dict[str, Any]:
+    """Página de mensajes con el estado actual del chat.
 
     Args:
-        result: Turno procesado por el caso de uso.
-        entries: Registros usados para completar el texto de evidencia.
+        chat: Resumen del chat (puede haber cambiado, p. ej., al cerrarse la consola).
+        page: Mensajes leídos.
+        pending: Mensajes del canal aún en proceso.
+        entries: Registros para completar la evidencia.
 
     Returns:
-        Datos JSON de la respuesta, el hilo, las alertas y la traza.
+        `chat`, `messages`, `next_before` y `pending`.
     """
     return {
-        "reply": result.reply,
-        "thread": thread_to_dict(result.thread) if result.thread else None,
-        "is_new_thread": result.is_new_thread,
-        "out_of_scope": result.out_of_scope,
-        "alerts": [alert_to_dict(alert) for alert in result.alerts],
-        "trace": trace_to_dict(result.trace, entries) if result.trace else None,
+        "chat": chat_to_dict(chat),
+        "messages": [entry_to_dict(entry, entries) for entry in page.entries],
+        "next_before": page.next_before,
+        "pending": pending,
     }
 
 
-def thread_to_dict(thread: ConversationThread) -> dict[str, str]:
-    """Serializa los datos visibles de un hilo.
+def require_chat(audit: ChatAudit, user_id: str) -> ChatSummary:
+    """Resumen del chat.
 
-    Args:
-        thread: Hilo que se expondrá a la interfaz.
-
-    Returns:
-        Identificador, resumen, dominio, estado y fechas en formato JSON.
+    Raises:
+        HTTPException: 404 si no existe.
     """
-    return {
-        "id": thread.id,
-        "domain": str(thread.domain),
-        "summary": thread.summary,
-        "status": str(thread.status),
-        "created_at": thread.created_at.isoformat(),
-        "updated_at": thread.updated_at.isoformat(),
-    }
+    chat = audit.get_chat(user_id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail=CHAT_NOT_FOUND)
+    return chat
 
 
-def message_to_dict(message: ChatMessage, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
-    """Serializa un mensaje y su traza, si existe.
+def parse_channel(value: str | None) -> Channel | None:
+    """Canal del filtro, o None para todos.
 
-    Args:
-        message: Mensaje persistido.
-        entries: Registros usados para completar el texto de evidencia.
-
-    Returns:
-        Mensaje con el rol, contenido, fecha y traza opcional.
+    Raises:
+        HTTPException: 422 si el canal no existe.
     """
-    return {
-        "role": str(message.role),
-        "content": message.content,
-        "created_at": message.created_at.isoformat() if message.created_at else None,
-        "trace": trace_to_dict(message.trace, entries) if message.trace else None,
-    }
-
-
-def trace_to_dict(trace: ReplyTrace, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
-    """Serializa la traza y resuelve la evidencia recuperada.
-
-    Args:
-        trace: Traza persistida del turno.
-        entries: Registros de conocimiento indexados por identificador.
-
-    Returns:
-        Datos de auditoría con evidencia, citas, verificación y tiempos.
-    """
-    return {
-        "reported_symptoms": list(trace.reported_symptoms),
-        "reported_signs": list(trace.reported_signs),
-        "unstated_symptoms": list(trace.unstated_symptoms),
-        "search_query": trace.search_query,
-        "scope": trace.scope,
-        "scope_reason": trace.scope_reason,
-        "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
-        "best_score": trace.best_score,
-        "evidence": [evidence_to_dict(ref, entries) for ref in trace.evidence],
-        "cited_evidence": list(trace.cited_evidence),
-        "uncited": trace.uncited,
-        "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
-        "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
-    }
-
-
-def evidence_to_dict(ref: EvidenceRef, entries: dict[str, KnowledgeEntry]) -> dict[str, Any]:
-    """Serializa una referencia de evidencia con la pregunta y la respuesta del registro.
-
-    Args:
-        ref: Referencia guardada en la traza (etiqueta, id, puntaje, categoría).
-        entries: Registros de conocimiento indexados por identificador.
-
-    Returns:
-        La referencia con el texto del registro, o un aviso si ya no está en la base.
-    """
-    entry = entries.get(ref.entry_id)
-    return {
-        "label": ref.label,
-        "entry_id": ref.entry_id,
-        "score": ref.score,
-        "category": ref.category,
-        "question": entry.question if entry else MISSING_ENTRY_TEXT,
-        "answer": entry.answer if entry else "",
-    }
-
-
-def grounding_to_dict(check: GroundingCheck) -> dict[str, Any]:
-    """Serializa la verificación del respaldo de la respuesta (ADR 0010).
-
-    Args:
-        check: Resultado de la verificación guardado en la traza.
-
-    Returns:
-        Frases mostradas, total, uso del texto literal y frases descartadas.
-    """
-    return {
-        "supported": check.supported,
-        "total": check.total,
-        "literal": check.literal,
-        "dropped": list(check.dropped),
-    }
-
-
-def alert_to_dict(alert: Alert) -> dict[str, Any]:
-    """Serializa una alerta determinista.
-
-    Args:
-        alert: Alerta registrada por las reglas del dominio.
-
-    Returns:
-        Regla, gravedad, origen y fecha de la alerta.
-    """
-    return {
-        "rule_ids": list(alert.rule_ids),
-        "severity": str(alert.severity),
-        "origin": str(alert.origin),
-        "created_at": alert.created_at.isoformat(),
-    }
+    if not value:
+        return None
+    try:
+        return Channel(value)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=f"Canal desconocido: {value}") from error

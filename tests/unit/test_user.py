@@ -1,6 +1,5 @@
 """Pruebas de las entidades de usuario y la regla de inactividad (ADR 0015)."""
 
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from cardio_materno.domain.user import (
@@ -38,16 +37,12 @@ def test_thread_is_idle_only_after_the_timeout() -> None:
 
 
 def test_whatsapp_telegram_and_history_are_read_only() -> None:
-    user = new_user("u1", NOW)
-
     for channel in (Channel.WHATSAPP, Channel.TELEGRAM, Channel.HISTORICAL):
-        assert chat_lock(channel, user) is ChatLock.CHANNEL
-    assert chat_lock(Channel.WEB, user) is None
-    assert chat_lock(Channel.CONSOLE, user) is None
+        assert chat_lock(channel, None) is ChatLock.CHANNEL
+    assert chat_lock(Channel.WEB, None) is None
+    assert chat_lock(Channel.CONSOLE, None) is None
 
 
 def test_console_chat_is_locked_while_a_console_has_it_open() -> None:
-    live = replace(new_user("u1", NOW), live_session_at=NOW)
-
-    assert chat_lock(Channel.CONSOLE, live) is ChatLock.LIVE_CONSOLE
-    assert chat_lock(Channel.WHATSAPP, live) is ChatLock.CHANNEL
+    assert chat_lock(Channel.CONSOLE, NOW) is ChatLock.LIVE_CONSOLE
+    assert chat_lock(Channel.WHATSAPP, NOW) is ChatLock.CHANNEL

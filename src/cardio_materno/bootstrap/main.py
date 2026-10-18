@@ -1,10 +1,14 @@
-"""Punto de entrada: arma las dependencias y arranca el chat por consola."""
+"""Composición común: modelos, alarmas, RAG y configuración del agente.
+
+La consola arranca desde `bootstrap/console.py`, la web desde `bootstrap/web.py` y WhatsApp
+desde `bootstrap/whatsapp.py`. `build_service` (servicio con hilos JSON en memoria de sesión)
+queda para el benchmark y las pruebas en vivo.
+"""
 
 import os
 import sys
 from pathlib import Path
 
-from cardio_materno.adapters.inbound.console.console_chat import ConsoleChat
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import (
     AlarmCatalogError,
     load_alarm_policy,
@@ -25,14 +29,12 @@ from cardio_materno.application.conversation_service import (
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.ports.thread_repository import ThreadRepository
-from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.rag_setup import RagSetup, setup_rag
 from cardio_materno.bootstrap.settings import (
     ANALYSIS_MODEL_VARIABLE,
     REPLY_MODEL_VARIABLE,
     ConfigurationError,
     ConversationSettings,
-    load_conversation_settings,
     load_ollama_settings,
     load_rag_settings,
     load_stage_settings,
@@ -47,24 +49,6 @@ REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v3.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
-
-
-def main() -> int:
-    """Configura y ejecuta el chat por consola.
-
-    Returns:
-        Código de salida del proceso (0 si terminó bien, 1 si hubo un error de arranque).
-    """
-    use_utf8_streams()
-    try:
-        load_env_file(ENV_FILE)
-        settings = load_conversation_settings(os.environ, PROJECT_ROOT)
-        service = build_service(settings)
-    except STARTUP_ERRORS as error:
-        print(f"No se pudo iniciar el asistente: {error}", file=sys.stderr)
-        return EXIT_ERROR
-    ConsoleChat(service, settings.show_thread_debug).run()
-    return EXIT_OK
 
 
 def use_utf8_streams() -> None:

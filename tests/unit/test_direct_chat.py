@@ -7,6 +7,7 @@ from datetime import timedelta
 
 import pytest
 
+from cardio_materno.adapters.inbound.console.console_chat import ConsoleChat
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     IN_MEMORY,
     SqliteDatabase,
@@ -157,3 +158,18 @@ def test_unknown_chat_is_reported(database: SqliteDatabase) -> None:
 
     with pytest.raises(ChatNotFoundError):
         harness.chat.send("no-existe", "hola")
+
+
+def test_console_run_creates_its_chat_and_releases_it_on_exit(database: SqliteDatabase) -> None:
+    harness = build(database, agent_json("eco"))
+    session = open_console_session(harness.chat)
+    inputs = iter(["hola", "salir"])
+    output: list[str] = []
+
+    ConsoleChat(session, read=lambda _prompt: next(inputs), write=output.append).run()
+
+    owner = SqliteUserDirectory(database).get(session.user_id)
+    assert "Asistente: eco" in output
+    assert owner is not None and owner.channel is Channel.CONSOLE
+    assert owner.user.live_session_at is None
+    assert statuses(harness, session.user_id) == [ThreadStatus.CLOSED]

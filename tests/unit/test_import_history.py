@@ -81,6 +81,7 @@ def test_running_the_import_twice_does_not_duplicate(tmp_path: Path) -> None:
     assert SqliteChatAudit(database).get_chat(first.user_id).message_count == 4  # type: ignore[union-attr]
     database.close()
 
+
 def test_nothing_to_import_creates_no_chat(tmp_path: Path) -> None:
     database = SqliteDatabase(IN_MEMORY)
 

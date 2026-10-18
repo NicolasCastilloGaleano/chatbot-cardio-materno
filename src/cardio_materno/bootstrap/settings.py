@@ -46,6 +46,10 @@ TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 # Interfaz web local (ADR 0013): solo puede escuchar en la propia máquina.
 DEFAULT_WEB_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = "8000"
+# Auditoría multicanal (ADR 0016): mensajes por página y frecuencia de la actualización.
+DEFAULT_WEB_PAGE_SIZE = "30"
+DEFAULT_WEB_POLL_SECONDS = "3"
+MAX_WEB_PAGE_SIZE = 200
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -219,22 +223,38 @@ class WebSettings:
     Attributes:
         host: Dirección de escucha; solo se admite la propia máquina (loopback).
         port: Puerto TCP.
+        page_size: Mensajes por página al abrir un chat o subir con el scroll.
+        poll_seconds: Cada cuánto la interfaz busca mensajes nuevos.
     """
 
     host: str
     port: int
+    page_size: int = int(DEFAULT_WEB_PAGE_SIZE)
+    poll_seconds: float = float(DEFAULT_WEB_POLL_SECONDS)
 
 
 def load_web_settings(env: Mapping[str, str]) -> WebSettings:
-    """Lee `WEB_HOST` y `WEB_PORT`.
+    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
 
     Raises:
-        ConfigurationError: Si el host no es local (la interfaz no se expone en la red) o el
-            puerto no es válido.
+        ConfigurationError: Si el host no es local (la interfaz no se expone en la red), el
+            puerto no es válido o el tamaño de página o la frecuencia están fuera de rango.
     """
+    page_size = _get_int(env, "WEB_PAGE_SIZE", DEFAULT_WEB_PAGE_SIZE)
+    if not 1 <= page_size <= MAX_WEB_PAGE_SIZE:
+        raise ConfigurationError(
+            f"WEB_PAGE_SIZE debe estar entre 1 y {MAX_WEB_PAGE_SIZE}, se recibió {page_size}."
+        )
+    poll_seconds = _get_float(env, "WEB_POLL_SECONDS", DEFAULT_WEB_POLL_SECONDS)
+    if poll_seconds <= 0:
+        raise ConfigurationError(
+            f"WEB_POLL_SECONDS debe ser mayor que 0, se recibió {poll_seconds}."
+        )
     return WebSettings(
         _get_loopback_host(env, "WEB_HOST", DEFAULT_WEB_HOST),
         _get_port(env, "WEB_PORT", DEFAULT_WEB_PORT),
+        page_size,
+        poll_seconds,
     )
 
 

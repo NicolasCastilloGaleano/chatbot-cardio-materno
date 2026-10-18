@@ -494,4 +494,4 @@ Escenario: Mensajes fuera de alcance
   Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
 ```
-Estado: 🔄 Aprobada (2026-10-18); en implementación. Fase 2 (dominio, aplicación, SQLite e importación del histórico) hecha y probada automáticamente; faltan la consola, la API y la interfaz. Reemplaza en parte a la HU-08
+Estado: 🔄 Aprobada (2026-10-18); en implementación. Fases 2 a 4 (dominio, SQLite, importación del histórico, consola y API web) hechas y probadas automáticamente; falta la interfaz gráfica (fase 5). Reemplaza en parte a la HU-08

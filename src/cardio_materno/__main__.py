@@ -2,6 +2,6 @@
 
 import sys
 
-from cardio_materno.bootstrap.main import main
+from cardio_materno.bootstrap.console import main
 
 sys.exit(main())

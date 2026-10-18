@@ -1,9 +1,10 @@
-"""Chat interactivo por consola (HU-00, HU-06, HU-02)."""
+"""Chat interactivo por consola (HU-00, HU-06, HU-02, HU-10)."""
 
 from collections.abc import Callable
+from typing import Protocol
 
 from cardio_materno.adapters.inbound.console.debug_lines import debug_lines
-from cardio_materno.application.conversation_service import ConversationService
+from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.errors import LanguageModelError
 
 EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
@@ -21,12 +22,24 @@ Reader = Callable[[str], str]
 Writer = Callable[[str], None]
 
 
+class ChatSession(Protocol):
+    """Sesión que atiende la consola: un chat de consola (HU-10) o un servicio en memoria."""
+
+    def send(self, user_text: str) -> TurnResult:
+        """Procesa un mensaje y devuelve el turno."""
+        ...
+
+    def end_session(self) -> None:
+        """Cierra el hilo activo al salir."""
+        ...
+
+
 class ConsoleChat:
-    """Bucle de lectura y respuesta que conecta la consola con el ConversationService."""
+    """Bucle de lectura y respuesta que conecta la consola con su sesión de chat."""
 
     def __init__(
         self,
-        service: ConversationService,
+        service: ChatSession,
         show_thread_debug: bool = False,
         read: Reader = input,
         write: Writer = print,
@@ -34,7 +47,7 @@ class ConsoleChat:
         """Crea el chat de consola.
 
         Args:
-            service: Caso de uso que procesa cada mensaje.
+            service: Sesión que procesa cada mensaje.
             show_thread_debug: Si True, muestra el estado del hilo después de cada respuesta.
             read: Función que lee una línea mostrando un prompt (por defecto `input`).
             write: Función que muestra texto (por defecto `print`).
