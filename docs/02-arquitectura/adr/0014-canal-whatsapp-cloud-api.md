@@ -42,3 +42,8 @@ WhatsApp impone condiciones que la consola y la web no tienen:
 - ⚠️ Un endpoint público con datos de salud: la firma de Meta es obligatoria y los secretos van solo en `.env`. El token temporal de Meta dura 24 h; para pruebas largas se usa un token de usuario del sistema.
 - ⚠️ Si el proceso se reinicia con mensajes en cola, esos mensajes quedan como "recibidos" sin respuesta; se marcarán como interrumpidos al arrancar.
 - Pendiente: consentimiento (HU-01), mensajes proactivos (`AlertNotifier`, B-016), audio e imágenes.
+
+## Actualización 2026-10-18: verificación y costo de los mensajes
+- **Verificado en el PC de pruebas** con el número de prueba de Meta, ngrok y dos teléfonos (HU-09 aceptada). Durante la configuración, la cuenta de WhatsApp Business no enviaba los mensajes reales al webhook hasta suscribirla a la app con `POST /{WABA_ID}/subscribed_apps`; el paso quedó en `instalacion.md`.
+- **Costo:** según varias fuentes externas, desde el **1 de octubre de 2026** Meta cobra los mensajes de servicio (texto libre dentro de la ventana de 24 h) por encima de **1.000 al mes por número**. La página oficial de precios consultada no lo mostraba aún, así que **hay que confirmarlo en la facturación de la cuenta** antes del piloto. El número de prueba no factura.
+- **Consecuencia para el diseño:** cada turno envía en promedio unos 2 mensajes (el aviso de espera, que con la latencia actual sale casi siempre, más la respuesta). Las 1.000 gratis alcanzarían para unas 500 consultas al mes. El consumo se mide en `outbound_messages` por `kind`. Desactivar o espaciar el aviso (`WHATSAPP_WAIT_NOTICE_SECONDS`) y bajar la latencia (ADR 0011) son decisiones del equipo para el piloto.

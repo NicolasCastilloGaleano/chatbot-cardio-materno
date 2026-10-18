@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-17 (HU-09 propuesta)*
+*Última actualización: 2026-10-18 (HU-09 aceptada)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -416,4 +416,4 @@ Escenario: Los canales actuales no cambian
   Cuando uso la consola o la interfaz web local
   Entonces funcionan igual que antes, con su repositorio JSON
 ```
-Estado: 🔄 Aprobada (2026-10-17); en implementación. Fases 2 (persistencia SQLite por usuario) y 3 (webhook, cola y envío) implementadas y probadas automáticamente; falta la prueba real con Meta y ngrok en el PC de pruebas
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-18 con el número de prueba de Meta, ngrok y dos teléfonos: personas separadas, urgencia sin LLM, aviso de "solo texto" con imagen, aviso de espera, reenvío sin duplicar, cierre por inactividad, error del modelo y base sin números). Solo con números de prueba del equipo: falta el consentimiento (HU-01) para personas reales

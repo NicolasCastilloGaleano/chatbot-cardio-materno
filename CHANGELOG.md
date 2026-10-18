@@ -16,7 +16,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
   - Nuevos `IncomingMessage`, el puerto `MessageSender`/`DelayedActions` y `ChannelDeliveryError`.
   - Sin dependencias nuevas.
 - Variables `.env` (secciones 9 y 10): `WHATSAPP_APP_SECRET`, `WHATSAPP_API_VERSION`, `WHATSAPP_HOST`, `WHATSAPP_PORT`, `WHATSAPP_SEND_TIMEOUT_SECONDS`, `WHATSAPP_WAIT_NOTICE_SECONDS`, `WHATSAPP_MAX_PENDING`, `USER_ID_HASH_SECRET`, `DATABASE_PATH`, `THREAD_IDLE_TIMEOUT_HOURS`. El servidor solo escucha en loopback; ngrok publica la URL.
-- Guía paso a paso de Meta Developers, ngrok y el webhook en `instalacion.md`.
+- Guía paso a paso de Meta Developers, ngrok y el webhook en `instalacion.md`, incluida la suscripción de la cuenta de WhatsApp Business a la app (`subscribed_apps`), sin la cual los mensajes reales no llegan.
+- **HU-09 verificada en el PC de pruebas (2026-10-18)** con el número de prueba de Meta y dos teléfonos. ADR 0014 actualizado con el posible cobro de los mensajes de servicio desde octubre de 2026 (pendiente de confirmar en la facturación de Meta).
 - `ConversationService` acepta `active_thread_id` (opcional) para retomar el hilo abierto de un usuario; sin él, se comporta exactamente igual que antes.
 - Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
 

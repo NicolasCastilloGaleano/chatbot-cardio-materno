@@ -21,7 +21,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Interfaz web local de chat y auditoría** (HU-08, B-023, ADR 0013) | ✅ Implementada y probada automáticamente; recorrido visual en el PC de pruebas pendiente |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
-| Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | 🔄 Implementado y probado automáticamente (webhook, cola, usuarios e hilos en SQLite); falta la prueba real con Meta y ngrok en el PC de pruebas |
+| Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |
 
 **Pendientes de aprobación del equipo** (contenido clínico PROVISIONAL implementado para la demostración, ADR propuestos y elección del modelo): [docs/00-gestion/pendientes-aprobacion.md](docs/00-gestion/pendientes-aprobacion.md).
 

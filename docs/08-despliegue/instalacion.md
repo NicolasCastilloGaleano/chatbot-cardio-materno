@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-17 (HU-09: canal WhatsApp)*
+*Última actualización: 2026-10-18 (HU-09: suscripción de la cuenta de WhatsApp Business)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -83,6 +83,16 @@ Comprueba `https://algo.ngrok-free.app/health` en el navegador: debe responder `
 2. **Verify token:** el mismo valor de `WHATSAPP_VERIFY_TOKEN`.
 3. "Verify and save": Meta hace un GET con `hub.challenge` y nuestro servidor lo devuelve si el token coincide. En la terminal de ngrok aparece `GET /webhooks/whatsapp 200`.
 4. En **Webhook fields**, pulsa *Manage* y suscríbete a **`messages`**. Sin esto Meta no envía nada.
+
+**4b. Suscribir la cuenta de WhatsApp Business a la app** (una sola vez; sin esto, el botón *Test* de Meta llega pero los mensajes reales no). El **WhatsApp Business Account ID** está en *API Setup*, junto al Phone number ID (no los confundas). En el PC de pruebas, primero:
+```bash
+TOKEN=$(grep '^WHATSAPP_TOKEN=' .env | tail -n 1 | cut -d= -f2-)
+```
+Luego, con tu WhatsApp Business Account ID en lugar de `123456789012345` (sin `<` `>`):
+```bash
+curl -X POST "https://graph.facebook.com/v23.0/123456789012345/subscribed_apps" -H "Authorization: Bearer $TOKEN"
+```
+Debe responder `{"success":true}`.
 
 **5. Probar**: desde un teléfono verificado escribe "hola" al número de prueba. Verás el mensaje como leído, "escribiendo…", el aviso de espera si tarda más de 10 s y luego la respuesta. El inspector de ngrok (`http://127.0.0.1:4040`) muestra cada notificación; con *Replay* puedes reenviarla y comprobar que no se responde dos veces.
 
@@ -233,7 +243,8 @@ Al arrancar, la consola muestra el modelo de cada etapa y el umbral efectivo del
 | Meta no verifica el webhook ("The callback URL or verify token couldn't be validated") | `run_whatsapp.py` y ngrok deben estar corriendo; la URL termina en `/webhooks/whatsapp`; el token es idéntico a `WHATSAPP_VERIFY_TOKEN` |
 | Llega el mensaje (POST 200 en ngrok) pero no hay respuesta | Mira la terminal 1: `131030 … allowed list` = el número no está verificado en "To"; `190 … expired` = token vencido; `100 … Invalid parameter` = revisa `WHATSAPP_PHONE_NUMBER_ID` |
 | POST con 401 en ngrok | `WHATSAPP_APP_SECRET` no coincide con el App Secret de la app |
-| No llega ningún POST | Falta suscribirse al campo `messages` en Webhook fields |
+| No llega ningún POST | Falta suscribirse al campo `messages` en Webhook fields, o la cuenta de WhatsApp Business no está suscrita a la app (paso 4b) |
+| `Object with ID '<WABA_ID>' does not exist` (código 100, subcódigo 33) al suscribir | Se dejó el texto de ejemplo: reemplaza `<WABA_ID>` por el WhatsApp Business Account ID real (no el Phone number ID) |
 
 ## B. Desarrollo (Windows o Linux; no requiere Ollama)
 ```bash

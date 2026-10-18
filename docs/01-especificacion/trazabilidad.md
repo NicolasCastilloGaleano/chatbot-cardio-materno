@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-17 (HU-09 propuesta)*
+*Última actualización: 2026-10-18 (HU-09 verificada)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -24,12 +24,12 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-09 | El chat continuo retoma el hilo abierto con el mismo contexto que la consola | `UserThreadStore.open_thread`, `ConversationService(active_thread_id)` | `test_resumed_thread_gets_the_same_context_as_a_console_session`, `test_new_topic_closes_the_users_thread_and_keeps_one_open`, `test_only_one_open_thread_per_user` | ✅ (automática; fase 2) |
 | HU-09 | Base para el cierre por inactividad y la deduplicación | `domain/user.py::is_idle`, `last_activity_at`, `sqlite_channel_log.py` | `test_user.py`, `test_last_activity_follows_messages_even_without_thread_update`, `test_inbound_messages_are_deduplicated` | ✅ (automática) |
 | HU-09 | Los canales actuales no cambian (JSON y SQLite cumplen el mismo contrato) | `JsonFileThreadRepository`, `SqliteThreadRepository` | `test_thread_repository_contract.py` (3 variantes), suite completa sin cambios de comportamiento | ✅ (automática) |
-| HU-09 | Verificación del webhook y solo notificaciones firmadas | `adapters/inbound/whatsapp/{webhook,signature}.py` | `test_whatsapp_webhook.py` (token correcto/incorrecto, sin firma, firma falsa, JSON inválido, cola llena) | ✅ (automática); ⏳ con Meta |
-| HU-09 | Primer mensaje: usuario por hash (nunca el número) y respuesta en el mismo chat | `application/handle_incoming_message.py`, `payload.py`, `incoming_message.py::make_identity_hasher` | `test_first_message_creates_user_and_replies_in_the_same_chat`, `test_the_phone_number_is_never_stored`, `test_profile_name_and_phone_are_not_part_of_the_identity` | ✅ (automática); ⏳ con Meta |
-| HU-09 | Dos personas por el canal: cada una recibe solo su respuesta | `HandleIncomingMessage`, `UserThreadStore.scoped` | `test_each_person_gets_only_their_own_reply` | ✅ (automática); ⏳ con dos teléfonos |
+| HU-09 | Verificación del webhook y solo notificaciones firmadas | `adapters/inbound/whatsapp/{webhook,signature}.py` | `test_whatsapp_webhook.py` (token correcto/incorrecto, sin firma, firma falsa, JSON inválido, cola llena) | ✅ (automática); ✅ en vivo (2026-10-18) |
+| HU-09 | Primer mensaje: usuario por hash (nunca el número) y respuesta en el mismo chat | `application/handle_incoming_message.py`, `payload.py`, `incoming_message.py::make_identity_hasher` | `test_first_message_creates_user_and_replies_in_the_same_chat`, `test_the_phone_number_is_never_stored`, `test_profile_name_and_phone_are_not_part_of_the_identity` | ✅ (automática); ✅ en vivo (2026-10-18) |
+| HU-09 | Dos personas por el canal: cada una recibe solo su respuesta | `HandleIncomingMessage`, `UserThreadStore.scoped` | `test_each_person_gets_only_their_own_reply` | ✅ (automática); ✅ en vivo con dos teléfonos (2026-10-18) |
 | HU-09 | Chat continuo: retoma el hilo reciente y cierra el inactivo | `HandleIncomingMessage._service_for`, `is_idle` | `test_recent_thread_is_resumed`, `test_idle_thread_is_closed_before_the_new_message` | ✅ (automática) |
-| HU-09 | Reenvío de Meta no se responde dos veces | `ChannelLog.register_inbound` | `test_a_repeated_notification_is_not_answered_twice`, `test_inbound_messages_are_deduplicated` | ✅ (automática); ⏳ "Replay" de ngrok |
-| HU-09 | Leído + "escribiendo…" y aviso de espera | `WhatsAppCloudSender.acknowledge`, `DelayedActions` | `test_slow_reply_sends_the_wait_notice_first`, `test_fast_reply_cancels_the_wait_notice`, `test_acknowledge_marks_as_read_with_typing_indicator`, `test_failed_read_receipt_does_not_block_the_reply` | ✅ (automática); ⏳ con Meta |
+| HU-09 | Reenvío de Meta no se responde dos veces | `ChannelLog.register_inbound` | `test_a_repeated_notification_is_not_answered_twice`, `test_inbound_messages_are_deduplicated` | ✅ (automática); ✅ en vivo con "Replay" de ngrok (2026-10-18) |
+| HU-09 | Leído + "escribiendo…" y aviso de espera | `WhatsAppCloudSender.acknowledge`, `DelayedActions` | `test_slow_reply_sends_the_wait_notice_first`, `test_fast_reply_cancels_the_wait_notice`, `test_acknowledge_marks_as_read_with_typing_indicator`, `test_failed_read_receipt_does_not_block_the_reply` | ✅ (automática); ✅ en vivo (2026-10-18) |
 | HU-09 | Urgencia por WhatsApp sin LLM | `ConversationService` (sin cambios) | `test_urgency_gets_the_fixed_message_without_the_agent` | ✅ (automática) |
 | HU-09 | Mensaje que no es texto; reacciones en silencio | `payload.py`, `HandleIncomingMessage` | `test_non_text_message_gets_a_notice_without_calling_the_agent`, `test_non_text_messages_are_unsupported_and_reactions_are_silent` | ✅ (automática) |
 | HU-09 | Respuesta larga en varias partes | `channel_messages.py::split_message` | `test_channel_messages.py`, `test_long_reply_is_split_into_several_messages` | ✅ (automática) |
