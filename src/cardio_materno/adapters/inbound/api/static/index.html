@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f3f6f4">
-    <title>Chat cardio-materno · auditoría</title>
+    <title>Auditoría cardio-materno</title>
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
@@ -12,36 +12,44 @@
       <header class="topbar">
         <div class="brand-mark" aria-hidden="true">+</div>
         <div><p class="eyebrow">PROTOTIPO LOCAL · USO DEL EQUIPO</p><h1>Cardio materno</h1></div>
-        <span class="local-pill"><span></span> Sesión local</span>
+        <span class="local-pill"><span></span> Auditoría multicanal · solo en este equipo</span>
       </header>
       <main class="workspace">
-        <section class="chat-panel" aria-label="Conversación">
-          <div class="chat-heading">
-            <div><p class="eyebrow">DEMOSTRACIÓN DEL FLUJO</p><h2>Conversación</h2></div>
+        <section class="chats-panel" aria-label="Chats">
+          <div class="section-heading">
+            <div><p class="eyebrow">TODOS LOS CANALES</p><h2>Chats</h2></div>
             <button id="new-chat" class="quiet-button" type="button">Nueva sesión</button>
           </div>
-          <div id="active-thread" class="thread-context">Sin hilo activo · inicia una consulta para comenzar</div>
-          <div id="messages" class="messages" aria-live="polite">
-            <div class="welcome-card"><div class="welcome-icon">✦</div><h3>Hola, ¿en qué puedo orientarte?</h3><p>Escribe una consulta cardiovascular o materno-infantil. Selecciona cualquier respuesta del asistente para explorar cómo se construyó.</p></div>
+          <div id="channel-filters" class="channel-filters" role="tablist" aria-label="Filtrar por canal"></div>
+          <div id="chat-list" class="chat-list"><p class="muted empty-list">Cargando chats…</p></div>
+        </section>
+
+        <section class="chat-panel" aria-label="Conversación">
+          <div class="chat-heading">
+            <div><p id="chat-eyebrow" class="eyebrow">CONVERSACIÓN</p><h2 id="chat-title">Selecciona un chat</h2></div>
+            <span id="chat-badge" class="channel-badge" hidden></span>
           </div>
+          <div id="lock-banner" class="lock-banner" hidden>
+            <span id="lock-text"></span>
+            <button id="release-chat" class="quiet-button" type="button" hidden>Liberar</button>
+          </div>
+          <div id="messages" class="messages" aria-live="polite">
+            <div class="welcome-card"><div class="welcome-icon">✦</div><h3>Audita cualquier chat</h3><p>Elige un chat de la lista o crea una nueva sesión. Los mensajes de un mismo hilo comparten color; haz clic en una respuesta para ver su traza.</p></div>
+          </div>
+          <button id="new-messages" class="new-messages" type="button" hidden>↓ Mensajes nuevos</button>
           <form id="composer" class="composer">
             <label class="sr-only" for="message-input">Escribe tu mensaje</label>
-            <textarea id="message-input" rows="1" maxlength="4000" placeholder="Escribe un mensaje…" required></textarea>
-            <button id="send-button" class="send-button" type="submit" aria-label="Enviar mensaje">↑</button>
+            <textarea id="message-input" rows="1" maxlength="4000" placeholder="Selecciona un chat de consola o web para escribir" required disabled></textarea>
+            <button id="send-button" class="send-button" type="submit" aria-label="Enviar mensaje" disabled>↑</button>
             <p class="disclaimer">Prototipo de teleorientación. No reemplaza la consulta médica ni realiza diagnósticos.</p>
           </form>
         </section>
-        <aside class="side-column">
-          <section id="audit-panel" class="audit-panel" aria-label="Auditoría de respuesta">
-            <div class="empty-audit"><div class="inspect-icon">⌕</div><p class="eyebrow">TRAZABILIDAD DEL AGENTE</p><h2>Explora una respuesta</h2><p>Haz clic en una respuesta para ver el hilo, los síntomas identificados, las evidencias recuperadas y su verificación.</p></div>
-          </section>
-          <section class="history-panel">
-            <div class="section-heading"><div><p class="eyebrow">CONSULTA DE SOLO LECTURA</p><h2>Hilos guardados</h2></div><span id="thread-count" class="count-badge">0</span></div>
-            <div id="thread-list" class="thread-list"><p class="muted empty-list">Aún no hay conversaciones guardadas.</p></div>
-          </section>
-        </aside>
+
+        <section id="audit-panel" class="audit-panel" aria-label="Auditoría de respuesta">
+          <div class="empty-audit"><div class="inspect-icon">⌕</div><p class="eyebrow">TRAZABILIDAD DEL AGENTE</p><h2>Explora una respuesta</h2><p>Haz clic en una respuesta para ver el hilo, los síntomas identificados, las evidencias recuperadas, su verificación y las alertas del turno.</p></div>
+        </section>
       </main>
-      <footer class="footer"><span>Asistente de teleorientación cardio-materno</span><span>Las evidencias son visibles para auditoría interna</span></footer>
+      <footer class="footer"><span>Asistente de teleorientación cardio-materno</span><span>Datos de salud: uso interno del equipo, solo en este equipo</span></footer>
     </div>
     <script src="/static/app.js" defer></script>
   </body>

@@ -29,7 +29,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |
 | B-017 | Intención del mensaje (reporte / consulta general / ambiguo) para **adaptar** la respuesta a una alarma, nunca para suprimirla (ver nota) | HU-03, HU-04 | Media | — | ⏳ |
 | B-023 | Interfaz web local de chat con envío por Enter, estado de procesamiento y paneles persistentes de auditoría | HU-08 | Alta | — | ✅ Implementada y verificada automáticamente; recorrido visual pendiente |
-| B-024 | Interfaz de auditoría multicanal: chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp/Telegram, consola y web sobre SQLite y continuables en la web, actualización automática. Especificación propuesta: HU-10, ADR 0016 | HU-10 | Alta | — | 🔄 Especificación propuesta (2026-10-18) |
+| B-024 | Interfaz de auditoría multicanal: chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp/Telegram, consola y web sobre SQLite y continuables en la web, actualización automática. Especificación propuesta: HU-10, ADR 0016 | HU-10 | Alta | — | 🔄 Implementado y probado automáticamente y con datos sintéticos (2026-10-18); falta el recorrido en el PC de pruebas |
 
 ## Notas de ítems
 

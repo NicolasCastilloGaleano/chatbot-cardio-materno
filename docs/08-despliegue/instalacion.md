@@ -45,8 +45,15 @@ Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa
 
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). **Desde la HU-10**, cada arranque de la consola crea su propio chat en `data/cardio_materno.db` y muestra su identificador corto ("Chat de consola 1a2b3c4d…"). Al salir, ese chat se continúa en la interfaz web; la consola no retoma chats anteriores. Si la consola se cierra de golpe, el chat queda "en uso en la consola" hasta liberarlo desde la web.
 
-### Interfaz local de chat y auditoría (HU-08)
-Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
+### Interfaz local de auditoría multicanal (HU-08 y HU-10)
+Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). Carga los mismos modelos, reglas y RAG que la consola y lee la base `data/cardio_materno.db`, la misma de la consola y WhatsApp, que pueden correr a la vez.
+- **Izquierda:** los chats de todos los canales, con filtros. 🔒 marca los de solo lectura (WhatsApp, Telegram, Histórico y las consolas abiertas).
+- **Centro:** el chat como una sola conversación. Cada hilo tiene un color, y un separador marca dónde cambia. Al subir con el scroll se cargan los mensajes anteriores (`WEB_PAGE_SIZE`).
+- **Derecha:** la traza de la respuesta que selecciones, con la evidencia completa y las alertas del turno.
+- **Escritura:** solo en chats de consola y web. "Nueva sesión" crea un chat web; un chat de consola se continúa aquí cuando la consola se cierra ("Liberar" si se cerró de golpe).
+- **Actualización:** cada `WEB_POLL_SECONDS` (3 s) aparecen solos los mensajes nuevos. Si una persona escribe por WhatsApp, primero verás "procesando…" y, al terminar el turno, su mensaje y la respuesta.
+- Los mensajes fuera de alcance no se guardan (HU-07) y no aparecen al auditar.
+- No la expongas a una red: muestra datos de salud sin autenticación.
 
 ### Importar el histórico JSON (HU-10, una sola vez)
 Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):

@@ -22,7 +22,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
   - **API web nueva:** lista de chats con filtro por canal, chat nuevo, páginas por `before`/`after`, mensajes en proceso, envío con 403 en chats de solo lectura y 409 si ya hay un turno en curso, y liberación de chats de consola.
   - El contrato JSON pasa a `serializers.py`.
   - Variables `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
-  - **La interfaz gráfica (fase 5) todavía usa la API anterior y no funciona con esta versión.**
+- **HU-10, fase 5 (interfaz gráfica):** tres columnas (chats, conversación, auditoría).
+  - Filtros por canal y chats de solo lectura con candado.
+  - Mensajes de cada hilo con su color y separadores donde cambia el hilo.
+  - Carga hacia arriba por páginas conservando la posición.
+  - Actualización automática con "procesando…" y "mensajes nuevos".
+  - Composer bloqueado con el motivo y botón "Liberar".
+  - Mensajes fuera de alcance mostrados como no guardados.
+  - Respuesta seleccionada resaltada; chat abierto recordado en el navegador; diseño para pantallas angostas.
 - **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
 - **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
 - **Canal WhatsApp (HU-09, fase 3, ADR 0014):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`).

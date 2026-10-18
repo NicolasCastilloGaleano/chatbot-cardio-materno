@@ -105,6 +105,22 @@ def test_page_script_and_config_are_served(database: SqliteDatabase) -> None:
     assert {"id": "whatsapp", "label": "WhatsApp"} in config["channels"]
 
 
+def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> None:
+    harness = build(database)
+
+    page = harness.client.get("/").text
+    script = harness.client.get("/static/app.js").text
+    styles = harness.client.get("/static/styles.css").text
+
+    assert 'id="chat-list"' in page and 'id="channel-filters"' in page
+    assert 'id="release-chat"' in page and 'id="audit-panel"' in page
+    assert "/api/chats" in script and "before=" in script and "after=" in script
+    assert 'event.key !== "Enter" || event.shiftKey || event.isComposing' in script
+    assert "Estoy procesando tu mensaje" in script and "setInterval(poll" in script
+    assert "textContent" in script and "innerHTML" not in script
+    assert "--thread-5" in styles and ".thread-separator" in styles
+
+
 # --- Chats --------------------------------------------------------------------------------
 
 

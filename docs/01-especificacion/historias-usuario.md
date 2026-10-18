@@ -494,4 +494,4 @@ Escenario: Mensajes fuera de alcance
   Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
 ```
-Estado: 🔄 Aprobada (2026-10-18); en implementación. Fases 2 a 4 (dominio, SQLite, importación del histórico, consola y API web) hechas y probadas automáticamente; falta la interfaz gráfica (fase 5). Reemplaza en parte a la HU-08
+Estado: 🔄 Aprobada (2026-10-18); en implementación. Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
