@@ -1,4 +1,4 @@
-"""Usuarios del servicio y sus canales (HU-09, ADR 0015).
+"""Usuarios del servicio, sus canales y quién puede escribir en cada chat (HU-09, HU-10).
 
 Un usuario es la persona, independiente del canal. Su identidad en cada canal se guarda
 seudonimizada (hash), nunca en claro (Ley 1581/2012).
@@ -16,6 +16,21 @@ class Channel(StrEnum):
     WEB = "web"
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
+    HISTORICAL = "historico"
+
+
+# Chats que la interfaz solo audita: los escribe la persona desde su teléfono, o son
+# históricos importados (ADR 0016).
+READ_ONLY_CHANNELS = frozenset({Channel.WHATSAPP, Channel.TELEGRAM, Channel.HISTORICAL})
+# Canales en los que el equipo puede iniciar un chat directo.
+DIRECT_CHANNELS = frozenset({Channel.CONSOLE, Channel.WEB})
+
+
+class ChatLock(StrEnum):
+    """Por qué no se puede escribir en un chat desde la interfaz (ADR 0016)."""
+
+    CHANNEL = "canal_de_solo_lectura"
+    LIVE_CONSOLE = "en_uso_en_la_consola"
 
 
 class ConsentStatus(StrEnum):
@@ -35,12 +50,14 @@ class User:
         created_at: Primer contacto.
         last_seen_at: Último mensaje recibido.
         consent_status: Estado del consentimiento (HU-01).
+        live_session_at: Desde cuándo una consola tiene abierto este chat (None si ninguna).
     """
 
     id: str
     created_at: datetime
     last_seen_at: datetime
     consent_status: ConsentStatus = ConsentStatus.PENDING
+    live_session_at: datetime | None = None
 
 
 def new_user(user_id: str, now: datetime) -> User:
@@ -73,3 +90,20 @@ def is_idle(last_activity: datetime, now: datetime, timeout: timedelta) -> bool:
         True si la inactividad supera el límite.
     """
     return now - last_activity > timeout
+
+
+def chat_lock(channel: Channel, user: User) -> ChatLock | None:
+    """Indica si la interfaz puede escribir en el chat y, si no, por qué (ADR 0016).
+
+    Args:
+        channel: Canal del chat.
+        user: Dueño del chat.
+
+    Returns:
+        None si se puede escribir; si no, el motivo del bloqueo.
+    """
+    if channel in READ_ONLY_CHANNELS:
+        return ChatLock.CHANNEL
+    if user.live_session_at is not None:
+        return ChatLock.LIVE_CONSOLE
+    return None

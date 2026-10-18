@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-18 (HU-09 aceptada)*
+*Última actualización: 2026-10-18 (HU-10 propuesta)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -339,7 +339,7 @@ Escenario: Error del modelo
   Cuando envío un mensaje
   Entonces veo un error claro y no una traza inventada
 ```
-Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local.
+Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local. **La HU-10 la reemplaza en parte:** "Hilos guardados" y "Nueva sesión" pasan a ser una lista de chats por persona y un chat nuevo.
 
 ### HU-09: Atención por WhatsApp con historial por persona
 **Como** persona de la comunidad, **quiero** consultar al asistente desde mi WhatsApp en un solo chat continuo, **para** recibir orientación sin instalar nada y sin que mis consultas se mezclen con las de otras personas.
@@ -417,3 +417,81 @@ Escenario: Los canales actuales no cambian
   Entonces funcionan igual que antes, con su repositorio JSON
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-18 con el número de prueba de Meta, ngrok y dos teléfonos: personas separadas, urgencia sin LLM, aviso de "solo texto" con imagen, aviso de espera, reenvío sin duplicar, cierre por inactividad, error del modelo y base sin números). Solo con números de prueba del equipo: falta el consentimiento (HU-01) para personas reales
+
+### HU-10: Auditoría multicanal con chat continuo
+**Como** integrante del equipo, **quiero** revisar en la interfaz local los chats de todos los canales (WhatsApp, Telegram, consola y web) como un chat continuo por persona, y seguir conversando en los de consola y web, **para** auditar en qué se basó cada respuesta sin importar por dónde llegó.
+
+Notas técnicas (ADR 0016): la consola y la web pasan a la base SQLite por usuario (ADR 0015). Cada arranque de la consola y cada "Nueva sesión" de la web crean un usuario con su chat. WhatsApp, Telegram y el histórico importado son de solo lectura. **El agente no cambia:** cada turno usa el repositorio acotado al usuario y su hilo abierto.
+
+```gherkin
+Escenario: Lista de chats de todos los canales
+  Dado que hay chats de WhatsApp, consola y web guardados
+  Cuando abro la interfaz
+  Entonces veo un chat por persona, del más reciente al más antiguo, con su canal, su última actividad y si es de solo lectura
+  Y puedo filtrar por canal (Todos, Consola, Web, WhatsApp, Telegram, Histórico)
+
+Escenario: El chat se carga por partes
+  Dado un chat con más de WEB_PAGE_SIZE mensajes
+  Cuando lo abro
+  Entonces veo solo los WEB_PAGE_SIZE mensajes más recientes
+  Y al subir hasta el principio se cargan los anteriores sin perder mi posición, hasta que no queden más
+
+Escenario: Los hilos se distinguen dentro del chat
+  Dado un chat con varios hilos
+  Cuando lo reviso
+  Entonces los mensajes de un mismo hilo comparten color
+  Y donde cambia el hilo aparece un separador con su dominio, su estado y su resumen
+
+Escenario: Auditar una respuesta
+  Cuando selecciono una respuesta del asistente en cualquier chat
+  Entonces queda resaltada y veo su traza: síntomas, signos, búsqueda, evidencia completa, citas, verificación, tiempos y las alertas del turno
+
+Escenario: WhatsApp, Telegram y el histórico son solo de auditoría
+  Cuando abro un chat de WhatsApp, de Telegram o el histórico
+  Entonces el campo de texto está desactivado y se explica por qué
+  Y si se intenta enviar un mensaje a ese chat a través del servidor, se rechaza
+
+Escenario: Nueva sesión en la web
+  Cuando selecciono "Nueva sesión"
+  Entonces se crea un chat web nuevo, vacío, en el que puedo escribir
+  Y ese chat puede tener varios hilos, como el de una persona en WhatsApp
+
+Escenario: La consola crea su propio chat
+  Cuando inicio la consola
+  Entonces se crea un chat de consola y se muestra su identificador corto
+  Y mientras la consola está abierta, en la interfaz ese chat aparece "en uso en la consola" y no se puede escribir en él
+
+Escenario: Continuar en la web un chat de consola
+  Dado que cerré la consola con "salir"
+  Cuando abro su chat en la interfaz
+  Entonces puedo seguir escribiendo en él
+  Y al iniciar la consola de nuevo se crea un chat nuevo: la consola no retoma chats anteriores
+
+Escenario: Consola cerrada de golpe
+  Dado que la consola terminó sin "salir" y su chat quedó "en uso en la consola"
+  Cuando selecciono "Liberar"
+  Entonces el chat queda disponible para escribir desde la web
+
+Escenario: Mensajes nuevos de otro canal
+  Dado que tengo abierto el chat de una persona de WhatsApp
+  Cuando la persona escribe
+  Entonces en pocos segundos veo que su mensaje se está procesando
+  Y al terminar el turno aparecen su mensaje y la respuesta sin recargar la página
+  Y si estoy leyendo más arriba, se me avisa que hay mensajes nuevos en lugar de moverme
+
+Escenario: Inactividad en todos los canales
+  Dado un chat de web o consola cuyo hilo abierto lleva más de THREAD_IDLE_TIMEOUT_HOURS sin actividad
+  Cuando escribo un mensaje nuevo
+  Entonces ese hilo se cierra antes de procesar el mensaje, igual que en WhatsApp
+
+Escenario: Histórico importado
+  Dado que había hilos en archivos JSON de antes de la migración
+  Cuando ejecuto la importación
+  Entonces aparecen en un chat "Histórico" de solo lectura con sus mensajes, trazas y alertas
+  Y ejecutar la importación otra vez no los duplica
+
+Escenario: Mensajes fuera de alcance
+  Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
+  Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
+```
+Estado: 🔄 Aprobada (2026-10-18); en implementación. Fase 2 (dominio, aplicación, SQLite e importación del histórico) hecha y probada automáticamente; faltan la consola, la API y la interfaz. Reemplaza en parte a la HU-08

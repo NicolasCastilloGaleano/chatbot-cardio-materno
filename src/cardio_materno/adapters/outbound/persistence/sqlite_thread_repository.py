@@ -1,7 +1,7 @@
 """Repositorio de hilos en SQLite, acotado a un usuario (ADR 0015).
 
 Cada instancia solo ve y modifica los hilos de su dueño (`owner`). Con `owner=None` ve los
-hilos sin usuario (consola o web, si algún día se migran). Cumple el mismo contrato que
+hilos sin usuario. Cumple el mismo contrato que
 `JsonFileThreadRepository`, así que el agente recibe exactamente el mismo contexto.
 """
 
@@ -14,7 +14,7 @@ from cardio_materno.adapters.outbound.persistence.trace_codec import (
     trace_from_dict,
     trace_to_dict,
 )
-from cardio_materno.domain.alarms import Alert
+from cardio_materno.domain.alarms import Alert, AlertOrigin, Severity
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -25,6 +25,7 @@ from cardio_materno.domain.conversation import (
 
 THREAD_COLUMNS = "id, domain, summary, status, created_at, updated_at"
 MESSAGE_COLUMNS = "m.thread_id, m.role, m.content, m.created_at, m.trace_json"
+ALERT_COLUMNS = "a.thread_id, a.rule_ids_json, a.severity, a.origin, a.created_at"
 
 UPSERT_THREAD = f"""
     INSERT INTO threads (user_id, {THREAD_COLUMNS}, last_activity_at)
@@ -131,6 +132,15 @@ class SqliteThreadRepository:
                 ),
             )
 
+    def all_alerts(self, thread_id: str) -> list[Alert]:
+        """Devuelve las alertas del hilo del dueño en orden de registro."""
+        rows = self._db.query(
+            f"SELECT {ALERT_COLUMNS} FROM alerts a JOIN threads t ON t.id = a.thread_id "
+            "WHERE a.thread_id = ? AND t.user_id IS ? ORDER BY a.seq",
+            (thread_id, self._owner),
+        )
+        return [alert_from_row(row) for row in rows]
+
     def recent_messages(self, thread_id: str, limit: int) -> list[ChatMessage]:
         """Devuelve los últimos `limit` mensajes del hilo, del más antiguo al más reciente."""
         if limit <= 0:
@@ -182,3 +192,13 @@ def message_from_row(row: sqlite3.Row) -> ChatMessage:
     created_at = datetime.fromisoformat(row["created_at"]) if row["created_at"] else None
     trace = trace_from_dict(json.loads(row["trace_json"])) if row["trace_json"] else None
     return ChatMessage(Role(row["role"]), row["content"], row["thread_id"], created_at, trace)
+
+
+def alert_from_row(row: sqlite3.Row) -> Alert:
+    """Reconstruye una alerta desde su fila."""
+    return Alert(
+        tuple(json.loads(row["rule_ids_json"])),
+        Severity(row["severity"]),
+        AlertOrigin(row["origin"]),
+        datetime.fromisoformat(row["created_at"]),
+    )

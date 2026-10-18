@@ -239,6 +239,33 @@ def load_web_settings(env: Mapping[str, str]) -> WebSettings:
 
 
 @dataclass(frozen=True)
+class PersistenceSettings:
+    """Base SQLite por usuario, común a todos los canales (ADR 0015 y 0016).
+
+    Attributes:
+        database_path: Archivo SQLite (`DATABASE_PATH`).
+        idle_timeout_hours: Inactividad que cierra el hilo abierto (`THREAD_IDLE_TIMEOUT_HOURS`).
+    """
+
+    database_path: Path
+    idle_timeout_hours: float
+
+
+def load_persistence_settings(env: Mapping[str, str], project_root: Path) -> PersistenceSettings:
+    """Lee la ubicación de la base y la regla de inactividad.
+
+    Raises:
+        ConfigurationError: Si la inactividad no es un número.
+    """
+    return PersistenceSettings(
+        database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
+        idle_timeout_hours=_get_float(
+            env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
+        ),
+    )
+
+
+@dataclass(frozen=True)
 class WhatsAppSettings:
     """Configuración del canal WhatsApp (ADR 0014) y de su base SQLite (ADR 0015).
 
@@ -253,10 +280,9 @@ class WhatsAppSettings:
         port: Puerto del webhook.
         send_timeout_seconds: Tiempo máximo de cada envío a Meta.
         wait_notice_seconds: Espera antes del aviso de "estoy revisando".
-        idle_timeout_hours: Inactividad que cierra el hilo abierto.
         max_pending: Mensajes en cola antes de pedir a Meta que reintente.
-        database_path: Archivo SQLite.
         log_level: Nivel de los registros del proceso.
+        persistence: Base SQLite e inactividad.
     """
 
     token: str
@@ -269,10 +295,9 @@ class WhatsAppSettings:
     port: int
     send_timeout_seconds: float
     wait_notice_seconds: float
-    idle_timeout_hours: float
     max_pending: int
-    database_path: Path
     log_level: str
+    persistence: PersistenceSettings
 
 
 def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsAppSettings:
@@ -299,12 +324,9 @@ def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsA
         wait_notice_seconds=_get_float(
             env, "WHATSAPP_WAIT_NOTICE_SECONDS", DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS
         ),
-        idle_timeout_hours=_get_float(
-            env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
-        ),
         max_pending=_get_int(env, "WHATSAPP_MAX_PENDING", DEFAULT_WHATSAPP_MAX_PENDING),
-        database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
         log_level=_get(env, "LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
+        persistence=load_persistence_settings(env, project_root),
     )
 
 

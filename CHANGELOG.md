@@ -6,6 +6,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.
+- **HU-10, fase 2 (dominio, aplicación y SQLite):**
+  - Canal `historico`, canales de solo lectura y regla `chat_lock` (`domain/user.py`).
+  - Esquema SQLite v2 con migración automática (`users.live_session_at`).
+  - `UserConversations`, que concentra la regla de inactividad y la creación del servicio por usuario (WhatsApp ahora la usa).
+  - `DirectChat` y `ConsoleChatSession` para chats de consola y web.
+  - Puerto `ChatAudit` + `SqliteChatAudit`: lista de chats, páginas por *keyset*, alertas por turno y mensajes en proceso.
+  - `ThreadRepository.all_alerts`.
+  - Importación única del histórico JSON (`run_import_history.py`), idempotente.
+  - Configuración común `PersistenceSettings` (`DATABASE_PATH`, `THREAD_IDLE_TIMEOUT_HOURS`).
+  - La consola y la web todavía no usan estos componentes (fases 3 a 5).
 - **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
 - **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
 - **Canal WhatsApp (HU-09, fase 3, ADR 0014):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`).

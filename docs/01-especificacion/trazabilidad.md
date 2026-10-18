@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-18 (HU-09 verificada)*
+*Última actualización: 2026-10-18 (HU-10 propuesta)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -20,6 +20,10 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-08 | Hilos guardados en consulta de solo lectura y sesión nueva | `ThreadRepository`, `JsonFileThreadRepository`, `bootstrap/web.py` | `test_web_app.py`, `test_json_file_thread_repository.py` | ✅ (automática); recorrido visual pendiente |
 | HU-06 | Calidad real de la decisión de hilo y del resumen | prompt v2 | Guion manual en el PC de pruebas (2026-10-10) | ✅ |
 | HU-01 / RN-01 | Primer contacto → aviso + consentimiento | TODO | TODO | ⏳ |
+| HU-10 | Solo lectura de WhatsApp/Telegram/Histórico; consola bloqueada mientras está abierta; liberar; inactividad en todos los canales (regla y caso de uso) | `domain/user.py::chat_lock`, `application/direct_chat.py`, `user_conversations.py` | `test_user.py`, `test_direct_chat.py` | ✅ (automática; falta la API) |
+| HU-10 | Carga por partes, alertas por turno y mensajes en proceso (lectura) | `sqlite_chat_audit.py` | `test_sqlite_chat_audit.py` | ✅ (automática; falta la interfaz) |
+| HU-10 | Importación del histórico (idempotente) | `application/import_history.py`, `run_import_history.py` | `test_import_history.py` | ✅ (automática); ⏳ con hilos reales |
+| HU-10 | Lista de chats y filtros, colores por hilo, chat web nuevo, consola continuable en la web, mensajes nuevos sin recargar | TODO (fases 3 a 5) | TODO | ⏳ |
 | HU-09 | Dos personas no comparten contexto (el agente recibe solo el hilo de quien escribe) | `sqlite_thread_repository.py` (acotado por usuario), `sqlite_user_thread_store.py`, `ConversationService(active_thread_id)` | `test_conversation_per_user.py::test_interleaved_users_never_share_context`, `test_sqlite_persistence.py::test_a_user_never_sees_threads_or_messages_of_another`, `test_a_user_cannot_write_into_another_users_thread` | ✅ (automática; fase 2) |
 | HU-09 | El chat continuo retoma el hilo abierto con el mismo contexto que la consola | `UserThreadStore.open_thread`, `ConversationService(active_thread_id)` | `test_resumed_thread_gets_the_same_context_as_a_console_session`, `test_new_topic_closes_the_users_thread_and_keeps_one_open`, `test_only_one_open_thread_per_user` | ✅ (automática; fase 2) |
 | HU-09 | Base para el cierre por inactividad y la deduplicación | `domain/user.py::is_idle`, `last_activity_at`, `sqlite_channel_log.py` | `test_user.py`, `test_last_activity_follows_messages_even_without_thread_update`, `test_inbound_messages_are_deduplicated` | ✅ (automática) |

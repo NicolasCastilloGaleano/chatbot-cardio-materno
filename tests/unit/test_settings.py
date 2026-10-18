@@ -259,8 +259,8 @@ def test_whatsapp_settings_defaults(tmp_path: Path) -> None:
     assert (settings.host, settings.port) == ("127.0.0.1", 8001)
     assert settings.api_version == "v23.0"
     assert settings.wait_notice_seconds == 10.0
-    assert settings.idle_timeout_hours == 12.0
-    assert settings.database_path == tmp_path / "data" / "cardio_materno.db"
+    assert settings.persistence.idle_timeout_hours == 12.0
+    assert settings.persistence.database_path == tmp_path / "data" / "cardio_materno.db"
 
 
 def test_whatsapp_settings_require_every_secret(tmp_path: Path) -> None:

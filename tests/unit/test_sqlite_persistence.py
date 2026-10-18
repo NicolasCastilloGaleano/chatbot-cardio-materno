@@ -2,6 +2,7 @@
 
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import pytest
 from cardio_materno.adapters.outbound.persistence.sqlite_channel_log import SqliteChannelLog
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     IN_MEMORY,
+    SCHEMA_V1,
     SCHEMA_VERSION,
     DatabaseVersionError,
     SqliteDatabase,
@@ -239,3 +241,42 @@ def test_failed_transaction_leaves_no_partial_writes(database: SqliteDatabase) -
         raise RuntimeError("falla a mitad")
 
     assert database.query("SELECT id FROM users WHERE id = 'x'") == []
+
+
+def test_version_1_database_is_migrated_keeping_its_data(tmp_path: Path) -> None:
+    path = tmp_path / "v1.db"
+    connection = sqlite3.connect(path)
+    for statement in SCHEMA_V1:
+        connection.execute(statement)
+    connection.execute(
+        "INSERT INTO users (id, created_at, last_seen_at, consent_status) "
+        "VALUES ('ana', ?, ?, 'pendiente')",
+        (NOW.isoformat(), NOW.isoformat()),
+    )
+    connection.execute(
+        "INSERT INTO channel_identities VALUES ('whatsapp', 'h', 'ana', ?)", (NOW.isoformat(),)
+    )
+    connection.execute("PRAGMA user_version = 1")
+    connection.commit()
+    connection.close()
+
+    database = SqliteDatabase(path)
+
+    owner = SqliteUserDirectory(database).get("ana")
+    assert database.query("PRAGMA user_version")[0][0] == SCHEMA_VERSION
+    assert owner is not None and owner.user.live_session_at is None
+    database.close()
+
+
+def test_directory_returns_the_chat_channel_and_console_mark(database: SqliteDatabase) -> None:
+    directory = SqliteUserDirectory(database)
+    later = NOW + timedelta(minutes=5)
+    directory.register(new_user("cons", NOW), Channel.CONSOLE, "token")
+
+    directory.save(replace(new_user("cons", NOW), live_session_at=later))
+
+    owner = directory.get("cons")
+    assert owner is not None
+    assert owner.channel is Channel.CONSOLE
+    assert owner.user.live_session_at == later
+    assert directory.get("nadie") is None

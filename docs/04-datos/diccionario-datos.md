@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-*Última actualización: 2026-10-17 (tablas SQLite, ADR 0015)*
+*Última actualización: 2026-10-18 (esquema v2, ADR 0016)*
 
 Almacenamiento actual: archivos JSON en `THREADS_DIR` (por defecto `data/threads/`), uno por hilo (ADR 0006). La carpeta **no se versiona** (`.gitignore`).
 
@@ -98,13 +98,14 @@ Clase: `domain/user.py::User`.
 | `created_at` | ISO 8601 | No | Primer contacto | No |
 | `last_seen_at` | ISO 8601 | No | Último mensaje recibido | No |
 | `consent_status` | enum | No | `pendiente`, `aceptado` o `rechazado` (HU-01, aún no implementada) | No |
+| `live_session_at` | ISO 8601 | Sí | Esquema v2 (ADR 0016): desde cuándo una consola tiene abierto el chat; la web no escribe en él mientras tenga valor. Se vacía al salir de la consola o con "Liberar" | No |
 | `consent_at` | ISO 8601 | Sí | Momento del consentimiento | No |
 
 ### Tabla: `channel_identities`
 | Campo | Tipo | Nulo | Descripción | Sensible (PII) |
 |---|---|---|---|---|
-| `channel` | enum | No | `consola`, `web`, `telegram` o `whatsapp` | No |
-| `channel_user_hash` | string (hex) | No | HMAC-SHA256 del identificador del canal (p. ej., el `wa_id`) con `USER_ID_HASH_SECRET`. **Nunca el teléfono en claro** | Seudónimo |
+| `channel` | enum | No | `consola`, `web`, `telegram`, `whatsapp` o `historico` (hilos JSON importados) | No |
+| `channel_user_hash` | string (hex) | No | WhatsApp/Telegram: HMAC-SHA256 del identificador del canal (p. ej., el `wa_id`) con `USER_ID_HASH_SECRET`, **nunca el teléfono en claro**. Consola y web: token aleatorio. Histórico: `importacion-json` | Seudónimo |
 | `user_id` | string (UUID) | No | Usuario al que pertenece | No |
 | `created_at` | ISO 8601 | No | Momento del registro | No |
 

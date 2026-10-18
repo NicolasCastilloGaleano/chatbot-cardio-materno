@@ -48,6 +48,12 @@ Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctr
 ### Interfaz local de chat y auditoría (HU-08)
 Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
 
+### Importar el histórico JSON (HU-10, una sola vez)
+Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):
+```bash
+.venv/bin/python run_import_history.py
+```
+Quedan en un chat "Histórico" de solo lectura, cerrados y con sus mensajes, trazas y alertas. Repetir el comando no duplica nada. Los archivos JSON no se modifican ni se borran.
 ### Canal WhatsApp (HU-09, ADR 0014 y 0015)
 El canal corre en el PC de pruebas (donde está Ollama). Meta envía cada mensaje a una URL pública HTTPS (el **webhook**); **ngrok** la publica y la reenvía al servidor local `run_whatsapp.py`, que escucha solo en `127.0.0.1:8001`. Cada persona tiene su usuario (identificado por un hash del número, nunca el número) y sus hilos en `data/cardio_materno.db`.
 
