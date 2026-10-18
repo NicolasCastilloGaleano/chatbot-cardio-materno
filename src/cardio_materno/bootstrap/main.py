@@ -87,16 +87,32 @@ def build_service(
     Returns:
         Servicio conversacional con los puertos conectados.
     """
+    ports, config = build_conversation(
+        settings, repository or JsonFileThreadRepository(settings.threads_dir)
+    )
+    return ConversationService(ports, config)
+
+
+def build_conversation(
+    settings: ConversationSettings, repository: ThreadRepository
+) -> tuple[ConversationPorts, ConversationConfig]:
+    """Carga alarmas, modelos y RAG, y arma los puertos y la configuración del agente.
+
+    Los canales de chat continuo (ADR 0015) crean un servicio por mensaje con estos mismos
+    puertos, cambiando solo el repositorio por uno acotado al usuario.
+
+    Args:
+        settings: Configuración de hilos y reglas.
+        repository: Repositorio de hilos por defecto.
+
+    Returns:
+        Puertos y configuración del servicio conversacional.
+    """
     alarm_policy = _load_alarm_policy(settings)
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
-    ports = ConversationPorts(
-        analyzer,
-        responder,
-        repository or JsonFileThreadRepository(settings.threads_dir),
-        rag.retriever,
-    )
+    ports = ConversationPorts(analyzer, responder, repository, rag.retriever)
     config = ConversationConfig(
         analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),
         reply_prompt=_read(REPLY_PROMPT_FILE),
@@ -105,7 +121,7 @@ def build_service(
         evidence_item_chars=rag.policy.item_max_chars,
         grounding=rag.policy.grounding,
     )
-    return ConversationService(ports, config)
+    return ports, config
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:

@@ -72,11 +72,15 @@ sequenceDiagram
 ## 4. Puertos y adaptadores
 | Puerto | Responsabilidad | Adaptadores |
 |---|---|---|
-| `MessageChannel` | Enviar respuestas al usuario | console, telegram, whatsapp |
+| `MessageSender` (`application/ports/message_sender.py`, antes "MessageChannel") | Enviar respuestas, avisos e indicador de lectura por el canal | ✅ `WhatsAppCloudSender` (`adapters/outbound/whatsapp/`, [ADR 0014](adr/0014-canal-whatsapp-cloud-api.md)); la consola y la web responden directamente |
+| `DelayedActions` (mismo archivo) | Programar el aviso de espera | ✅ `ThreadingDelayedActions` (`adapters/inbound/whatsapp/dispatcher.py`) |
 | `LanguageModel` (`application/ports/language_model.py`) | Generar la respuesta estructurada del agente (`complete_json` con JSON Schema) | ✅ `OllamaLanguageModel` (`adapters/outbound/llm/`, [ADR 0005](adr/0005-ollama-local-como-llm.md)) |
 | `KnowledgeRetriever` (`application/ports/knowledge_retriever.py`) | Recuperar evidencia de la base | ✅ `HybridRetriever` (`adapters/outbound/rag/`, [ADR 0008](adr/0008-rag-evidencia-y-dos-llamadas.md)); `UnavailableRetriever` si no hay índice |
 | `Embedder` (`application/ports/embedder.py`) | Convertir textos en vectores | ✅ `OllamaEmbedder` (`/api/embed`, `qwen3-embedding:8b`) |
-| `ThreadRepository` (`application/ports/thread_repository.py`) | Persistir hilos y mensajes (con `thread_id`) | ✅ `JsonFileThreadRepository` (`adapters/outbound/persistence/`, [ADR 0006](adr/0006-hilos-conversacionales-con-resumen.md)); TODO: BD para Telegram |
+| `ThreadRepository` (`application/ports/thread_repository.py`) | Persistir hilos y mensajes (con `thread_id`) | ✅ `JsonFileThreadRepository` (`adapters/outbound/persistence/`, [ADR 0006](adr/0006-hilos-conversacionales-con-resumen.md)) para consola y web; ✅ `SqliteThreadRepository`, acotado a un usuario ([ADR 0015](adr/0015-persistencia-sqlite-y-usuarios.md)). Los dos cumplen el mismo contrato (`test_thread_repository_contract.py`) |
+| `UserThreadStore` (`application/ports/user_thread_store.py`) | Hilo abierto de cada usuario (con su última actividad) y su repositorio acotado | ✅ `SqliteUserThreadStore` (ADR 0015) |
+| `UserDirectory` (`application/ports/user_directory.py`) | Usuarios y su identidad seudonimizada por canal | ✅ `SqliteUserDirectory` (ADR 0015) |
+| `ChannelLog` (`application/ports/channel_log.py`) | Deduplicar mensajes del canal y auditar lo recibido y enviado, sin texto | ✅ `SqliteChannelLog` (ADR 0014 y 0015) |
 | `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
 
 ## 4.1 Estado implementado (HU-00, HU-06, HU-03/04, HU-02, HU-08; prototipo técnico)
@@ -104,6 +108,20 @@ flowchart LR
 ```
 - **Interfaz local (HU-08):** FastAPI sirve la vista y las operaciones de conversación, lista e historial. Se inicia con `python run_web.py`; `WEB_HOST`/`WEB_PORT` (`.env`, por defecto `127.0.0.1:8000`) y la configuración rechaza cualquier host que no sea local (`load_web_settings`). Las respuestas seleccionables muestran los datos de `ReplyTrace`; los `entry_id` se resuelven contra la base para mostrar pregunta y respuesta completas. El historial guardado es de solo lectura. `POST /api/session/end` cierra el hilo activo antes de iniciar otro.
 - **Lectura de hilos:** `ThreadRepository.list_threads` y `all_messages` soportan auditoría sin alterar los datos persistidos. El acceso sigue limitado al repositorio local de archivos JSON.
+- **Hilos por usuario (HU-09, fase 2, [ADR 0015](adr/0015-persistencia-sqlite-y-usuarios.md)):** para los canales de chat continuo se crea un `ConversationService` por mensaje con `ports.repository = UserThreadStore.scoped(user_id)` y `active_thread_id` = hilo abierto del usuario. El agente recibe el mismo contexto que en la consola (`test_conversation_per_user.py` lo compara llamada por llamada) y no puede ver hilos de otra persona. Base SQLite: `sqlite_database.py` (esquema versionado, transacciones). La usa el canal de WhatsApp (siguiente punto).
+- **Canal WhatsApp (HU-09, fase 3, [ADR 0014](adr/0014-canal-whatsapp-cloud-api.md)):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`) sirve el webhook en loopback y ngrok lo publica. El flujo es: webhook (`adapters/inbound/whatsapp/webhook.py`: verificación, firma, `payload.py` → `IncomingMessage`) → 200 inmediato → `MessageDispatcher` (cola de un trabajador) → `HandleIncomingMessage` (`application/`). Este último resuelve el usuario, deduplica, acusa recibo, cierra el hilo inactivo, crea el `ConversationService` del usuario, programa el aviso de espera, divide la respuesta y la envía por `MessageSender` → `WhatsAppCloudSender` (Graph API).
+
+```mermaid
+flowchart LR
+    P[Teléfono] --> M[Meta Cloud API] --> N[ngrok] --> W[webhook FastAPI<br/>firma + payload]
+    W -->|200 inmediato| M
+    W --> Q[MessageDispatcher<br/>1 trabajador]
+    Q --> H[HandleIncomingMessage]
+    H --> UD{{UserDirectory}} & UT{{UserThreadStore}} & CL{{ChannelLog}}
+    UD & UT & CL -.-> DB[(SQLite<br/>data/cardio_materno.db)]
+    H -->|repositorio acotado + hilo abierto| CS[ConversationService<br/>sin cambios]
+    H --> MS{{MessageSender}} -.-> WS[WhatsAppCloudSender] --> M
+```
 - **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms, search_query, scope, scope_reason}`; respuesta con evidencia `{sentences: [{text, evidence_id}]}`, con `evidence_id` restringido por `enum` a las etiquetas ofrecidas o `"ninguna"`; respuesta conversacional `{reply, evidence_ids: []}`.
 - **Respaldo** ([ADR 0010](adr/0010-respuesta-verificada-y-abstencion-determinista.md), `application/grounded_reply.py` + `domain/grounding.py`): sin evidencia suficiente, `ABSTENTION_TEXT` sin llamar al LLM; con evidencia, cada frase citada debe estar respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números); si una falla, se muestra el texto literal del registro.
 - **Contexto:** `application/turn_context.py`. El análisis recibe prompt + JSON del hilo + últimos N mensajes; la respuesta recibe prompt + caso analizado + últimos N mensajes + EVIDENCIA. La evidencia nunca entra al análisis (ADR 0008).

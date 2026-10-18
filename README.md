@@ -21,7 +21,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Interfaz web local de chat y auditoría** (HU-08, B-023, ADR 0013) | ✅ Implementada y probada automáticamente; recorrido visual en el PC de pruebas pendiente |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
-| Canal **WhatsApp** (prototipo final) | ⏳ Pendiente |
+| Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |
 
 **Pendientes de aprobación del equipo** (contenido clínico PROVISIONAL implementado para la demostración, ADR propuestos y elección del modelo): [docs/00-gestion/pendientes-aprobacion.md](docs/00-gestion/pendientes-aprobacion.md).
 
@@ -48,6 +48,9 @@ cp .env.example .env
 .venv/bin/python run_console.py
 # Interfaz web local de demostración: http://127.0.0.1:8000
 .venv/bin/python run_web.py
+# Canal WhatsApp (requiere la app de Meta, la sección 9 de .env y ngrok)
+.venv/bin/python run_whatsapp.py
+ngrok http --url=<tu-dominio>.ngrok-free.app 8001
 ```
 ⚠️ Prototipo técnico: las reglas de alarma son PROVISIONALES (R-09) y la base de conocimiento está validada solo para el prototipo (R-10). Solo para pruebas del equipo.
 

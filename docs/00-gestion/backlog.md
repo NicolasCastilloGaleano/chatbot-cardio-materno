@@ -1,6 +1,6 @@
 # Product Backlog
 
-*Última actualización: 2026-10-12 (B-023)*
+*Última actualización: 2026-10-18 (B-010)*
 
 Priorizado por el Product Owner con los aliados (decisión **no delegable** a la IA). Cada ítem se enlaza con su historia de usuario (HU) en `../01-especificacion/historias-usuario.md`.
 
@@ -17,7 +17,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-007 | Integración del LLM para interpretar y redactar (con guardrails) | HU-02 | Media | — | ⏳ |
 | B-008 | RAG sobre la base de conocimiento (híbrido, índice propio) + separación análisis/respuesta | HU-02 | Alta | 1 | ✅ Hecho (2026-10-12) |
 | B-009 | Adaptador Telegram (multiusuario) | — | Media | — | ⏳ |
-| B-010 | Adaptador WhatsApp | — | Media | — | ⏳ |
+| B-010 | Adaptador WhatsApp (Cloud API, webhook y cola) con persistencia SQLite por usuario. Especificación propuesta: HU-09, ADR 0014 y 0015 | HU-09 | Media | — | ✅ Hecho (verificado en el PC de pruebas el 2026-10-18; solo números de prueba hasta el consentimiento, HU-01) |
 | B-011 | Panel o registro de métricas anonimizadas | — | Baja | — | ⏳ |
 | B-014 | Foco actual del hilo: campo `current_focus` en el JSON del agente, separado del `summary` (ver nota) | HU-06 | Media | — | ⏳ Diferido |
 | B-015 | Síntomas reportados por el agente como **códigos cerrados** del catálogo (p. ej. `SANGRADO_VAGINAL`) en lugar de texto libre. **Solución definitiva** del filtro 2; la versión puente actual no la reemplaza. **Propuesta: ADR 0012** (códigos en paralelo con el texto libre, cruce exacto en `domain/`); se recomienda antes de elegir el modelo (ADR 0011) | HU-03, HU-04 | **Alta** | 1 | 🔄 Implementado para la demostración (ADR 0012 provisional, catálogo v0.5.0); falta la ratificación del equipo y la ronda 3 |

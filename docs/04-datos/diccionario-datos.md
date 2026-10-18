@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-10-17 (tablas SQLite, ADR 0015)*
 
 Almacenamiento actual: archivos JSON en `THREADS_DIR` (por defecto `data/threads/`), uno por hilo (ADR 0006). La carpeta **no se versiona** (`.gitignore`).
 
@@ -83,3 +83,58 @@ Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `s
 | `reported_signs` | lista de string | (Análisis, desde el v5) Códigos de signos del catálogo que la persona describe; el JSON Schema los limita por `enum` a los códigos cargados y la aplicación rechaza los desconocidos (ADR 0012) |
 | `search_query` | string | (Análisis, desde el v3) Consulta de salud reformulada en palabras claras y sin el contexto ajeno; es la consulta de búsqueda de evidencia. Vacía si no hay consulta de salud (entonces se usa mensaje + resumen + síntomas) |
 | `reported_symptoms` | lista de string | Síntomas que la persona reporta, literales y con contexto. Si corresponden a un signo del catálogo, empiezan por su nombre exacto. Se revisan con las reglas de alarma (filtro 2). En B-015 se complementará con códigos cerrados |
+
+---
+
+## Base SQLite por usuario (HU-09, ADR 0015)
+Archivo `DATABASE_PATH` (por defecto `data/cardio_materno.db`, **no se versiona**). Las tablas `threads`, `messages` y `alerts` tienen los mismos campos que el JSON de arriba, más los indicados. Fechas en ISO 8601 (UTC).
+
+### Tabla: `users`
+Clase: `domain/user.py::User`.
+
+| Campo | Tipo | Nulo | Descripción | Sensible (PII) |
+|---|---|---|---|---|
+| `id` | string (UUID) | No | Identificador interno; no deriva del teléfono | No |
+| `created_at` | ISO 8601 | No | Primer contacto | No |
+| `last_seen_at` | ISO 8601 | No | Último mensaje recibido | No |
+| `consent_status` | enum | No | `pendiente`, `aceptado` o `rechazado` (HU-01, aún no implementada) | No |
+| `consent_at` | ISO 8601 | Sí | Momento del consentimiento | No |
+
+### Tabla: `channel_identities`
+| Campo | Tipo | Nulo | Descripción | Sensible (PII) |
+|---|---|---|---|---|
+| `channel` | enum | No | `consola`, `web`, `telegram` o `whatsapp` | No |
+| `channel_user_hash` | string (hex) | No | HMAC-SHA256 del identificador del canal (p. ej., el `wa_id`) con `USER_ID_HASH_SECRET`. **Nunca el teléfono en claro** | Seudónimo |
+| `user_id` | string (UUID) | No | Usuario al que pertenece | No |
+| `created_at` | ISO 8601 | No | Momento del registro | No |
+
+### Campos adicionales de `threads`, `messages` y `alerts`
+| Tabla.campo | Tipo | Descripción |
+|---|---|---|
+| `threads.user_id` | string (UUID), nulo | Dueño del hilo (NULL para consola/web). Índice único parcial: un solo hilo `abierto` por usuario |
+| `threads.last_activity_at` | ISO 8601 | Último cambio o mensaje del hilo; base del cierre por inactividad |
+| `messages.seq` / `alerts.seq` | entero | Orden de inserción |
+| `messages.trace_json` | JSON | La misma `TRACE` del JSON, serializada con `trace_codec.py` |
+| `alerts.rule_ids_json` | JSON | Lista de `rule_ids` |
+
+### Tabla: `inbound_events` (deduplicación y auditoría)
+| Campo | Tipo | Nulo | Descripción | Sensible (PII) |
+|---|---|---|---|---|
+| `channel`, `channel_message_id` | enum, string | No | Clave: el identificador que asigna el canal (p. ej., `wamid…`). Un reenvío con el mismo identificador no se procesa | No |
+| `user_id` | string (UUID) | No | Remitente | No |
+| `kind` | string | No | Tipo del canal (`text`, `image`, `audio`…) | No |
+| `status` | enum | No | `recibido`, `procesando`, `respondido`, `ignorado` o `fallido` | No |
+| `error_code` | string | Sí | Causa técnica del fallo (sin texto del usuario) | No |
+| `received_at` | ISO 8601 | No | Recepción | No |
+
+**No guarda el texto del mensaje.**
+
+### Tabla: `outbound_messages`
+| Campo | Tipo | Nulo | Descripción | Sensible (PII) |
+|---|---|---|---|---|
+| `channel` | enum | No | Canal de destino | No |
+| `user_id` | string (UUID) | No | Destinatario | No |
+| `thread_id` | string (UUID) | Sí | Hilo del turno, si lo hubo | No |
+| `kind` | enum | No | `respuesta`, `aviso` o `error` | No |
+| `channel_message_id` | string | No | Identificador que devolvió el canal | No |
+| `created_at` | ISO 8601 | No | Envío | No |

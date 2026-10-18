@@ -67,3 +67,31 @@ sequenceDiagram
     S->>R: actualizar o abrir hilo · mensajes con thread_id y trace · alertas (una urgencia de otro dominio abre un hilo de su dominio)
     Note over U,S: "salir" → se cierra el hilo activo
 ```
+
+## Chat continuo por WhatsApp (HU-09; ADR 0014 y 0015)
+En WhatsApp no hay sesiones: cada persona tiene un solo chat, y en él los hilos se abren y se cierran. El turno del agente es **el mismo** de la sección anterior; antes y después se agregan los pasos propios del canal.
+
+```mermaid
+flowchart TD
+    A[Notificación de Meta] --> B{¿Firma válida?}
+    B -- No --> B1[401, se descarta]
+    B -- Sí --> C[Encolar y responder 200]
+    C --> D[Resolver usuario por hash del número<br/>crearlo si es nuevo]
+    D --> E{¿Mensaje ya registrado?}
+    E -- Sí --> E1[Ignorar: reenvío de Meta]
+    E -- No --> F[Marcar leído + escribiendo…]
+    F --> G{¿Es texto?}
+    G -- No --> G1[Aviso: solo texto · estado ignorado]
+    G -- Sí --> H{¿Hilo abierto inactivo<br/>más de THREAD_IDLE_TIMEOUT_HOURS?}
+    H -- Sí --> H1[Cerrar el hilo]
+    H -- No --> I
+    H1 --> I[ConversationService del usuario<br/>con su hilo abierto o sin hilo]
+    I --> J[Turno del agente, igual que en la consola]
+    J -- tarda más de 10 s --> J1[Aviso: estoy revisando]
+    J -- error del modelo sin alarma --> K1[Mensaje de error · estado fallido]
+    J --> K[Dividir en partes ≤ 4096 y enviar · estado respondido]
+```
+
+- **Un hilo abierto por persona.** Dentro del chat, el análisis decide `continuar` o `nuevo`, como en la consola. Además, la inactividad cierra el hilo, lo que equivale a escribir "salir".
+- **Sin mezcla de personas:** el agente solo ve el hilo de quien escribió (repositorio acotado por usuario).
+- **Orden:** una cola con un trabajador procesa los mensajes en orden de llegada.

@@ -1,6 +1,6 @@
 """Dobles de prueba compartidos para los puertos de la aplicación."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -12,10 +12,12 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
     TurnResult,
 )
+from cardio_materno.application.errors import ChannelDeliveryError
 from cardio_materno.application.ports.knowledge_retriever import (
     EvidenceQuery,
     KnowledgeRetriever,
 )
+from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
@@ -185,13 +187,15 @@ def evidence_result(*entries: KnowledgeEntry) -> RetrievalResult:
 
 def make_service(
     agent: "ScriptedAgent",
-    repo: "InMemoryThreadRepository | None" = None,
+    repo: ThreadRepository | None = None,
     config: dict[str, Any] | None = None,
     retriever: KnowledgeRetriever | None = None,
+    active_thread_id: str | None = None,
 ) -> ConversationService:
     """Servicio con dobles: reloj, ids y tiempos deterministas.
 
     Sin `retriever`, la evidencia respalda la respuesta guionizada (`BackingRetriever`).
+    `active_thread_id` retoma un hilo abierto, como en los canales de chat continuo.
     """
     ports = ConversationPorts(
         agent.analyzer,
@@ -205,7 +209,9 @@ def make_service(
         "timer": FakeTimer(),
     }
     return ConversationService(
-        ports, ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {})))
+        ports,
+        ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {}))),
+        active_thread_id,
     )
 
 
@@ -275,6 +281,49 @@ class SequentialIds:
     def __call__(self) -> str:
         self.count += 1
         return f"hilo-{self.count}"
+
+
+class FakeSender:
+    """Canal falso: registra los envíos y puede simular fallos."""
+
+    def __init__(self, fail_send: bool = False, fail_acknowledge: bool = False) -> None:
+        self.sent: list[tuple[str, str]] = []
+        self.acknowledged: list[str] = []
+        self.fail_send = fail_send
+        self.fail_acknowledge = fail_acknowledge
+
+    def send_text(self, reply_to: str, text: str) -> str:
+        if self.fail_send:
+            raise ChannelDeliveryError("canal caído")
+        self.sent.append((reply_to, text))
+        return f"wamid.enviado-{len(self.sent)}"
+
+    def acknowledge(self, reply_to: str, channel_message_id: str) -> None:
+        if self.fail_acknowledge:
+            raise ChannelDeliveryError("sin indicador")
+        self.acknowledged.append(channel_message_id)
+
+    def texts_to(self, reply_to: str) -> list[str]:
+        """Textos enviados a una dirección."""
+        return [text for address, text in self.sent if address == reply_to]
+
+
+class FakeDelayedActions:
+    """Temporizador falso: con `fire=True` la acción se ejecuta al programarla (respuesta lenta)."""
+
+    def __init__(self, fire: bool = False) -> None:
+        self.fire = fire
+        self.delays: list[float] = []
+        self.cancelled = 0
+
+    def schedule(self, delay_seconds: float, action: Callable[[], None]) -> Callable[[], None]:
+        self.delays.append(delay_seconds)
+        if self.fire:
+            action()
+        return self._cancel
+
+    def _cancel(self) -> None:
+        self.cancelled += 1
 
 
 URGENT_MESSAGE = "URGENCIA: acude ya"

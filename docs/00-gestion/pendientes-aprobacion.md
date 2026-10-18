@@ -13,6 +13,8 @@ Lista única de lo que se **implementó para mostrar resultados** o se **propuso
 | 5 | **Preguntas clínicas:** fiebre en un bebé que no es recién nacido (pregunta 2) y "no quiere" frente a "no puede" comer (pregunta 3) | Equipo clínico | Solicitud de validación | ⏳ Pendiente |
 | 6 | **Modelo de cada etapa** (análisis y respuesta) y umbral del RAG | Equipo | [ADR 0011](../02-arquitectura/adr/0011-modelos-por-etapa-y-latencia.md) con las rondas del benchmark | ✅ Aprobado (2026-10-12, ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`, umbral 0,50; medida (filtro 2 16/18, turno p50 de 46,5 s) |
 | 7 | **Vacíos de la base de conocimiento** (p. ej., alimentación con acidez, diabetes gestacional), que hoy reciben abstención | Equipo clínico y líder del proyecto | B-019 en el [backlog](backlog.md) | ⏳ Pendiente |
+| 8 | **Textos fijos del canal WhatsApp:** "solo texto", aviso de espera y error del modelo (`application/channel_messages.py`). Son textos no clínicos generados con IA | Equipo | HU-09 | 🟡 Implementado para pruebas; pendiente |
+| 9 | **Consentimiento (HU-01)** antes de atender a personas reales por WhatsApp | Equipo y aliados | HU-01, `proteccion-datos.md` | ⏳ Pendiente (bloquea el piloto) |
 
 ## Cómo se registra una decisión
 1. Se anota aquí el resultado, la fecha y quién decidió.

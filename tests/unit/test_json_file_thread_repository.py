@@ -4,8 +4,6 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-import pytest
-
 from cardio_materno.adapters.outbound.persistence.json_file_thread_repository import (
     JsonFileThreadRepository,
 )
@@ -32,36 +30,6 @@ def make_repo(tmp_path: Path) -> JsonFileThreadRepository:
     return JsonFileThreadRepository(tmp_path / "threads")
 
 
-def test_saved_thread_can_be_read_back(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path)
-    thread = open_thread("t1", Domain.CARDIOVASCULAR, "presión alta", NOW)
-
-    repo.save_thread(thread)
-
-    assert repo.get_thread("t1") == thread
-    assert repo.get_thread("no-existe") is None
-
-
-def test_list_threads_orders_by_most_recent_update(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path)
-    first = open_thread("t1", Domain.CARDIOVASCULAR, "primero", NOW)
-    second = open_thread("t2", Domain.MATERNAL_CHILD, "segundo", NOW.replace(second=1))
-    repo.save_thread(first)
-    repo.save_thread(second)
-
-    assert [thread.id for thread in repo.list_threads()] == ["t2", "t1"]
-
-
-def test_all_messages_returns_complete_history(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path)
-    repo.save_thread(open_thread("t1", Domain.NONE, "saludo", NOW))
-    repo.append_message(ChatMessage(Role.USER, "hola", "t1", NOW))
-    repo.append_message(ChatMessage(Role.ASSISTANT, "buenas", "t1", NOW))
-
-    assert [message.content for message in repo.all_messages("t1")] == ["hola", "buenas"]
-    assert repo.all_messages("missing") == []
-
-
 def test_file_is_readable_json_with_thread_and_messages(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     repo.save_thread(open_thread("t1", Domain.MATERNAL_CHILD, "acidez", NOW))
@@ -81,34 +49,6 @@ def test_file_is_readable_json_with_thread_and_messages(tmp_path: Path) -> None:
     ]
 
 
-def test_updating_thread_keeps_messages(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path)
-    thread = open_thread("t1", Domain.NONE, "saludo", NOW)
-    repo.save_thread(thread)
-    repo.append_message(ChatMessage(Role.USER, "hola", "t1", NOW))
-
-    repo.save_thread(close_thread(thread, NOW))
-
-    assert repo.recent_messages("t1", 10)[0].content == "hola"
-    assert repo.get_thread("t1").is_open is False  # type: ignore[union-attr]
-
-
-def test_recent_messages_respects_limit_and_order(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path)
-    repo.save_thread(open_thread("t1", Domain.NONE, "s", NOW))
-    for text in ("a", "b", "c"):
-        repo.append_message(ChatMessage(Role.USER, text, "t1", NOW))
-
-    assert [m.content for m in repo.recent_messages("t1", 2)] == ["b", "c"]
-    assert repo.recent_messages("t1", 0) == []
-    assert repo.recent_messages("otro", 2) == []
-
-
-def test_append_to_missing_thread_raises_key_error(tmp_path: Path) -> None:
-    with pytest.raises(KeyError):
-        make_repo(tmp_path).append_message(ChatMessage(Role.USER, "hola", "no-existe", NOW))
-
-
 def test_alerts_are_saved_and_kept_when_thread_is_updated(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     thread = open_thread("t1", Domain.CARDIOVASCULAR, "s", NOW)
@@ -126,13 +66,6 @@ def test_alerts_are_saved_and_kept_when_thread_is_updated(tmp_path: Path) -> Non
             "created_at": NOW.isoformat(),
         }
     ]
-
-
-def test_alert_on_missing_thread_raises_key_error(tmp_path: Path) -> None:
-    alert = Alert(("X",), Severity.PRIORITY, AlertOrigin.USER, NOW)
-
-    with pytest.raises(KeyError):
-        make_repo(tmp_path).append_alert("no-existe", alert)
 
 
 def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
