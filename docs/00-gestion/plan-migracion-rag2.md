@@ -209,6 +209,8 @@ Cada paquete es candidato a una HU o especificación pequeña. Los criterios son
 
 Paquetes independientes entre sí. Resuelven buena parte de los descartes sin cambiar la arquitectura.
 
+> **Estado (2026-10-22):** MIG-01 a MIG-04 implementados en la rama `fix/fase1-descarte-y-abstencion` (pruebas automáticas en verde). Falta `pytest -m live` en el PC de pruebas y la aprobación de los textos fijos nuevos.
+
 #### MIG-01 Una respuesta a una contrapregunta nunca queda fuera de alcance (#8)
 - **Código:** `application/scope.py` (`effective_scope` recibe los mensajes recientes), `application/conversation_service.py`.
 - **Documentos:** HU-07, ADR 0009, `flujo-conversacional.md`, `trazabilidad.md`.

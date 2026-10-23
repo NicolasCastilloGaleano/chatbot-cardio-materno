@@ -9,10 +9,12 @@ Flujo de cada turno (ADR 0007 y 0008):
    los códigos de signos que marcó el análisis (ADR 0012). El agente solo suma alarmas. Si hay
    urgencia inmediata, se responde con el mensaje fijo (sin RAG ni respuesta).
 4. **Alcance (HU-07):** sin alarma, si el mensaje completo es ajeno al servicio se responde con
-   un mensaje fijo y no se toca el hilo; si es conversacional, se responde sin evidencia y
-   nunca se abre un hilo.
+   un mensaje fijo que invita a seguir; queda en el hilo activo sin cambiarlo y nunca abre uno.
+   La respuesta a una pregunta pendiente del asistente nunca se descarta. Si es
+   conversacional, se responde sin evidencia y nunca se abre un hilo.
 5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
-   suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
+   suficiente no se llama al LLM: se muestra un mensaje fijo de abstención que pide más
+   detalles (ADR 0010).
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
@@ -43,7 +45,7 @@ from cardio_materno.application.agent_turn import (
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, compose_grounded_reply
+from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -153,11 +155,12 @@ class TurnResult:
 
     Attributes:
         reply: Respuesta para el usuario.
-        thread: Hilo del turno (el activo sin cambios, o None, si fue fuera de alcance).
+        thread: Hilo del turno (None si no había hilo y el turno no abrió uno).
         is_new_thread: True si el turno abrió un hilo nuevo.
         alerts: Alertas registradas en el turno.
         trace: Cómo se produjo la respuesta (None si no se consultó al agente).
-        out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
+        out_of_scope: True si el mensaje se trató como fuera de alcance (se registra en el
+            hilo activo, si lo hay, sin cambiarlo).
     """
 
     reply: str
@@ -177,16 +180,16 @@ class TurnOutcome:
         decisions: Decisiones de alarma del turno.
         trace: Traza de la respuesta (None si no se consultó al agente).
         analysis: Resultado del análisis (None si no se hizo).
-        record: False si el turno no debe tocar el hilo (mensaje fuera de alcance).
         conversational: True si fue un saludo o agradecimiento (nunca abre un hilo).
+        out_of_scope: True si el mensaje fue fuera de alcance (nunca abre un hilo).
     """
 
     reply: str
     decisions: tuple[AlarmDecision, ...]
     trace: ReplyTrace | None = None
     analysis: AnalysisTurn | None = None
-    record: bool = True
     conversational: bool = False
+    out_of_scope: bool = False
 
 
 class ConversationService:
@@ -265,13 +268,13 @@ class ConversationService:
 
         Las alarmas tienen prioridad sobre el alcance: con alarma el mensaje nunca se descarta.
         """
-        scope = Scope.IN_SCOPE if decisions else effective_scope(analysis)
+        scope = Scope.IN_SCOPE if decisions else effective_scope(analysis, turn.recent)
         if any(decision.is_immediate for decision in decisions):
             trace = analysis_trace(analysis, scope, timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
         if scope is Scope.OUT_OF_SCOPE:
             trace = analysis_trace(analysis, scope, timer.timings)
-            return TurnOutcome(OUT_OF_SCOPE_MESSAGE, (), trace, analysis, record=False)
+            return TurnOutcome(OUT_OF_SCOPE_MESSAGE, (), trace, analysis, out_of_scope=True)
         if scope is Scope.CONVERSATIONAL:
             return self._converse(analysis, turn, timer)
         return self._answer(analysis, turn, decisions, timer)
@@ -294,7 +297,9 @@ class ConversationService:
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
-            reply = compose_reply(decisions, None) if decisions else ABSTENTION_TEXT
+            reply = (
+                compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
+            )
             return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
         outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
         return with_search_query(outcome, query.text)
@@ -364,10 +369,8 @@ class ConversationService:
         self, current: ConversationThread | None, turn: TurnInput, outcome: TurnOutcome
     ) -> TurnResult:
         """Modifica el hilo y registra el turno (solo cuando el turno terminó bien)."""
-        if not outcome.record:
-            return TurnResult(outcome.reply, current, False, (), outcome.trace, out_of_scope=True)
-        if outcome.conversational:
-            return self._finish_conversational(current, turn, outcome)
+        if outcome.conversational or outcome.out_of_scope:
+            return self._finish_in_active_thread(current, turn, outcome)
         if outcome.analysis is not None:
             thread, is_new = self._resolve_thread(current, outcome.analysis)
         else:
@@ -375,16 +378,24 @@ class ConversationService:
         alerts = self._record(thread.id, turn.user_text, outcome)
         return TurnResult(outcome.reply, thread, is_new, alerts, outcome.trace)
 
-    def _finish_conversational(
+    def _finish_in_active_thread(
         self, current: ConversationThread | None, turn: TurnInput, outcome: TurnOutcome
     ) -> TurnResult:
-        """Saludo o agradecimiento: queda en el hilo activo sin cambiarlo; sin hilo no se guarda."""
+        """Saludo o mensaje fuera de alcance: queda en el hilo activo sin cambiarlo.
+
+        No cambia el dominio ni el resumen del hilo. Sin hilo activo no se guarda: estos
+        mensajes nunca abren un hilo.
+        """
         if current is None:
-            return TurnResult(outcome.reply, None, False, (), outcome.trace)
+            return TurnResult(
+                outcome.reply, None, False, (), outcome.trace, out_of_scope=outcome.out_of_scope
+            )
         thread = update_thread(current, current.domain, current.summary, self._config.clock())
         self._ports.repository.save_thread(thread)
         self._record(thread.id, turn.user_text, outcome)
-        return TurnResult(outcome.reply, thread, False, (), outcome.trace)
+        return TurnResult(
+            outcome.reply, thread, False, (), outcome.trace, out_of_scope=outcome.out_of_scope
+        )
 
     def _active_thread(self) -> ConversationThread | None:
         """Obtiene el hilo activo de la sesión, si lo hay y sigue abierto."""
