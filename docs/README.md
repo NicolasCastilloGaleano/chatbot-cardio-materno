@@ -5,7 +5,7 @@ Documentación **viva**: se actualiza en la misma tarea que el código (AGENTS.m
 ## Índice
 | Carpeta | Contenido | Entregable de los lineamientos |
 |---|---|---|
-| [00-gestion](00-gestion/) | Project Charter, backlog, Definition of Done, sprints, [pendientes de aprobación](00-gestion/pendientes-aprobacion.md) | §3.1 Charter, backlog; §6 artefactos ágiles |
+| [00-gestion](00-gestion/) | Project Charter, backlog, Definition of Done, sprints, [pendientes de aprobación](00-gestion/pendientes-aprobacion.md), [plan de migración a la base RAG v2](00-gestion/plan-migracion-rag2.md) | §3.1 Charter, backlog; §6 artefactos ágiles |
 | [01-especificacion](01-especificacion/) | Especificación ejecutable, historias de usuario, RNF, glosario, trazabilidad | §3.1 Especificación ejecutable v1 |
 | [02-arquitectura](02-arquitectura/) | Documento de arquitectura (componentes, flujo de datos, despliegue) y ADR | §3.2 Documento de arquitectura |
 | [03-procesos](03-procesos/) | BPMN (`.bpmn`) y diagramas de flujo (Mermaid) | Soporte de la especificación y la arquitectura |
