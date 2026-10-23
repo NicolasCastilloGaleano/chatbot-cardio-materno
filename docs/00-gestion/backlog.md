@@ -29,6 +29,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-016 | `AlertNotifier`: avisar al equipo de salud cuando se registra una alerta | HU-03, HU-04 | Media | — | ⏳ |
 | B-017 | Intención del mensaje (reporte / consulta general / ambiguo) para **adaptar** la respuesta a una alarma, nunca para suprimirla (ver nota) | HU-03, HU-04 | Media | — | ⏳ |
 | B-023 | Interfaz web local de chat con envío por Enter, estado de procesamiento y paneles persistentes de auditoría | HU-08 | Alta | — | ✅ Implementada y verificada automáticamente; recorrido visual pendiente |
+| B-024 | Base de conocimiento v2 por cuadros y etapas ([plan de migración](plan-migracion-rag2.md), fase 2): modelo y conversor (MIG-05/06, ADR 0016 propuesto), carga y recalibración (MIG-07), evaluación (MIG-08). Reemplaza el `kb_sync` de B-019 por `scripts/convert_rag_xlsx.py` | HU-02 | Alta | — | 🔄 MIG-05/06 implementados (rama `feat/mig-05-06-base-rag2`); MIG-07 espera P1/P7 |
 
 ## Notas de ítems
 

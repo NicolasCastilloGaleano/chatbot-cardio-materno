@@ -9,9 +9,10 @@
 
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Sequence
+from pathlib import Path
 
 from cardio_materno.adapters.outbound.rag.bm25 import Bm25Index, tokenize
-from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError
+from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError, file_digest
 from cardio_materno.adapters.outbound.rag.vector_index import VectorIndex
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy
@@ -126,4 +127,20 @@ def check_compatibility(
         raise KnowledgeBaseError(
             "La base de conocimiento cambió desde que se construyó el índice. "
             "Reconstrúyelo con: python run_build_kb_index.py"
+        )
+
+
+def check_entries_file(index: VectorIndex, entries_path: Path) -> None:
+    """Verifica que el índice se construyó con este mismo archivo de la base (ADR 0016).
+
+    Los ids de la base v2 no cambian si se edita un texto, así que comparar los ids no basta:
+    se compara el hash del archivo guardado en el manifiesto.
+
+    Raises:
+        KnowledgeBaseError: Si el archivo cambió desde que se construyó el índice.
+    """
+    if index.manifest.entries_sha256 != file_digest(entries_path):
+        raise KnowledgeBaseError(
+            "El archivo de la base cambió desde que se construyó el índice (mismo conjunto de "
+            "registros, distinto contenido). Reconstrúyelo con: python run_build_kb_index.py"
         )

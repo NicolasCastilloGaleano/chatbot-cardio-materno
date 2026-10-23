@@ -2,7 +2,10 @@
 
 from dataclasses import dataclass, replace
 
-from cardio_materno.adapters.outbound.rag.hybrid_retriever import HybridRetriever
+from cardio_materno.adapters.outbound.rag.hybrid_retriever import (
+    HybridRetriever,
+    check_entries_file,
+)
 from cardio_materno.adapters.outbound.rag.knowledge_files import (
     KnowledgeBaseError,
     load_entries,
@@ -107,6 +110,7 @@ def _build_retriever(
     """Carga la base y el índice, verifica y precalienta el modelo y crea el buscador."""
     entries = load_entries(settings.entries_file)
     index = load_index(settings.index_dir)
+    check_entries_file(index, settings.entries_file)
     embedder = build_embedder(settings, base_url)
     embedder.verify_ready()
     embedder.warm_up()

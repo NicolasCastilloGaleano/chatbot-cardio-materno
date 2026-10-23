@@ -102,7 +102,7 @@ flowchart LR
     KR -.-> HR[HybridRetriever<br/>coseno numpy + BM25 + RRF]
     HR --> EM{{Embedder}} -.-> OE[OllamaEmbedder<br/>qwen3-embedding:8b]
     HR --> VI[(data/kb_index<br/>embeddings.npy + manifest)]
-    KB[(knowledge/kb/entries.jsonl<br/>1.600 registros)] -. run_build_kb_index .-> VI
+    KB[(knowledge/kb/entries.jsonl<br/>1.600 registros v1; v2: 2.304 + cuadros.jsonl, ADR 0016)] -. run_build_kb_index .-> VI
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```

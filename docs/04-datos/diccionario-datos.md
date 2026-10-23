@@ -63,12 +63,29 @@ Clase: `domain/knowledge.py::KnowledgeEntry`. Contenido versionado en git; el í
 
 | Campo | Tipo | Descripción | Sensible (PII) | Ejemplo |
 |---|---|---|---|---|
-| `id` | string (SHA-256 del piloto) | Identificador estable | No | `91d3…` |
+| `id` | string | Identificador estable. Base v1: SHA-256 del piloto. Base v2: `dominio:motivo:etapa` ([ADR 0016](../02-arquitectura/adr/0016-base-de-conocimiento-v2-por-cuadros-y-etapas.md)) | No | `materno_infantil:colico_lactante:T1_discriminantes` |
 | `domain` | enum | `materno_infantil` o `cardiovascular` | No | `cardiovascular` |
 | `category` | string | Una de 8 categorías por dominio | No | `Presión arterial y riesgo cardiovascular` |
-| `focus` | enum | `Indagar` o `Solucionar` | No | `Solucionar` |
-| `question` | string | Pregunta tipo | No | `Tengo hipertensión… ¿por qué necesito controles?` |
-| `answer` | string | Respuesta (390–710 caracteres) generada con IA y validada para el prototipo | No | — |
+| `focus` | enum | Base v2: `Indagar`, `Orientar`, `Remitir` o `Acompañar` (fijo según la etapa). Base v1: `Indagar` o `Solucionar` | No | `Indagar` |
+| `question` | string | Pregunta tipo (en la base v2, un mensaje real de una persona) | No | `mi bb llora todas las tardes` |
+| `answer` | string | Respuesta generada con IA y validada para el prototipo (v1: 390–710 caracteres; v2: hasta 520) | No | — |
+| `motive` | string | (Solo v2) Motivo de consulta: el cuadro al que pertenece | No | `colico_lactante` |
+| `stage` | enum | (Solo v2) Una de las 12 etapas (`T1_discriminantes` … `apoyo_emocional`) | No | `T1_discriminantes` |
+| `route` | enum | (Solo v2) `indagacion`, `autocuidado`, `seguimiento`, `consulta_prioritaria` o `urgencias` (fija según la etapa) | No | `indagacion` |
+| `source` / `validated_by` / `validated_at` | string | (Opcionales, B-019) Fuente, quién validó y fecha de validación. Se omiten si están vacíos | No | — |
+
+### Entidad: `CASE_PROFILE` (cuadros de la base v2, `knowledge/kb/cuadros.jsonl`)
+Clase: `domain/knowledge.py::CaseProfile`. Datos comunes a los 12 registros de un cuadro. **Nunca** se envían al agente ni se muestran a la persona ([ADR 0016](../02-arquitectura/adr/0016-base-de-conocimiento-v2-por-cuadros-y-etapas.md)).
+
+| Campo | Tipo | Descripción | Sensible (PII) | Ejemplo |
+|---|---|---|---|---|
+| `motive` | string | Motivo de consulta (identificador del cuadro) | No | `colico_lactante` |
+| `domain` | enum | `materno_infantil` o `cardiovascular` | No | `materno_infantil` |
+| `category` | string | Categoría del cuadro | No | `Infantil — digestivo, hidratación, alimentación y nutrición` |
+| `clinical_reading` | string | Interpretación clínica (lenguaje técnico, solo auditoría) | No | `Sugiere cólico del lactante; descartar…` |
+| `data_to_collect` | lista de string | Datos que conviene obtener al indagar | No | `["edad en meses", "horario y duración del llanto"]` |
+| `escalation_signs` | lista de string | Señales que obligan a escalar, en lenguaje de la persona | No | `["Vómito verde o deposición con sangre"]` |
+| `base_route` | enum | `autocuidado`, `consulta_prioritaria` o `urgencias` | No | `autocuidado` |
 
 ### Contrato de respuesta del agente (no se persiste; ADR 0006, 0007 y 0008)
 Desde el ADR 0008 hay dos llamadas: **análisis** (`thread_action`, `domain`, `summary`, `reported_symptoms` y, desde el ADR 0009, `scope` y `scope_reason`) y **respuesta**. Desde el ADR 0010, la respuesta con evidencia es `sentences` (lista de `{text, evidence_id}`); la de los saludos sigue siendo `reply` + `evidence_ids` vacío.

@@ -123,7 +123,7 @@ Esto también resuelve el problema de las preguntas cortas: "no, desde ayer" no 
 | `HybridRetriever._allowed_ids` | Filtra solo por dominio | Filtrar también por motivo y etapa |
 | `knowledge/evidence_policy.json` | `min_similarity` 0,50, calibrado con la base vieja | Recalibrar con la base v2 |
 | Pruebas | `tests/unit/fakes.py:179` y `test_rag_components.py` usan `Focus.SOLVE`; `tests/live/test_live_rag.py` espera categorías (las de MI cambiaron de nombre) | Actualizar |
-| `scripts/export_pilot_kb.py` | Exporta desde el piloto | Queda obsoleto. Nuevo conversor `scripts/rag_xlsx_a_jsonl.py` (biblioteca estándar, o `openpyxl` en `requirements-dev.txt`, que no afecta la ejecución) |
+| `scripts/export_pilot_kb.py` | Exporta desde el piloto | Queda obsoleto. Nuevo conversor `scripts/convert_rag_xlsx.py` (biblioteca estándar; implementado en MIG-06) |
 | `knowledge/kb/README.md` | Describe 1.600 registros `VALIDADA_PARA_PROTOTIPO` | Reescribir con la base v2 y su estado de validación (P1) |
 
 ---
@@ -239,6 +239,8 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 
 ### Fase 2: integración de la base v2 (orden estricto)
 
+> **Estado (2026-10-22):** MIG-05 y MIG-06 implementados en la rama `feat/mig-05-06-base-rag2` ([ADR 0016](../02-arquitectura/adr/0016-base-de-conocimiento-v2-por-cuadros-y-etapas.md), propuesto). La conversión real de `RAG_2.xlsx` da 2.304 registros y 192 cuadros sin errores. MIG-07 espera las puertas P1 y P7.
+
 #### MIG-05 Modelo de datos de la base v2 (#22)
 - **Código:** `domain/knowledge.py` (`Focus` de 4 valores, enumeraciones `Stage` y `Route`, campos `motive`, `stage`, `route`; entidad `CaseProfile` con lectura clínica, datos a extraer, señales y ruta base), `knowledge_files.py`, `tests/unit/fakes.py`, `test_rag_components.py`.
 - **Datos:** `knowledge/kb/entries.jsonl` (2.304) + `knowledge/kb/cuadros.jsonl` (192).
@@ -246,7 +248,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Criterios:** la carga rechaza combinaciones Enfoque/Etapa/Ruta que no estén en la tabla de §2.2.
 
 #### MIG-06 Conversor Excel → JSONL
-- **Código:** `scripts/rag_xlsx_a_jsonl.py`; `hybrid_retriever.check_compatibility` compara también `entries_sha256`.
+- **Código:** `scripts/convert_rag_xlsx.py` y `scripts/xlsx_reader.py`; `hybrid_retriever.check_entries_file` compara `entries_sha256`.
 - **Validaciones del conversor:** 12 etapas por motivo, coherencia Enfoque/Etapa/Ruta, campos del cuadro constantes por motivo, sin celdas vacías obligatorias, longitudes máximas, ids únicos. Emite un informe con conteos.
 - **Documentos:** `knowledge/kb/README.md` (nuevo procedimiento), `docs/08-despliegue/operacion.md`.
 

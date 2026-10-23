@@ -5,7 +5,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- **Base de conocimiento v2, modelo y conversor (MIG-05 y MIG-06 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md), [ADR 0016](docs/02-arquitectura/adr/0016-base-de-conocimiento-v2-por-cuadros-y-etapas.md) propuesto):**
+  - `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`.
+  - `knowledge_files.py`: carga de `cuadros.jsonl`, serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`) y lectura de los campos nuevos. La base v1 sigue cargando sin cambios.
+  - `scripts/convert_rag_xlsx.py` y `scripts/xlsx_reader.py`: convierten la hoja maestra (`RAG_2.xlsx`) en `entries.jsonl` y `cuadros.jsonl` con validación completa, solo con la biblioteca estándar. Conversión real verificada: 2.304 registros y 192 cuadros, sin errores. **La base v2 aún no se carga** (MIG-07, puertas P1 y P7).
+
 ### Changed
+- Al arrancar, el índice se compara también por el hash del archivo de la base (`check_entries_file`): editar un texto sin cambiar su id obliga a reconstruir el índice.
 - **Fase 1 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (MIG-01 a MIG-04): dejar de descartar consultas.**
   - **MIG-01:** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") nunca queda fuera de alcance si el análisis la marca como continuación del hilo (`scope.py::answers_pending_question`, ADR 0009).
   - **MIG-02:** el turno fuera de alcance se registra en el hilo activo sin cambiarlo (sin hilo no se registra ni abre uno) y el mensaje fijo termina en una pregunta de reenganche (ADR 0009).
