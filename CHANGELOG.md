@@ -6,6 +6,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Evidencia por etapas con la base v2 (fase 3 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md), MIG-09 a MIG-13, [ADR 0017](docs/02-arquitectura/adr/0017-estado-del-caso-y-evidencia-por-etapas.md) propuesto):**
+  - `domain/case_state.py`: estado del caso y reglas deterministas de etapas (indagar T1 → T2 → T3 → verificar; luego la etapa de la ruta base; saltos por intención explícita).
+  - `application/case_flow.py`: identifica el cuadro buscando en los dos dominios y elige un registro de las etapas permitidas sin exigir el umbral dentro del cuadro. El estado viaja en la traza (`case_motive`, `case_stage`, `case_visited`) y se ve en la consola y en la web.
+  - `application/output_audit.py`: si la respuesta no termina en pregunta, agrega la pregunta final del registro que la respalda.
+  - `prompts/reply_prompt_v4.md`: registros con etapa, preguntas del registro y sin remisiones que el registro no diga.
+  - `EvidenceQuery` con filtros de cuadro y etapa y modo `anchored`; el buscador reutiliza el embedding de un texto repetido; `case_top_k` (1) en la política.
+- **MIG-07 (activación):** `KB_CASES_FILE` en `.env`; si la base tiene cuadros, se cargan y validan al arrancar. La base v2 se prueba en `data/kb_v2/` sin reemplazar la v1 (`.gitignore` actualizado).
+- **MIG-08:** `scripts/evaluate_kb_v2.py` (`alarmas` sin Ollama; `recuperacion` dejando uno fuera, para recalibrar el umbral). Guía de prueba: `docs/08-despliegue/prueba-base-v2.md`.
+
+### Changed
+- La línea de depuración y el panel web de un mensaje fuera de alcance ya no dicen que no se registra (desde MIG-02 queda en el hilo activo).
 - **Base de conocimiento v2, modelo y conversor (MIG-05 y MIG-06 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md), [ADR 0016](docs/02-arquitectura/adr/0016-base-de-conocimiento-v2-por-cuadros-y-etapas.md) propuesto):**
   - `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`.
   - `knowledge_files.py`: carga de `cuadros.jsonl`, serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`) y lectura de los campos nuevos. La base v1 sigue cargando sin cambios.

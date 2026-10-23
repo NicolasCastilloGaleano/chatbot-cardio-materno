@@ -188,6 +188,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `OLLAMA_EMBED_NUM_GPU` | `0` | Capas del embedder en GPU: `0` = CPU (deja la GPU al LLM), `auto` = decide Ollama |
 | `EMBED_BATCH_SIZE` | `16` | Textos por lote al construir el índice |
 | `KB_ENTRIES_FILE` / `KB_INDEX_DIR` | `knowledge/kb/entries.jsonl` / `data/kb_index` | Base de conocimiento e índice (derivado) |
+| `KB_CASES_FILE` | `knowledge/kb/cuadros.jsonl` | Cuadros de la base v2 (ADR 0016 y 0017). Si la base tiene cuadros, la evidencia se elige por etapas. Para probar la v2 sin reemplazar la v1, ver [prueba-base-v2.md](prueba-base-v2.md) |
 | `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Valores calibrados por defecto (umbral, top-k, instrucción de consulta) |
 | `RAG_MIN_SIMILARITY` | (archivo: `0.50`) | Similitud mínima para que un registro cuente como evidencia (0 a 1). **0,55 → 0,50 por decisión del equipo (2026-10-12)** |
 | `RAG_TOP_K` / `RAG_CANDIDATE_K` | (archivo: `3` / `12`) | Registros que se entregan al agente / candidatos antes de fusionar |

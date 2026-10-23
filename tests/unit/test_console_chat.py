@@ -207,7 +207,10 @@ def test_debug_for_out_of_scope_message() -> None:
 
     output = run_console(["¿qué opinas del fútbol?", "salir"], agent, show_thread_debug=True)
 
-    assert "[fuera de alcance: pregunta sobre deportes · no se registra en el hilo]" in output
+    assert (
+        "[fuera de alcance: pregunta sobre deportes · sin búsqueda ni respuesta del agente]"
+        in output
+    )
     assert not any(line.startswith("[hilo") for line in output)
 
 

@@ -37,3 +37,6 @@ El código solo admitía los enfoques `Indagar` y `Solucionar` y seis campos por
 - ⚠️ Mientras convivan, el código acepta las dos versiones de la base. MIG-07 debe retirar `Solucionar` y la rama v1.
 - ⚠️ Cargar la base v2 no cambia todavía cómo se busca: aprovechar las etapas (estado del caso y recuperación por etapa) es la fase 3 del plan.
 - ⏳ Pendiente: aprobación de este ADR, decisión sobre la validación de la base (P1) y sobre reemplazar la base v1 (P7), y luego MIG-07 en el PC de pruebas.
+
+## Actualización 2026-10-22: activación por `.env` para probarla (MIG-07)
+Mientras el equipo decide P1 y P7, la base v2 **no reemplaza** la v1 en el repositorio. Se convierte en `data/kb_v2/` (no versionado) y se activa con `KB_ENTRIES_FILE`, `KB_CASES_FILE` y `KB_INDEX_DIR` (ver `docs/08-despliegue/prueba-base-v2.md`). Si la base cargada tiene cuadros, el arranque exige el archivo de cuadros y que estén todos (`rag_setup.py::load_profiles_for`), y activa la evidencia por etapas ([ADR 0017](0017-estado-del-caso-y-evidencia-por-etapas.md)).

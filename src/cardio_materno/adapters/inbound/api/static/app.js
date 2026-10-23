@@ -136,7 +136,7 @@ function showAudit(trace, outOfScope = false, thread = null, alerts = []) {
   if (!trace) {
     const empty = document.createElement("div");
     empty.className = "empty-audit";
-    empty.append(textNode("p", "SIN TRAZA", "eyebrow"), textNode("h2", "Turno no registrado"), textNode("p", outOfScope ? "El mensaje fue clasificado fuera del alcance y no se guardó en el hilo." : "Este turno no tiene información de auditoría asociada."));
+    empty.append(textNode("p", "SIN TRAZA", "eyebrow"), textNode("h2", "Turno no registrado"), textNode("p", outOfScope ? "El mensaje fue clasificado fuera del alcance: sin búsqueda ni respuesta del agente (queda en el hilo activo, si lo hay)." : "Este turno no tiene información de auditoría asociada."));
     auditPanel.append(empty);
     if (alerts.length) auditPanel.append(section("Alertas deterministas", alertDetails(alerts)));
     return;
@@ -151,6 +151,7 @@ function showAudit(trace, outOfScope = false, thread = null, alerts = []) {
   auditPanel.append(section("Signos del catálogo", tags(trace.reported_signs)));
   if (trace.unstated_symptoms?.length) auditPanel.append(section("Datos que no escribió la persona", tags(trace.unstated_symptoms, true)));
   auditPanel.append(section("Consulta de búsqueda", trace.search_query || "No se registró consulta."));
+  if (trace.case) auditPanel.append(section("Cuadro y etapa (base v2)", metricGrid([["Cuadro", trace.case.motive], ["Etapa", trace.case.stage], ["Etapas vistas", trace.case.visited.join(", ")]])));
   auditPanel.append(section("Recuperación de evidencia", metricGrid([["Estado", trace.retrieval_status], ["Mejor puntaje", trace.best_score == null ? "—" : Number(trace.best_score).toFixed(2)], ["Citas", trace.cited_evidence.join(", ") || "Ninguna"], ["Respuesta sin citas", trace.uncited ? "Sí" : "No"]])));
   auditPanel.append(section("Registros recuperados", evidenceList(trace)));
   if (trace.grounding) {

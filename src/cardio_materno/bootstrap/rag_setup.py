@@ -1,6 +1,8 @@
 """Armado del RAG al arrancar: base, índice, política y modelo de embeddings (ADR 0008)."""
 
-from dataclasses import dataclass, replace
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 from cardio_materno.adapters.outbound.rag.hybrid_retriever import (
     HybridRetriever,
@@ -8,6 +10,7 @@ from cardio_materno.adapters.outbound.rag.hybrid_retriever import (
 )
 from cardio_materno.adapters.outbound.rag.knowledge_files import (
     KnowledgeBaseError,
+    load_case_profiles,
     load_entries,
     load_policy,
 )
@@ -18,6 +21,7 @@ from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.application.ports.knowledge_retriever import KnowledgeRetriever
 from cardio_materno.bootstrap.settings import PolicyOverrides, RagSettings
+from cardio_materno.domain.knowledge import CaseProfile, KnowledgeEntry
 
 MSG_RAG_DISABLED = "RAG desactivado (RAG_ENABLED=false): el asistente no dará información de salud."
 MSG_RAG_UNAVAILABLE = (
@@ -28,6 +32,7 @@ MSG_RAG_UNAVAILABLE = (
 MSG_RAG_READY = (
     "Base de conocimiento: {count} registros · índice con '{model}' · umbral {threshold:.2f}"
 )
+MSG_CASES_READY = " · {count} cuadros: evidencia por etapas (ADR 0017)"
 
 
 @dataclass(frozen=True)
@@ -38,11 +43,13 @@ class RagSetup:
         retriever: Buscador de evidencia (nulo si el RAG no está disponible).
         policy: Política de evidencia.
         status_message: Mensaje informativo para mostrar al arrancar.
+        case_profiles: Cuadros de la base v2 por motivo (vacío con la base v1).
     """
 
     retriever: KnowledgeRetriever
     policy: EvidencePolicy
     status_message: str
+    case_profiles: dict[str, CaseProfile] = field(default_factory=dict)
 
 
 def build_embedder(settings: RagSettings, base_url: str) -> OllamaEmbedder:
@@ -95,23 +102,44 @@ def setup_rag(settings: RagSettings, base_url: str) -> RagSetup:
     if not settings.enabled:
         return RagSetup(UnavailableRetriever(), policy, MSG_RAG_DISABLED)
     try:
-        retriever, count = _build_retriever(settings, base_url, policy)
+        entries = load_entries(settings.entries_file)
+        profiles = load_profiles_for(entries, settings.cases_file)
+        retriever = _build_retriever(entries, settings, base_url, policy)
     except (KnowledgeBaseError, LanguageModelError) as error:
         return RagSetup(UnavailableRetriever(), policy, MSG_RAG_UNAVAILABLE.format(error=error))
     ready = MSG_RAG_READY.format(
-        count=count, model=settings.embed_model, threshold=policy.min_similarity
+        count=len(entries), model=settings.embed_model, threshold=policy.min_similarity
     )
-    return RagSetup(retriever, policy, ready)
+    cases = MSG_CASES_READY.format(count=len(profiles)) if profiles else ""
+    return RagSetup(retriever, policy, ready + cases, profiles)
+
+
+def load_profiles_for(
+    entries: Sequence[KnowledgeEntry], cases_file: Path
+) -> dict[str, CaseProfile]:
+    """Cuadros de la base v2, solo si la base los usa (vacío con la base v1).
+
+    Raises:
+        KnowledgeBaseError: Si la base tiene cuadros y falta el archivo de cuadros, o si
+            algún cuadro de la base no está en él.
+    """
+    motives = {entry.motive for entry in entries if entry.motive}
+    if not motives:
+        return {}
+    profiles = {profile.motive: profile for profile in load_case_profiles(cases_file)}
+    missing = sorted(motives - set(profiles))
+    if missing:
+        raise KnowledgeBaseError(f"Faltan cuadros en {cases_file.name}: {missing[:5]}…")
+    return {motive: profiles[motive] for motive in motives}
 
 
 def _build_retriever(
-    settings: RagSettings, base_url: str, policy: EvidencePolicy
-) -> tuple[HybridRetriever, int]:
-    """Carga la base y el índice, verifica y precalienta el modelo y crea el buscador."""
-    entries = load_entries(settings.entries_file)
+    entries: Sequence[KnowledgeEntry], settings: RagSettings, base_url: str, policy: EvidencePolicy
+) -> HybridRetriever:
+    """Carga el índice, verifica y precalienta el modelo y crea el buscador."""
     index = load_index(settings.index_dir)
     check_entries_file(index, settings.entries_file)
     embedder = build_embedder(settings, base_url)
     embedder.verify_ready()
     embedder.warm_up()
-    return HybridRetriever(entries, index, embedder, policy), len(entries)
+    return HybridRetriever(entries, index, embedder, policy)

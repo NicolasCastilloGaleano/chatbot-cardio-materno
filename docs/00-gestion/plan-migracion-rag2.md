@@ -268,6 +268,8 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 
 ### Fase 3: estado del caso y recuperación dirigida por etapa
 
+> **Estado (2026-10-22):** MIG-07 (solo la activación por `.env`, sin reemplazar la v1), MIG-08 y MIG-09 a MIG-13 implementados en la rama `feat/fase2-3-base-v2-y-etapas` ([ADR 0017](../02-arquitectura/adr/0017-estado-del-caso-y-evidencia-por-etapas.md), propuesto). Diferencias con este plan: el estado del caso viaja en la traza (sin cambiar el contrato del repositorio); la regla "mínimo de datos antes de orientar" se implementa con la secuencia de etapas, no con datos extraídos. Pendiente: recalibrar el umbral y el guion de [prueba-base-v2.md](../08-despliegue/prueba-base-v2.md). La fase 4 (alarmas) sigue esperando las puertas clínicas.
+
 #### MIG-09 `CaseState` persistido en el hilo (#14)
 - **Código:** `domain/case_state.py`, adaptadores JSON y SQLite, `ThreadRepository`, `tests/unit/test_thread_repository_contract.py`.
 - **Documentos:** ADR nuevo "Estado del caso" (extiende ADR 0006 y 0015), HU-06, `modelo-datos.md`.

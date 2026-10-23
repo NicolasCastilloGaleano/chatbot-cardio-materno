@@ -14,8 +14,8 @@ LEGACY_SYMPTOMS_KEY = "reported_symptoms"
 
 
 def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
-    """Convierte la traza en un diccionario legible."""
-    return {
+    """Convierte la traza en un diccionario legible (con "case" solo si hay cuadro)."""
+    data = {
         "reported_symptoms": list(trace.reported_symptoms),
         "reported_signs": list(trace.reported_signs),
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
@@ -30,6 +30,8 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "unstated_symptoms": list(trace.unstated_symptoms),
         "search_query": trace.search_query,
     }
+    case = case_to_dict(trace)
+    return data if case is None else data | {"case": case}
 
 
 def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
@@ -50,7 +52,30 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         grounding=grounding_from_dict(data["grounding"]) if data.get("grounding") else None,
         unstated_symptoms=tuple(data.get("unstated_symptoms", [])),
         search_query=data.get("search_query", ""),
+        **case_from_dict(data.get("case")),
     )
+
+
+def case_to_dict(trace: ReplyTrace) -> dict[str, Any] | None:
+    """Serializa el estado del caso de la base v2 (None si la respuesta no tiene cuadro)."""
+    if not trace.case_motive:
+        return None
+    return {
+        "motive": trace.case_motive,
+        "stage": trace.case_stage,
+        "visited": list(trace.case_visited),
+    }
+
+
+def case_from_dict(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Campos de la traza con el estado del caso (vacío en trazas sin cuadro o anteriores)."""
+    if not data:
+        return {}
+    return {
+        "case_motive": str(data["motive"]),
+        "case_stage": str(data["stage"]),
+        "case_visited": tuple(str(stage) for stage in data.get("visited", [])),
+    }
 
 
 def legacy_trace(message: dict[str, Any]) -> ReplyTrace | None:

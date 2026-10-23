@@ -75,6 +75,12 @@ Escenario: Respuesta inválida o error del modelo
   Dado que el modelo falla o no devuelve el JSON esperado
   Cuando escribo un mensaje
   Entonces veo un mensaje de error claro, no se guarda nada en el hilo y el chat sigue abierto
+
+Escenario: El hilo recuerda el estado del caso (base v2, ADR 0017, propuesta)
+  Dado que la base v2 está cargada y el asistente ya mostró registros de un cuadro en este hilo
+  Cuando escribo un mensaje que continúa el hilo
+  Entonces el cuadro y las etapas ya vistas se recuperan de la traza de las respuestas anteriores
+  Y si el análisis marca un tema nuevo, el cuadro se vuelve a identificar
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-10)
 
@@ -171,6 +177,24 @@ Escenario: Registros coherentes con su etapa (MIG-05, propuesta)
   Cuando se carga un registro con etapa cuyo enfoque o ruta no corresponden a ella, o sin motivo
   Entonces la carga falla indicando la línea del archivo
   Y los registros de la base v1 (sin etapa) se siguen cargando hasta MIG-07
+
+Escenario: Con la base v2, el asistente indaga antes de orientar (MIG-09 a MIG-13, ADR 0017, propuesta)
+  Dado que la base v2 y sus cuadros están cargados
+  Cuando escribo un primer mensaje sin signos de alarma ("mi bebé llora todas las tardes y se pone durito")
+  Entonces se identifica el cuadro buscando en los dos dominios
+  Y la evidencia es un solo registro de la etapa T1 (preguntas que separan lo grave de lo leve), nunca una remisión elegida por similitud
+  Y en los turnos siguientes la evidencia avanza T2 → T3 → verificación del cuadro
+  Y después de verificar el cuadro se muestra la etapa de su ruta base (autocuidado, consulta prioritaria o urgencias)
+  Y si escribo "¿qué hago ya?", "ya me atendieron", "estoy esperando" o "tengo miedo", la evidencia puede saltar a esa etapa
+
+Escenario: Una respuesta corta dentro de un caso recibe su registro (ADR 0017, propuesta)
+  Dado un caso con el cuadro identificado
+  Cuando respondo "sí, desde ayer"
+  Entonces la evidencia sale del mismo cuadro sin exigir el umbral de similitud (no hay abstención)
+
+Escenario: La respuesta deja la conversación abierta (MIG-12, propuesta)
+  Cuando la respuesta verificada no termina en pregunta
+  Entonces se le agrega la pregunta final del registro que la respalda, tal como está escrita en él
 
 Escenario: El índice corresponde al archivo exacto de la base (MIG-06, propuesta)
   Dado un índice construido con una versión de entries.jsonl

@@ -31,7 +31,7 @@ La base v2 ([ADR 0016](../../docs/02-arquitectura/adr/0016-base-de-conocimiento-
 python scripts/convert_rag_xlsx.py RAG_2.xlsx            # escribe entries.jsonl y cuadros.jsonl aquí
 python scripts/convert_rag_xlsx.py RAG_2.xlsx /tmp/rag2  # o en otra carpeta, para revisarla antes
 ```
-El conversor valida la hoja completa y no escribe nada si encuentra errores. **Cargarla aquí reemplaza la base v1** y exige reconstruir el índice y recalibrar `evidence_policy.json` en el PC de pruebas (MIG-07 del [plan de migración](../../docs/00-gestion/plan-migracion-rag2.md)). Antes, el equipo debe decidir su validación (P1: hoy Fuente, Validado por y Fecha validación están vacías) y si reemplaza la v1 (P7).
+El conversor valida la hoja completa y no escribe nada si encuentra errores. Para **probarla sin reemplazar la v1**, conviértela en `data/kb_v2/` y actívala por `.env` (`KB_ENTRIES_FILE`, `KB_CASES_FILE`, `KB_INDEX_DIR`): ver `docs/08-despliegue/prueba-base-v2.md`. `scripts/evaluate_kb_v2.py` mide el filtro de alarmas y la recuperación con las preguntas de la propia base. **Cargarla aquí reemplaza la base v1** y exige reconstruir el índice y recalibrar `evidence_policy.json` en el PC de pruebas (MIG-07 del [plan de migración](../../docs/00-gestion/plan-migracion-rag2.md)). Antes, el equipo debe decidir su validación (P1: hoy Fuente, Validado por y Fecha validación están vacías) y si reemplaza la v1 (P7).
 
 ## Modificar la base
 1. Editar `entries.jsonl` (o reexportar desde la hoja cuando exista B-019).

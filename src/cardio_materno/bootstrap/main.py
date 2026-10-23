@@ -43,7 +43,7 @@ PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
 PROMPTS_DIR = PACKAGE_DIR / "prompts"
 ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v6.md"
-REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v3.md"
+REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v4.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
@@ -120,6 +120,8 @@ def build_conversation(
         alarm_policy=alarm_policy,
         evidence_item_chars=rag.policy.item_max_chars,
         grounding=rag.policy.grounding,
+        case_profiles=rag.case_profiles,
+        case_evidence_items=rag.policy.case_top_k,
     )
     return ports, config
 
