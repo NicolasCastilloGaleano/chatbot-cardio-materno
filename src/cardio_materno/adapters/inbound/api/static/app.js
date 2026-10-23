@@ -433,7 +433,7 @@ function emptyAudit(outOfScope) {
   const empty = document.createElement("div");
   empty.className = "empty-audit";
   const detail = outOfScope
-    ? "El mensaje fue clasificado fuera del alcance y no se guardó en el hilo."
+    ? "El mensaje fue clasificado fuera del alcance y no había un hilo activo, así que no se guardó."
     : "Este turno no consultó al agente (p. ej., una urgencia detectada por las reglas) o no tiene traza.";
   empty.append(textNode("p", "SIN TRAZA", "eyebrow"), textNode("h2", "Turno sin traza del agente"), textNode("p", detail));
   return empty;
@@ -474,8 +474,9 @@ function traceSections(trace, thread) {
     section("Signos del catálogo", tags(trace.reported_signs)),
   ];
   if (trace.unstated_symptoms?.length) sections.push(section("Datos que no escribió la persona", tags(trace.unstated_symptoms, true)));
+  sections.push(section("Consulta de búsqueda", trace.search_query || "No se registró consulta."));
+  if (trace.case) sections.push(section("Cuadro y etapa (base v2)", metricGrid([["Cuadro", trace.case.motive], ["Etapa", trace.case.stage], ["Etapas vistas", trace.case.visited.join(", ")]])));
   sections.push(
-    section("Consulta de búsqueda", trace.search_query || "No se registró consulta."),
     section("Recuperación de evidencia", metricGrid([["Estado", trace.retrieval_status], ["Mejor puntaje", trace.best_score == null ? "—" : Number(trace.best_score).toFixed(2)], ["Citas", trace.cited_evidence.join(", ") || "Ninguna"], ["Respuesta sin citas", trace.uncited ? "Sí" : "No"]])),
     section("Registros recuperados", evidenceList(trace)),
     ...groundingSections(trace.grounding),
@@ -533,13 +534,15 @@ function applySendResult(result, text) {
   mergeNew(result.messages);
   state.chat = result.chat;
   const turn = result.turn;
-  if (turn.out_of_scope) {
+  // Con un hilo activo, el turno fuera de alcance ya viene guardado en result.messages (MIG-02).
+  const unsaved = turn.out_of_scope && !turn.thread;
+  if (unsaved) {
     state.ephemeral.push({ role: "user", content: text, ephemeral: true }, { role: "assistant", content: turn.reply, ephemeral: true, trace: turn.trace, alerts: turn.alerts });
   }
   renderMessages();
   scrollToBottom();
   const last = state.entries[state.entries.length - 1];
-  if (turn.out_of_scope) showAudit(turn.trace, true, null, turn.alerts);
+  if (unsaved) showAudit(turn.trace, true, null, turn.alerts);
   else if (last) showAudit(last.trace, false, last.thread, last.alerts, threadColors(state.entries).get(last.thread.id));
   loadChats();
 }

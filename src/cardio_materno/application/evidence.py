@@ -15,8 +15,9 @@ EVIDENCE_HEADER = (
     "etiqueta [E…]; en cada frase, pon en evidence_id la etiqueta del registro que la respalda:"
 )
 EVIDENCE_ITEM_TEMPLATE = (
-    "[{label}] ({category} · {focus})\nPregunta: {question}\nRespuesta: {answer}"
+    "[{label}] ({category} · {focus}{stage})\nPregunta: {question}\nRespuesta: {answer}"
 )
+STAGE_LABEL_TEMPLATE = " · etapa {stage}"
 TRUNCATION_MARK = "…"
 
 
@@ -36,6 +37,8 @@ class EvidencePolicy:
         min_support: Respaldo mínimo de una frase citada (ver `GroundingPolicy`).
         max_free_sentences: Máximo de frases sin cita que se conservan.
         max_free_words: Longitud máxima, en palabras, de una frase sin cita.
+        case_top_k: Registros que se entregan al agente cuando la base tiene cuadros (base
+            v2, ADR 0018): uno, de la etapa elegida, para que la respuesta haga una sola cosa.
     """
 
     top_k: int = 3
@@ -49,6 +52,7 @@ class EvidencePolicy:
     min_support: float = 0.6
     max_free_sentences: int = 2
     max_free_words: int = 20
+    case_top_k: int = 1
 
     @property
     def grounding(self) -> GroundingPolicy:
@@ -86,6 +90,7 @@ def format_item(item: EvidenceItem, max_chars: int) -> str:
         label=item.label,
         category=entry.category,
         focus=entry.focus,
+        stage=STAGE_LABEL_TEMPLATE.format(stage=entry.stage) if entry.stage else "",
         question=entry.question,
         answer=truncate(entry.answer, max_chars),
     )

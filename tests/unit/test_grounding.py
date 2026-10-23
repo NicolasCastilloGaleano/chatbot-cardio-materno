@@ -123,11 +123,28 @@ def test_literal_fallback_uses_the_first_cited_entry() -> None:
     assert reply.cited == ("E2",) and reply.check.literal
 
 
-def test_urgent_referral_words_and_line_123_do_not_count_against_support() -> None:
-    sentence = "Si hay dolor de cabeza o visión alterada, acude a urgencias o llama al 123."
+REFERRAL_EVIDENCE = (
+    "Si el dolor de cabeza no cede o se nubla la vista, acude a urgencias o llama al 123."
+)
 
-    assert is_supported(sentence, EVIDENCE, POLICY)
-    assert not is_supported("Llama al 123 y toma ibuprofeno con agua.", EVIDENCE, POLICY)
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Acude de inmediato a urgencias o llama al 123.",
+        "Si hay dolor de cabeza o visión alterada, acude a urgencias o llama al 123.",
+        "Llama al 123 y toma ibuprofeno con agua.",
+    ],
+)
+def test_referral_sentence_without_support_in_the_cited_entry_is_rejected(sentence: str) -> None:
+    # MIG-04: antes, una frase hecha solo de palabras de remisión siempre pasaba (U1).
+    assert not is_supported(sentence, EVIDENCE, POLICY)
+
+
+def test_referral_sentence_is_supported_when_the_cited_entry_says_it() -> None:
+    sentence = "Si el dolor de cabeza no cede, acude a urgencias o llama al 123."
+
+    assert is_supported(sentence, REFERRAL_EVIDENCE, POLICY)
 
 
 # --- Datos que la persona no escribió (B-021, incidente del 2026-10-11) -------------------

@@ -25,6 +25,14 @@ Usa `OLLAMA_EMBED_MODEL` (por defecto `qwen3-embedding:8b`). Si este archivo o e
 
 **Efecto de la verificación:** una pregunta que la base no cubre (p. ej., qué comer con acidez o la dosis de insulina en la diabetes gestacional) recibe la abstención o el texto literal de un registro *Indagar*. Llenar esos vacíos es contenido clínico (B-019).
 
+## Base v2 (propuesta, aún no cargada)
+La base v2 ([ADR 0017](../../docs/02-arquitectura/adr/0017-base-de-conocimiento-v2-por-cuadros-y-etapas.md), propuesto) tiene 2.304 registros en 192 cuadros, con 12 etapas por cuadro. Su hoja maestra (`RAG_2.xlsx`) la mantiene el equipo y **no se versiona**. Se convierte con:
+```bash
+python scripts/convert_rag_xlsx.py RAG_2.xlsx            # escribe entries.jsonl y cuadros.jsonl aquí
+python scripts/convert_rag_xlsx.py RAG_2.xlsx /tmp/rag2  # o en otra carpeta, para revisarla antes
+```
+El conversor valida la hoja completa y no escribe nada si encuentra errores. Para **probarla sin reemplazar la v1**, conviértela en `data/kb_v2/` y actívala por `.env` (`KB_ENTRIES_FILE`, `KB_CASES_FILE`, `KB_INDEX_DIR`): ver `docs/08-despliegue/prueba-base-v2.md`. `scripts/evaluate_kb_v2.py` mide el filtro de alarmas y la recuperación con las preguntas de la propia base. **Cargarla aquí reemplaza la base v1** y exige reconstruir el índice y recalibrar `evidence_policy.json` en el PC de pruebas (MIG-07 del [plan de migración](../../docs/00-gestion/plan-migracion-rag2.md)). Antes, el equipo debe decidir su validación (P1: hoy Fuente, Validado por y Fecha validación están vacías) y si reemplaza la v1 (P7).
+
 ## Modificar la base
 1. Editar `entries.jsonl` (o reexportar desde la hoja cuando exista B-019).
 2. Reconstruir el índice.

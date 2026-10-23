@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from cardio_materno.adapters.inbound.api.serializers import trace_to_dict
 from cardio_materno.adapters.inbound.api.web_app import WebOptions, create_app
 from cardio_materno.adapters.outbound.persistence.sqlite_channel_log import SqliteChannelLog
 from cardio_materno.adapters.outbound.persistence.sqlite_chat_audit import SqliteChatAudit
@@ -25,6 +26,7 @@ from cardio_materno.adapters.outbound.persistence.sqlite_user_thread_store impor
 from cardio_materno.application.direct_chat import DirectChat, open_console_session
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.ports.channel_log import InboundEvent
+from cardio_materno.domain.trace import ReplyTrace
 from cardio_materno.domain.user import Channel, new_user
 from tests.unit.fakes import (
     URGENT_MESSAGE,
@@ -277,3 +279,14 @@ def test_polling_after_the_last_seq_returns_only_new_messages_and_pending(
 
     assert [m["content"] for m in update["messages"]] == ["p2", "r2"]
     assert update["pending"] == 1
+
+
+def test_trace_includes_the_case_state_of_the_v2_base() -> None:
+    trace = ReplyTrace(
+        case_motive="fiebre", case_stage="T2_caracterizacion", case_visited=("a", "b")
+    )
+
+    snapshot = trace_to_dict(trace, {})["case"]
+
+    assert snapshot == {"motive": "fiebre", "stage": "T2_caracterizacion", "visited": ["a", "b"]}
+    assert trace_to_dict(ReplyTrace(), {})["case"] is None

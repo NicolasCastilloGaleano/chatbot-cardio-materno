@@ -5,6 +5,42 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Changed
+- **Integración de la migración a la base v2 con la HU-10** (rama `feat/integracion-migracion-rag2`): la rama `feat/fase2-3-base-v2-y-etapas` partió de `main` sin la auditoría multicanal.
+  - Sus ADR se renumeran: base v2 por cuadros y etapas **0016 → 0017** y estado del caso **0017 → 0018** (el 0016 es el de la HU-10). Sus ítems de backlog pasan de B-024/B-025 a **B-025/B-026**.
+  - La sección "Cuadro y etapa (base v2)" del panel de auditoría pasa a `serializers.py` (`case_snapshot`) y a la interfaz nueva de la HU-10.
+
+### Fixed
+- Interfaz web: con un hilo activo, el turno fuera de alcance ya viene guardado (MIG-02), así que ya no se agrega otra vez como "no se guarda en el hilo". Solo se marca así cuando no había hilo.
+
+### Added
+- **Evidencia por etapas con la base v2 (fase 3 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md), MIG-09 a MIG-13, [ADR 0018](docs/02-arquitectura/adr/0018-estado-del-caso-y-evidencia-por-etapas.md) propuesto):**
+  - `domain/case_state.py`: estado del caso y reglas deterministas de etapas (indagar T1 → T2 → T3 → verificar; luego la etapa de la ruta base; saltos por intención explícita).
+  - `application/case_flow.py`: identifica el cuadro buscando en los dos dominios y elige un registro de las etapas permitidas sin exigir el umbral dentro del cuadro. El estado viaja en la traza (`case_motive`, `case_stage`, `case_visited`) y se ve en la consola y en la web.
+  - `application/output_audit.py`: si la respuesta no termina en pregunta, agrega la pregunta final del registro que la respalda.
+  - `prompts/reply_prompt_v4.md`: registros con etapa, preguntas del registro y sin remisiones que el registro no diga.
+  - `EvidenceQuery` con filtros de cuadro y etapa y modo `anchored`; el buscador reutiliza el embedding de un texto repetido; `case_top_k` (1) en la política.
+- **MIG-07 (activación):** `KB_CASES_FILE` en `.env`; si la base tiene cuadros, se cargan y validan al arrancar. La base v2 se prueba en `data/kb_v2/` sin reemplazar la v1 (`.gitignore` actualizado).
+- **MIG-08:** `scripts/evaluate_kb_v2.py` (`alarmas` sin Ollama; `recuperacion` dejando uno fuera, para recalibrar el umbral). Guía de prueba: `docs/08-despliegue/prueba-base-v2.md`.
+
+### Changed
+- La línea de depuración y el panel web de un mensaje fuera de alcance ya no dicen que no se registra (desde MIG-02 queda en el hilo activo).
+- **Base de conocimiento v2, modelo y conversor (MIG-05 y MIG-06 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md), [ADR 0017](docs/02-arquitectura/adr/0017-base-de-conocimiento-v2-por-cuadros-y-etapas.md) propuesto):**
+  - `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`.
+  - `knowledge_files.py`: carga de `cuadros.jsonl`, serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`) y lectura de los campos nuevos. La base v1 sigue cargando sin cambios.
+  - `scripts/convert_rag_xlsx.py` y `scripts/xlsx_reader.py`: convierten la hoja maestra (`RAG_2.xlsx`) en `entries.jsonl` y `cuadros.jsonl` con validación completa, solo con la biblioteca estándar. Conversión real verificada: 2.304 registros y 192 cuadros, sin errores. **La base v2 aún no se carga** (MIG-07, puertas P1 y P7).
+
+### Changed
+- Al arrancar, el índice se compara también por el hash del archivo de la base (`check_entries_file`): editar un texto sin cambiar su id obliga a reconstruir el índice.
+- **Fase 1 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (MIG-01 a MIG-04): dejar de descartar consultas.**
+  - **MIG-01:** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") nunca queda fuera de alcance si el análisis la marca como continuación del hilo (`scope.py::answers_pending_question`, ADR 0009).
+  - **MIG-02:** el turno fuera de alcance se registra en el hilo activo sin cambiarlo (sin hilo no se registra ni abre uno) y el mensaje fijo termina en una pregunta de reenganche (ADR 0009).
+  - **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).
+- HU-02 y HU-07, trazabilidad, flujo conversacional y arquitectura actualizados con estos criterios.
+
+### Fixed
+- **MIG-04:** el verificador de respaldo ya no exime las frases de remisión: una frase hecha solo de "acude a urgencias o llama al 123" pasaba siempre, aunque el registro citado no lo dijera (causa U1). Se retiran `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py` (ADR 0010).
+
 ### Added
 - **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.
 - **HU-10, fase 2 (dominio, aplicación y SQLite):**

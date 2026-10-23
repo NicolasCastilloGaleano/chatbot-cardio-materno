@@ -9,7 +9,11 @@ import pytest
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
+from cardio_materno.application.grounded_reply import (
+    ABSTENTION_TEXT,
+    LITERAL_TEMPLATE,
+    UNAVAILABLE_TEXT,
+)
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
@@ -447,16 +451,22 @@ def test_citing_unoffered_label_is_an_error_and_saves_nothing() -> None:
     assert repo.threads == {}
 
 
-@pytest.mark.parametrize("status", [RetrievalStatus.INSUFFICIENT, RetrievalStatus.UNAVAILABLE])
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (RetrievalStatus.INSUFFICIENT, ABSTENTION_TEXT),
+        (RetrievalStatus.UNAVAILABLE, UNAVAILABLE_TEXT),
+    ],
+)
 def test_without_sufficient_evidence_abstains_without_calling_the_reply_model(
-    status: RetrievalStatus,
+    status: RetrievalStatus, expected: str
 ) -> None:
     agent = ScriptedAgent(agent_json("el jengibre ayuda"))
     retriever = FakeRetriever(RetrievalResult(status, best_score=0.44))
 
     result = make_service(agent, retriever=retriever).send("¿qué como si tengo acidez?")
 
-    assert result.reply == ABSTENTION_TEXT and agent.responder.calls == []
+    assert result.reply == expected and agent.responder.calls == []
     assert result.trace is not None and result.trace.retrieval_status is status
     assert result.trace.grounding is None
     assert [t.stage for t in result.trace.timings] == ["análisis", "RAG"]
@@ -547,6 +557,11 @@ def test_user_messages_have_no_trace() -> None:
 # --- Alcance (HU-07, ADR 0009) ------------------------------------------------------------------
 
 
+def test_abstention_for_insufficient_evidence_asks_for_more_details() -> None:
+    # MIG-03: sin evidencia, el sistema pregunta en lugar de abandonar a la persona.
+    assert ABSTENTION_TEXT.rstrip().endswith("?")
+
+
 def test_out_of_scope_message_gets_fixed_reply_without_rag_reply_or_thread_changes() -> None:
     repo = InMemoryThreadRepository()
     agent = ScriptedAgent(scoped(agent_json(), "fuera_de_alcance", "deportes"))
@@ -561,7 +576,12 @@ def test_out_of_scope_message_gets_fixed_reply_without_rag_reply_or_thread_chang
     assert result.trace is not None and result.trace.scope_reason == "deportes"
 
 
-def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
+def test_out_of_scope_message_invites_to_keep_talking() -> None:
+    # MIG-02: el mensaje fijo termina en una pregunta abierta de reenganche.
+    assert OUT_OF_SCOPE_MESSAGE.rstrip().endswith("?")
+
+
+def test_out_of_scope_in_the_middle_of_a_thread_is_recorded_without_changing_it() -> None:
     repo = InMemoryThreadRepository()
     agent = ScriptedAgent(
         agent_json("r1", summary="acidez"),
@@ -574,15 +594,36 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
     off_topic = service.send("¿quién ganó el partido?")
     result = service.send("¿y qué más puedo comer?")
 
-    assert thread_of(off_topic).id == "hilo-1"
+    assert off_topic.out_of_scope and thread_of(off_topic).id == "hilo-1"
+    assert thread_of(off_topic).summary == "acidez"
     assert thread_of(result).id == "hilo-1" and not result.is_new_thread
     assert repo.threads["hilo-1"].status is ThreadStatus.OPEN
     assert [m.content for m in repo.messages["hilo-1"]] == [
         "tengo acidez",
         "r1",
+        "¿quién ganó el partido?",
+        OUT_OF_SCOPE_MESSAGE,
         "¿y qué más puedo comer?",
         "r3",
     ]
+
+
+def test_answer_to_a_pending_question_is_answered_instead_of_discarded() -> None:
+    # MIG-01: "sí, desde ayer" no trae síntomas, pero responde la pregunta del asistente.
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("¿Desde cuándo tiene fiebre?", summary="fiebre del bebé"),
+        scoped(agent_json("r2", summary="fiebre desde ayer"), "fuera_de_alcance", "sin tema"),
+    )
+    retriever = BackingRetriever(agent)
+    service = make_service(agent, repo, retriever=retriever)
+
+    service.send("mi bebé tiene fiebre")
+    result = service.send("sí, desde ayer")
+
+    assert result.reply == "r2" and not result.out_of_scope
+    assert len(retriever.queries) == 2
+    assert repo.threads["hilo-1"].summary == "fiebre desde ayer"
 
 
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:

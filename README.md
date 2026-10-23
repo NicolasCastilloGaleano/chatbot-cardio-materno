@@ -14,8 +14,9 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | Chat libre por **consola** con Ollama (HU-00, prototipo técnico) | ✅ Hecho |
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | **Alarmas deterministas** con doble filtro (HU-03/HU-04) | ✅ Hecho (técnico); reglas PROVISIONALES, falta la validación clínica |
-| **Orientación con evidencia (RAG)**, separación análisis/respuesta y **respuesta verificada** (HU-02, ADR 0010) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
-| **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
+| **Orientación con evidencia (RAG)**, separación análisis/respuesta y **respuesta verificada** (HU-02, ADR 0010) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12); 🔄 abstención que pregunta y verificación de las remisiones (MIG-03/04) pendientes de verificar en vivo |
+| **Base de conocimiento v2** por cuadros y etapas y **evidencia por etapas** (plan de migración, ADR 0017 y 0018, propuestos) | 🔄 Implementado (fases 1 a 3, rama `feat/integracion-migracion-rag2`, que incluye la HU-10); se activa por `.env`. Pendiente: [prueba en el PC de pruebas](docs/08-despliegue/prueba-base-v2.md) y puertas P1, P2 y P7 del equipo |
+| **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12); 🔄 respuestas a preguntas pendientes y registro del turno fuera de alcance (MIG-01/02) pendientes de verificar en vivo |
 | **Filtro 2 con códigos cerrados** (B-015, ADR 0012, catálogo v0.5.0) | 🟡 Implementado para la demostración; pendiente de ratificación del equipo |
 | **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
 | **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Implementada y probada automáticamente; recorrido visual en el PC de pruebas pendiente |

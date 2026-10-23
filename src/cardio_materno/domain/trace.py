@@ -80,6 +80,10 @@ class ReplyTrace:
         unstated_symptoms: Síntomas con datos (números) que la persona no escribió (auditoría).
         search_query: Consulta con la que se buscó la evidencia ("" si no se buscó).
         reported_signs: Códigos de signos que marcó el análisis (ADR 0012).
+        case_motive: Cuadro de la base v2 al que pertenece la evidencia ("" si no aplica).
+        case_stage: Etapa del registro mostrado ("" si no aplica).
+        case_visited: Etapas del cuadro ya mostradas en el hilo, en orden (estado del caso,
+            ADR 0018).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -94,6 +98,9 @@ class ReplyTrace:
     unstated_symptoms: tuple[str, ...] = ()
     search_query: str = ""
     reported_signs: tuple[str, ...] = ()
+    case_motive: str = ""
+    case_stage: str = ""
+    case_visited: tuple[str, ...] = ()
 
     @property
     def uncited(self) -> bool:

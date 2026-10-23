@@ -157,6 +157,18 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "uncited": trace.uncited,
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
         "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
+        "case": case_snapshot(trace),
+    }
+
+
+def case_snapshot(trace: ReplyTrace) -> dict[str, Any] | None:
+    """Estado del caso de la base v2 para el panel de auditoría (None si no hay cuadro)."""
+    if not trace.case_motive:
+        return None
+    return {
+        "motive": trace.case_motive,
+        "stage": trace.case_stage,
+        "visited": list(trace.case_visited),
     }
 
 

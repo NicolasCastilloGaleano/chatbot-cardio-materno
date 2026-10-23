@@ -45,17 +45,17 @@ sequenceDiagram
         S->>A: filtro 2 (cada síntoma de reported_symptoms + códigos de reported_signs)
         alt urgencia inmediata
             S-->>U: mensaje fijo 🚨 (sin RAG, sin llamada 2)
-        else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno)
-            S-->>U: mensaje fijo de alcance (sin RAG, sin llamada 2, NO se registra)
+        else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno y no responde una pregunta pendiente)
+            S-->>U: mensaje fijo de alcance con pregunta de reenganche (sin RAG ni llamada 2; queda en el hilo activo sin cambiarlo; sin hilo NO se registra)
         else sin alarma y scope = conversacional (saludo, gracias)
             S->>L2: prompt de respuesta + MENSAJE CONVERSACIONAL (sin RAG)
             L2-->>S: {reply}
             S-->>U: saludo / presentación del servicio (nunca abre un hilo; sin hilo activo NO se registra)
         else en alcance (o con alarma prioritaria)
-            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis
+            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis. Con la base v2 (ADR 0018): identifica el cuadro en los dos dominios (si el hilo no tiene uno) y elige un registro de las etapas que permiten las reglas (T1 → T2 → T3 → verificación → ruta base)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
-                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
+                S-->>U: abstención fija que pide más detalles (o RAG no disponible, o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
             else suficiente
                 S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
                 L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}

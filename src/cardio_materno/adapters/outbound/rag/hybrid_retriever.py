@@ -5,13 +5,16 @@
 3. Fusiona ambos rankings con Reciprocal Rank Fusion (RRF).
 4. Solo la similitud vectorial certifica relevancia: un registro encontrado únicamente por
    términos puede ordenar, pero nunca califica como evidencia.
+5. Con la base v2 (ADR 0018) la búsqueda se puede limitar a cuadros y etapas. Si el cuadro ya
+   está identificado (`anchored`), no se exige el umbral: la similitud solo elige la etapa.
 """
 
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Sequence
+from pathlib import Path
 
 from cardio_materno.adapters.outbound.rag.bm25 import Bm25Index, tokenize
-from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError
+from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError, file_digest
 from cardio_materno.adapters.outbound.rag.vector_index import VectorIndex
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy
@@ -25,6 +28,8 @@ from cardio_materno.domain.knowledge import (
 )
 
 LABEL_TEMPLATE = "E{number}"
+# Con el cuadro identificado, cualquier similitud sirve para ordenar sus etapas.
+ANCHORED_MIN_SIMILARITY = -1.0
 
 
 class HybridRetriever:
@@ -47,6 +52,7 @@ class HybridRetriever:
         self._index = index
         self._embedder = embedder
         self._policy = policy
+        self._last_query: tuple[str, list[float]] | None = None
         self._lexical = Bm25Index(
             {
                 e.id: tokenize(f"{e.question} {e.category} {e.answer}", policy.min_token_chars)
@@ -58,23 +64,31 @@ class HybridRetriever:
         """Devuelve la evidencia que supera el umbral; UNAVAILABLE si falla el embedding."""
         text = query.text[: self._policy.max_query_chars]
         try:
-            vector = self._embedder.embed([self._policy.query_instruction + text])[0]
+            vector = self._embed(text)
         except LanguageModelError:
             return RetrievalResult(RetrievalStatus.UNAVAILABLE)
         allowed = self._allowed_ids(query)
         similarities = self._index.search(vector, allowed, self._policy.candidate_k)
         lexical = self._lexical_rank(text, allowed)
-        return self._build_result(
-            similarities, fuse_rankings([list(similarities), lexical], self._policy.rrf_k)
-        )
+        fused = fuse_rankings([list(similarities), lexical], self._policy.rrf_k)
+        threshold = ANCHORED_MIN_SIMILARITY if query.anchored else self._policy.min_similarity
+        return self._build_result(similarities, fused, threshold)
+
+    def _embed(self, text: str) -> list[float]:
+        """Vector de la consulta; reutiliza el anterior si el texto es el mismo.
+
+        Con la base v2 un turno busca dos veces con el mismo texto (identificar el cuadro y
+        elegir la etapa): así se calcula un solo embedding.
+        """
+        if self._last_query is not None and self._last_query[0] == text:
+            return self._last_query[1]
+        vector = list(self._embedder.embed([self._policy.query_instruction + text])[0])
+        self._last_query = (text, vector)
+        return vector
 
     def _allowed_ids(self, query: EvidenceQuery) -> set[str]:
-        """Registros de los dominios pedidos (todos si no se indica ninguno)."""
-        return {
-            entry.id
-            for entry in self._entries.values()
-            if not query.domains or entry.domain in query.domains
-        }
+        """Registros de los dominios, cuadros y etapas pedidos (vacío = sin filtro)."""
+        return {entry.id for entry in self._entries.values() if matches_query(entry, query)}
 
     def _lexical_rank(self, text: str, allowed: Collection[str]) -> list[str]:
         """Ranking BM25 restringido a los registros permitidos."""
@@ -83,13 +97,13 @@ class HybridRetriever:
         )
         return [item_id for item_id in ranked if item_id in allowed][: self._policy.candidate_k]
 
-    def _build_result(self, similarities: dict[str, float], fused: list[str]) -> RetrievalResult:
+    def _build_result(
+        self, similarities: dict[str, float], fused: list[str], threshold: float
+    ) -> RetrievalResult:
         """Aplica el umbral, etiqueta la evidencia (E1, E2…) y decide el estado."""
         # Solo la similitud vectorial certifica: un registro hallado únicamente por BM25 no tiene
         # similitud y nunca califica, aunque el umbral sea 0 (p. ej., en la sonda de calibración).
-        supported = [
-            i for i in fused if i in similarities and similarities[i] >= self._policy.min_similarity
-        ]
+        supported = [i for i in fused if i in similarities and similarities[i] >= threshold]
         items = tuple(
             EvidenceItem(
                 LABEL_TEMPLATE.format(number=n), self._entries[i], round(similarities[i], 4)
@@ -98,6 +112,15 @@ class HybridRetriever:
         )
         status = RetrievalStatus.SUFFICIENT if items else RetrievalStatus.INSUFFICIENT
         return RetrievalResult(status, items, round(max(similarities.values(), default=0.0), 4))
+
+
+def matches_query(entry: KnowledgeEntry, query: EvidenceQuery) -> bool:
+    """True si el registro está en los dominios, cuadros y etapas de la consulta."""
+    return (
+        (not query.domains or entry.domain in query.domains)
+        and (not query.motives or entry.motive in query.motives)
+        and (not query.stages or entry.stage in query.stages)
+    )
 
 
 def fuse_rankings(rankings: Iterable[Sequence[str]], rrf_k: float) -> list[str]:
@@ -126,4 +149,20 @@ def check_compatibility(
         raise KnowledgeBaseError(
             "La base de conocimiento cambió desde que se construyó el índice. "
             "Reconstrúyelo con: python run_build_kb_index.py"
+        )
+
+
+def check_entries_file(index: VectorIndex, entries_path: Path) -> None:
+    """Verifica que el índice se construyó con este mismo archivo de la base (ADR 0017).
+
+    Los ids de la base v2 no cambian si se edita un texto, así que comparar los ids no basta:
+    se compara el hash del archivo guardado en el manifiesto.
+
+    Raises:
+        KnowledgeBaseError: Si el archivo cambió desde que se construyó el índice.
+    """
+    if index.manifest.entries_sha256 != file_digest(entries_path):
+        raise KnowledgeBaseError(
+            "El archivo de la base cambió desde que se construyó el índice (mismo conjunto de "
+            "registros, distinto contenido). Reconstrúyelo con: python run_build_kb_index.py"
         )
