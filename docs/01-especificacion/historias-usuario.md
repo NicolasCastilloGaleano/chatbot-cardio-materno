@@ -275,6 +275,12 @@ Escenario: Seguimiento dentro de un hilo
   Cuando escribo "sí, desde ayer"
   Entonces el mensaje se atiende dentro del mismo hilo
 
+Escenario: La respuesta a una pregunta del asistente nunca se descarta (MIG-01)
+  Dado un hilo cuyo último mensaje del asistente termina en una pregunta
+  Cuando respondo "no sé" o "desde ayer" y el análisis lo marca fuera de alcance pero como continuación del hilo
+  Entonces la regla determinista lo atiende como consulta en alcance, con búsqueda de evidencia
+  Y si el análisis lo marca como tema nuevo ("¿quién ganó el partido?"), se respeta su decisión
+
 Escenario: Mensaje ajeno en medio de una consulta
   Dado un hilo abierto sobre acidez en el embarazo
   Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"

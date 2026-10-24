@@ -15,7 +15,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Hilos conversacionales** con respuesta JSON del agente (HU-06) | ✅ Hecho |
 | **Alarmas deterministas** con doble filtro (HU-03/HU-04) | ✅ Hecho (técnico); reglas PROVISIONALES, falta la validación clínica |
 | **Orientación con evidencia (RAG)**, separación análisis/respuesta y **respuesta verificada** (HU-02, ADR 0010) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
-| **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
+| **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12); 🔄 respuesta a una pregunta pendiente (MIG-01) pendiente de verificar en vivo |
 | **Filtro 2 con códigos cerrados** (B-015, ADR 0012, catálogo v0.5.0) | 🟡 Implementado para la demostración; pendiente de ratificación del equipo |
 | **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
 | **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Implementada y probada automáticamente; recorrido visual en el PC de pruebas pendiente |

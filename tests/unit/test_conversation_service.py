@@ -585,6 +585,24 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
     ]
 
 
+def test_answer_to_a_pending_question_is_answered_instead_of_discarded() -> None:
+    # MIG-01: "sí, desde ayer" no trae síntomas, pero responde la pregunta del asistente.
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("¿Desde cuándo tiene fiebre?", summary="fiebre del bebé"),
+        scoped(agent_json("r2", summary="fiebre desde ayer"), "fuera_de_alcance", "sin tema"),
+    )
+    retriever = BackingRetriever(agent)
+    service = make_service(agent, repo, retriever=retriever)
+
+    service.send("mi bebé tiene fiebre")
+    result = service.send("sí, desde ayer")
+
+    assert result.reply == "r2" and not result.out_of_scope
+    assert len(retriever.queries) == 2
+    assert repo.threads["hilo-1"].summary == "fiebre desde ayer"
+
+
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
     agent = ScriptedAgent(scoped(agent_json("consejos"), "fuera_de_alcance", "habla de fútbol"))
     retriever = BackingRetriever(agent)

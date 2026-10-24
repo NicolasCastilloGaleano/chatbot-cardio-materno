@@ -265,7 +265,7 @@ class ConversationService:
 
         Las alarmas tienen prioridad sobre el alcance: con alarma el mensaje nunca se descarta.
         """
-        scope = Scope.IN_SCOPE if decisions else effective_scope(analysis)
+        scope = Scope.IN_SCOPE if decisions else effective_scope(analysis, turn.recent)
         if any(decision.is_immediate for decision in decisions):
             trace = analysis_trace(analysis, scope, timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
