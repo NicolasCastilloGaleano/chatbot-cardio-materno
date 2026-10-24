@@ -6,7 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Changed
-- **MIG-01 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md):** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") ya no se descarta como fuera de alcance cuando el análisis la marca como continuación del hilo (`scope.py::answers_pending_question`, ADR 0009).
+- **MIG-01 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md):** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") ya no se descarta como fuera de alcance cuando el análisis la marca como continuación del hilo y el último mensaje del asistente contiene una pregunta (`scope.py::answers_pending_question`, ADR 0009).
 
 ### Added
 - **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.

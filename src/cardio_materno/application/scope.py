@@ -31,7 +31,9 @@ def effective_scope(analysis: AnalysisTurn, recent: Sequence[ChatMessage] = ()) 
 
     Desde el plan de migración (MIG-01), un mensaje que continúa el hilo cuando el asistente
     dejó una pregunta pendiente ("sí, desde ayer", "no sé") tampoco se descarta: es la
-    respuesta a esa pregunta, aunque no traiga síntomas.
+    respuesta a esa pregunta, aunque no traiga síntomas. Cuenta cualquier pregunta del último
+    mensaje del asistente, no solo la final: los registros de la base v1 suelen preguntar en
+    medio del texto ("¿Hubo caída…? … solicita valoración.").
 
     Args:
         analysis: Resultado de la llamada de análisis.
@@ -49,7 +51,7 @@ def effective_scope(analysis: AnalysisTurn, recent: Sequence[ChatMessage] = ()) 
 
 
 def answers_pending_question(analysis: AnalysisTurn, recent: Sequence[ChatMessage]) -> bool:
-    """True si el mensaje continúa el hilo y el último mensaje del asistente es una pregunta.
+    """True si el mensaje continúa el hilo y el último mensaje del asistente pregunta algo.
 
     Un mensaje que el análisis marca como tema nuevo ("¿quién ganó el partido?") no cuenta
     como respuesta, aunque haya una pregunta pendiente.
@@ -60,6 +62,6 @@ def answers_pending_question(analysis: AnalysisTurn, recent: Sequence[ChatMessag
 
 
 def has_pending_question(recent: Sequence[ChatMessage]) -> bool:
-    """True si el último mensaje del asistente en el hilo termina en pregunta."""
+    """True si el último mensaje del asistente en el hilo contiene una pregunta."""
     replies = [message for message in recent if message.role is Role.ASSISTANT]
-    return bool(replies) and replies[-1].content.rstrip().endswith(QUESTION_MARK)
+    return bool(replies) and QUESTION_MARK in replies[-1].content

@@ -62,6 +62,18 @@ def test_answer_to_a_pending_question_is_never_out_of_scope() -> None:
     assert effective_scope(follow_up(Scope.OUT_OF_SCOPE), PENDING) is Scope.IN_SCOPE
 
 
+def test_a_question_in_the_middle_of_the_reply_also_counts() -> None:
+    # Caso real del 2026-10-24: el registro pregunta en medio y termina en una indicación.
+    middle = (
+        ChatMessage(Role.USER, "me duele la espalda desde ayer"),
+        ChatMessage(
+            Role.ASSISTANT, "¿Hubo caída o debilidad? Por la persistencia, solicita valoración."
+        ),
+    )
+
+    assert effective_scope(follow_up(Scope.OUT_OF_SCOPE), middle) is Scope.IN_SCOPE
+
+
 def test_new_topic_with_a_pending_question_keeps_the_analysis_decision() -> None:
     analysis = follow_up(Scope.OUT_OF_SCOPE, ThreadAction.NEW)
 
