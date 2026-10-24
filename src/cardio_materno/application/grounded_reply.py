@@ -23,7 +23,8 @@ ABSTENTION_TEXT = (
     "No tengo información validada sobre eso en la base de conocimiento del proyecto. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
 )
-LITERAL_TEMPLATE = "Según la información validada del proyecto: {answer}"
+# Sin prefijo: que la respuesta es literal queda en la traza (`GroundingCheck.literal`).
+LITERAL_TEMPLATE = "{answer}"
 SENTENCE_SEPARATOR = " "
 
 
@@ -132,5 +133,5 @@ def evidence_text(entry: KnowledgeEntry) -> str:
 
 
 def literal_text(entry: KnowledgeEntry) -> str:
-    """Texto literal del registro, presentado como información validada."""
+    """Texto literal del registro, tal como está escrito en la base."""
     return LITERAL_TEMPLATE.format(answer=entry.answer)
