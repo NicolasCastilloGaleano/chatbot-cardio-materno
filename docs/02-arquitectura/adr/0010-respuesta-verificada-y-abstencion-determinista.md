@@ -39,3 +39,8 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 - ⚠️ El verificador es léxico. Una paráfrasis con sinónimos puede rechazarse, y entonces se muestra el texto literal, que es seguro pero menos natural. La tasa de texto literal se mide en vivo (`tests/live/test_live_grounding.py`) y `min_support` se puede ajustar.
 - ⚠️ Una pregunta sin cita podría insinuar algo ("¿sabías que…?"). Se acepta por ahora, con el límite de longitud y sin números; queda a vigilar en la traza.
 - ⚠️ La base tiene vacíos (p. ej., alimentación con acidez o diabetes gestacional). Con esta decisión, esas preguntas reciben la abstención o un texto *Indagar*. Ampliar la base lo decide el equipo clínico (B-019).
+
+## Actualización 2026-10-24: el texto literal sale del registro más parecido
+- **Motivo:** en el PC de pruebas, "tengo acidez en el embarazo" recuperó un registro de acidez (similitud 0,60) y uno de preeclampsia (0,55). El agente redactó consejos que no estaban en ningún registro, citó el de preeclampsia y, al fallar la verificación, se mostró el literal de ese registro: "Busca valoración obstétrica inmediata y menciona… que tienes hipertensión". La persona no había dicho que tuviera hipertensión (causa U2 del [plan de migración](../../00-gestion/plan-migracion-rag2.md)).
+- **Decisión:** el punto 5 cambia. El registro principal del texto literal es el de **mayor similitud** entre los ofrecidos; ante un empate, uno que haya citado el agente (`grounded_reply.py::main_label`). Si la redacción falló, su cita no es una señal confiable.
+- **Consecuencia:** no cambia nada cuando la redacción se verifica. El texto literal sigue siendo un registro completo y validado; con la base v2 (un registro por turno) esta elección casi nunca se necesita.

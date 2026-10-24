@@ -18,6 +18,7 @@ from cardio_materno.domain.grounding import (
     support_ratio,
     unstated_details,
 )
+from cardio_materno.domain.knowledge import EvidenceItem
 from tests.unit.fakes import evidence_result, knowledge_entry
 
 POLICY = GroundingPolicy()
@@ -113,7 +114,20 @@ def test_only_the_first_allowed_free_sentences_are_kept() -> None:
     assert reply.check.dropped == ("¿Desde cuándo?",) and not reply.check.literal
 
 
-def test_literal_fallback_uses_the_first_cited_entry() -> None:
+def test_literal_fallback_uses_the_most_similar_entry_not_the_cited_one() -> None:
+    # Caso real del 2026-10-24: el agente citó el registro de preeclampsia (0,55) y el de
+    # acidez (0,60) quedaba sin usar; el literal debe salir del más parecido.
+    preeclampsia = EvidenceItem("E1", knowledge_entry("k1", answer="Valoración inmediata."), 0.55)
+    heartburn = EvidenceItem("E2", knowledge_entry("k2", answer="Describe el ardor."), 0.60)
+    draft = [DraftSentence("Toma antiácidos sin azúcar.", "E1")]
+
+    reply = compose_grounded_reply(draft, [preeclampsia, heartburn], "x", POLICY)
+
+    assert reply.text == LITERAL_TEMPLATE.format(answer="Describe el ardor.")
+    assert reply.cited == ("E2",) and reply.check.literal
+
+
+def test_literal_fallback_prefers_the_cited_entry_on_a_tie() -> None:
     items = evidence_result(knowledge_entry("k1"), knowledge_entry("k2", answer="Otra cosa.")).items
     draft = [DraftSentence("Algo inventado sobre medicamentos.", "E2")]
 

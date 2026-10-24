@@ -104,9 +104,14 @@ def verify_sentences(
 
 
 def main_label(draft: Sequence[DraftSentence], items: Sequence[EvidenceItem]) -> str:
-    """Etiqueta del registro principal: el primero que citó el agente o, si no citó, el mejor."""
-    cited = [s.evidence_id for s in draft if s.evidence_id]
-    return cited[0] if cited else items[0].label
+    """Etiqueta del registro principal: el de mayor similitud; ante un empate, uno citado.
+
+    Si la redacción falló, la cita del agente no es confiable: en la prueba del 2026-10-24,
+    "tengo acidez en el embarazo" citó un registro de preeclampsia (0,55) habiendo uno de
+    acidez (0,60), y el texto literal mandó a urgencias por hipertensión.
+    """
+    cited = {s.evidence_id for s in draft if s.evidence_id}
+    return max(items, key=lambda item: (item.score, item.label in cited)).label
 
 
 def entry_of(label: str, items: Sequence[EvidenceItem]) -> KnowledgeEntry:

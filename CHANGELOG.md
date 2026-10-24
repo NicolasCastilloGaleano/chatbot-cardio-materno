@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- **Texto literal del registro más parecido (ADR 0010):** si la redacción no se verifica, el texto literal sale del registro de mayor similitud y no del primero que citó el agente. En la prueba del 2026-10-24, "tengo acidez en el embarazo" mostraba el aviso de un registro de preeclampsia que pedía mencionar hipertensión.
+
 ### Changed
 - **MIG-01 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md):** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") ya no se descarta como fuera de alcance cuando el análisis la marca como continuación del hilo y el último mensaje del asistente contiene una pregunta (`scope.py::answers_pending_question`, ADR 0009).
 - **MIG-02:** el turno fuera de alcance se registra en el hilo activo sin cambiarlo (sin hilo no se registra ni abre uno) y el mensaje fijo termina en una pregunta de reenganche (ADR 0009). La web solo lo muestra como no guardado si no había hilo, para no duplicarlo, y la línea de depuración de la consola ya no dice que no se registra.

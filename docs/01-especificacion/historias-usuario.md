@@ -119,6 +119,12 @@ Escenario: Los avisos no se suavizan
   Cuando el agente lo redacta como "es importante que hables con tu médico"
   Entonces la frase no está respaldada y se muestra el texto literal del registro
 
+Escenario: El texto literal sale del registro más parecido (2026-10-24)
+  Dado que la evidencia ofrecida incluye un registro de acidez (similitud 0,60) y uno de preeclampsia (0,55)
+  Cuando el agente cita el de preeclampsia con frases que no están en él
+  Entonces se muestra el texto literal del registro de acidez, que es el más parecido a la consulta
+  Y ante un empate de similitud se usa el registro que citó el agente
+
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
   Entonces se conservan (máximo 2)
