@@ -45,8 +45,8 @@ sequenceDiagram
         S->>A: filtro 2 (cada síntoma de reported_symptoms + códigos de reported_signs)
         alt urgencia inmediata
             S-->>U: mensaje fijo 🚨 (sin RAG, sin llamada 2)
-        else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno)
-            S-->>U: mensaje fijo de alcance (sin RAG, sin llamada 2, NO se registra)
+        else sin alarma y scope = fuera_de_alcance (todo el mensaje es ajeno y no responde una pregunta pendiente)
+            S-->>U: mensaje fijo de alcance con pregunta de reenganche (sin RAG ni llamada 2; queda en el hilo activo sin cambiarlo; sin hilo NO se registra)
         else sin alarma y scope = conversacional (saludo, gracias)
             S->>L2: prompt de respuesta + MENSAJE CONVERSACIONAL (sin RAG)
             L2-->>S: {reply}

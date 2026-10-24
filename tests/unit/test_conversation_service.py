@@ -561,7 +561,12 @@ def test_out_of_scope_message_gets_fixed_reply_without_rag_reply_or_thread_chang
     assert result.trace is not None and result.trace.scope_reason == "deportes"
 
 
-def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
+def test_out_of_scope_message_invites_to_keep_talking() -> None:
+    # MIG-02: el mensaje fijo termina en una pregunta abierta de reenganche.
+    assert OUT_OF_SCOPE_MESSAGE.rstrip().endswith("?")
+
+
+def test_out_of_scope_in_the_middle_of_a_thread_is_recorded_without_changing_it() -> None:
     repo = InMemoryThreadRepository()
     agent = ScriptedAgent(
         agent_json("r1", summary="acidez"),
@@ -574,12 +579,15 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
     off_topic = service.send("¿quién ganó el partido?")
     result = service.send("¿y qué más puedo comer?")
 
-    assert thread_of(off_topic).id == "hilo-1"
+    assert off_topic.out_of_scope and thread_of(off_topic).id == "hilo-1"
+    assert thread_of(off_topic).summary == "acidez"
     assert thread_of(result).id == "hilo-1" and not result.is_new_thread
     assert repo.threads["hilo-1"].status is ThreadStatus.OPEN
     assert [m.content for m in repo.messages["hilo-1"]] == [
         "tengo acidez",
         "r1",
+        "¿quién ganó el partido?",
+        OUT_OF_SCOPE_MESSAGE,
         "¿y qué más puedo comer?",
         "r3",
     ]

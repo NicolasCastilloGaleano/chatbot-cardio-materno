@@ -252,9 +252,9 @@ Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo 
 ```gherkin
 Escenario: Mensaje completamente ajeno
   Cuando escribo "¿qué opinas del fútbol?"
-  Entonces el asistente responde con el mensaje fijo de alcance del servicio
+  Entonces el asistente responde con el mensaje fijo de alcance del servicio, que termina con una pregunta abierta para seguir conversando (MIG-02)
   Y no busca evidencia ni hace la llamada de respuesta
-  Y no se registra nada en el hilo
+  Y si no hay un hilo activo, no se registra ni se abre un hilo
 
 Escenario: Síntoma de origen incierto (prompt de análisis v6, 2026-10-17)
   Cuando escribo "tengo un dolor muy fuerte en el brazo por que me asustó una gallina"
@@ -284,7 +284,7 @@ Escenario: La respuesta a una pregunta del asistente nunca se descarta (MIG-01)
 Escenario: Mensaje ajeno en medio de una consulta
   Dado un hilo abierto sobre acidez en el embarazo
   Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
-  Entonces el primer mensaje recibe el mensaje fijo y no se registra
+  Entonces el primer mensaje recibe el mensaje fijo y queda registrado en ese hilo, una sola vez, sin cambiar su dominio ni su resumen (MIG-02)
   Y el segundo continúa el mismo hilo
 
 Escenario: Saludo o agradecimiento
