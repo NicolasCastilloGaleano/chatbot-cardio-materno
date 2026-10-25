@@ -82,6 +82,13 @@ Al arrancar debe decir `Base de conocimiento: 2304 registros · … · base v2 c
 - En este paso la búsqueda sigue siendo solo por similitud y el umbral (0,50) está calibrado para la v1. Las etapas se aprovechan en la fase 3 del [plan de migración](../00-gestion/plan-migracion-rag2.md).
 - Sirve para evaluar la v2, **no** para usarla con personas reales: aún no está validada (puerta P1).
 
+Para medirla con sus propias preguntas (MIG-08), con las mismas variables de `.env`:
+```bash
+python scripts/evaluate_kb_v2.py alarmas        # sin Ollama: el filtro 1 sobre las 2.304 preguntas
+python scripts/evaluate_kb_v2.py recuperacion   # con Ollama y el índice v2: aciertos del cuadro y similitudes
+```
+`recuperacion` evalúa por defecto las preguntas de T1 y de verificación (384) y tarda unos minutos; se pueden pedir otras etapas separadas por coma (`… recuperacion T2_caracterizacion,T3_contexto`). Solo mide: no cambia reglas, umbrales ni la base.
+
 ### Canal WhatsApp (HU-09, ADR 0014 y 0015)
 El canal corre en el PC de pruebas (donde está Ollama). Meta envía cada mensaje a una URL pública HTTPS (el **webhook**); **ngrok** la publica y la reenvía al servidor local `run_whatsapp.py`, que escucha solo en `127.0.0.1:8001`. Cada persona tiene su usuario (identificado por un hash del número, nunca el número) y sus hilos en `data/cardio_materno.db`.
 

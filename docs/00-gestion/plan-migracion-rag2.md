@@ -264,6 +264,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
   - Precisión de motivo top-1/top-3 y de etapa usando la columna Preguntas.
 - **Pruebas sin Ollama:** el filtro 1 sobre las Preguntas de cuadros con ruta base urgencias (cobertura) y de cuadros de autocuidado (falsos positivos).
 - **Documentos:** `estrategia-pruebas.md`.
+- **Estado (2026-10-25):** hecho como script de medición (`scripts/evaluate_kb_v2.py`, modos `alarmas` y `recuperacion`), no como pruebas `live` de aprobado/reprobado, porque todavía no hay umbrales decididos. Primera medición del filtro 1 sobre la conversión real: 43 urgencias inmediatas en cuadros de autocuidado (18) y de consulta prioritaria (25), varias por negaciones ("no me ahogo ni nada", "no me he desmayado"), y 29 de 588 preguntas de cuadros de urgencias activan una urgencia. Quedan pendientes `descarte_indebido` y `profundidad_indagacion`, que dependen del flujo por etapas (fase 3).
 
 ### Fase 3: estado del caso y recuperación dirigida por etapa
 
