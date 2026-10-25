@@ -209,6 +209,8 @@ Cada paquete es candidato a una HU o especificación pequeña. Los criterios son
 
 Paquetes independientes entre sí. Resuelven buena parte de los descartes sin cambiar la arquitectura.
 
+> **Estado (2026-10-25):** ✅ terminada y verificada en el PC de pruebas (`pytest -m live` 26/26 y guion manual), aplicada paso a paso en `feat/migracion-rag2-paso-a-paso` y fusionada a `main`. Además de MIG-01 a MIG-04 se hicieron, a partir de las pruebas: MIG-01 cuenta cualquier pregunta del asistente (no solo la final), el texto literal sale del registro de mayor similitud y sin prefijo, y textos de abstención más claros (ADR 0009 y 0010, actualizaciones del 2026-10-24).
+
 #### MIG-01 Una respuesta a una contrapregunta nunca queda fuera de alcance (#8)
 - **Código:** `application/scope.py` (`effective_scope` recibe los mensajes recientes), `application/conversation_service.py`.
 - **Documentos:** HU-07, ADR 0009, `flujo-conversacional.md`, `trazabilidad.md`.

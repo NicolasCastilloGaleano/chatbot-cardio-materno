@@ -5,6 +5,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+> **2026-10-25:** la fase 1 de la migración (entradas de MIG-01 a MIG-04 y sus ajustes) se fusionó a `main` junto con la HU-10.
+
 ### Fixed
 - **MIG-04:** el verificador de respaldo ya no exime las frases de remisión: una frase hecha solo de "acude a urgencias o llama al 123" pasaba siempre, aunque el registro citado no lo dijera (causa U1). Se retiran `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py` (ADR 0010).
 
