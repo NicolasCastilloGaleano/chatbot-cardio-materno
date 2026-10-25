@@ -119,6 +119,12 @@ Escenario: Los avisos no se suavizan
   Cuando el agente lo redacta como "es importante que hables con tu médico"
   Entonces la frase no está respaldada y se muestra el texto literal del registro
 
+Escenario: Las frases de remisión también se verifican (MIG-04)
+  Dado que el registro citado no habla de urgencias ni de la línea 123
+  Cuando el agente redacta "Acude de inmediato a urgencias o llama al 123" citando ese registro
+  Entonces la frase no está respaldada y se muestra el texto literal del registro
+  Y los avisos de urgencia que no salen de un registro solo los muestra la política de alarmas
+
 Escenario: El texto literal sale del registro más parecido (2026-10-24)
   Dado que la evidencia ofrecida incluye un registro de acidez (similitud 0,60) y uno de preeclampsia (0,55)
   Cuando el agente cita el de preeclampsia con frases que no están en él

@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Fixed
+- **MIG-04:** el verificador de respaldo ya no exime las frases de remisión: una frase hecha solo de "acude a urgencias o llama al 123" pasaba siempre, aunque el registro citado no lo dijera (causa U1). Se retiran `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py` (ADR 0010).
+
 ### Changed
 - **Textos de abstención más claros (ADR 0010):** sin evidencia suficiente, "Todavía no tengo suficiente información para orientarte…" (con la pregunta de MIG-03); con el RAG no disponible, "En este momento no puedo consultar la información para orientarte…". Ya no mencionan "información del proyecto" ni "validada".
 - **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).

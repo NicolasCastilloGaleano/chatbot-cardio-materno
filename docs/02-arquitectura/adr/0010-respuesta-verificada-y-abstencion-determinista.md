@@ -58,3 +58,8 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 - **Decisión** (Santiago Silva):
   - `ABSTENTION_TEXT`: "Todavía no tengo suficiente información para orientarte sobre lo que me cuentas. Mientras tanto, si tienes dudas, consúltalo con el personal de salud de tu EPS o centro de salud. ¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
   - `UNAVAILABLE_TEXT`: "En este momento no puedo consultar la información para orientarte. Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
+
+## Actualización 2026-10-24 (3): la remisión se verifica como cualquier frase (MIG-04)
+- **Motivo:** el punto 3 eximía las palabras de remisión (`REFERRAL_WORDS`) y la línea 123 (`SAFE_NUMBERS`). Una frase hecha solo de esas palabras quedaba sin nada que comparar y **siempre** pasaba (causa U1 del [plan de migración](../../00-gestion/plan-migracion-rag2.md)): el agente podía mandar a urgencias sin respaldo, una de las causas de que el asistente escalara con demasiada facilidad.
+- **Decisión:** se retira la excepción. Una frase de remisión se respalda como cualquier otra, y la línea 123 debe estar en el registro citado. Los avisos de urgencia que no vienen de un registro los compone la política de alarmas (ADR 0007), nunca el agente.
+- **Consecuencia:** puede subir la tasa de texto literal cuando el agente agregue una remisión que el registro no dice. Se mide en el PC de pruebas con `tests/live/test_live_grounding.py`. Con la regla del registro más parecido (actualización anterior), ese literal sale del registro que mejor corresponde a la consulta.

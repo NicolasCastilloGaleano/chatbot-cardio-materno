@@ -3,7 +3,10 @@
 El LLM redacta la respuesta frase por frase y cada frase de salud cita su registro. Estas
 reglas comprueban, sin el LLM, que cada frase citada esté respaldada por el texto de ese
 registro: casi todas sus palabras con contenido y todos sus números deben aparecer en él.
-Las frases sin cita solo se aceptan si no pueden contener afirmaciones de salud.
+Las frases de remisión ("acude a urgencias o llama al 123") no tienen excepción (MIG-04): se
+respaldan como cualquier otra. Los avisos de urgencia que no salen de un registro los
+compone la política de alarmas, nunca el agente. Las frases sin cita solo se aceptan si no
+pueden contener afirmaciones de salud.
 """
 
 import re
@@ -49,16 +52,6 @@ CONVERSATIONAL_WORDS = word_set(
     """
 )
 
-# Remitir a urgencias nunca minimiza un riesgo: estas palabras y números no cuentan en contra
-# del respaldo de una frase citada ("acude de inmediato a urgencias o llama al 123").
-REFERRAL_WORDS = word_set(
-    """
-    urgencias urgencia emergencias emergencia linea llama llamar acude acudir inmediato
-    inmediata inmediatamente servicio cercano cercana centro salud atencion
-    """
-)
-SAFE_NUMBERS = frozenset({"123"})
-
 
 @dataclass(frozen=True)
 class GroundingPolicy:
@@ -101,7 +94,7 @@ def support_ratio(sentence: str, evidence_text: str, policy: GroundingPolicy) ->
     Returns:
         Un valor entre 0 y 1 (1 si la frase no tiene palabras con contenido).
     """
-    stems = content_stems(sentence, policy) - _stems_of(REFERRAL_WORDS, policy)
+    stems = content_stems(sentence, policy)
     if not stems:
         return 1.0
     return len(stems & content_stems(evidence_text, policy)) / len(stems)
@@ -110,9 +103,9 @@ def support_ratio(sentence: str, evidence_text: str, policy: GroundingPolicy) ->
 def is_supported(sentence: str, evidence_text: str, policy: GroundingPolicy) -> bool:
     """True si la frase citada está respaldada por el texto del registro que cita.
 
-    Las palabras de remisión a urgencias y la línea 123 no cuentan en contra.
+    Todos sus números deben estar en el registro, incluida la línea 123 (MIG-04).
     """
-    if not numbers_in(sentence) - SAFE_NUMBERS <= numbers_in(evidence_text):
+    if not numbers_in(sentence) <= numbers_in(evidence_text):
         return False
     return support_ratio(sentence, evidence_text, policy) >= policy.min_support
 
