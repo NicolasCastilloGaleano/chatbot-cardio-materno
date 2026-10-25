@@ -5,6 +5,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- **MIG-08: medición de la base v2 con sus propias preguntas.** `scripts/evaluate_kb_v2.py alarmas` (sin Ollama) pasa las 2.304 preguntas por el filtro 1 y lo cuenta por la ruta base del cuadro; `recuperacion` (con Ollama) mide, dejando fuera el registro propio, si el cuadro correcto queda primero o entre los tres primeros, las similitudes y la etapa del primer resultado. Dobles `case_entry` y `case_profile` en `tests/unit/fakes.py`.
+- **MIG-07 (ADR 0017 propuesto): probar la base v2 por `.env` sin reemplazar la v1.** Variable `KB_CASES_FILE` y `bootstrap/rag_setup.py::load_profiles_for`: si la base tiene cuadros, se cargan al arrancar (`RagSetup.case_profiles`, todavía sin uso en la conversación) y el arranque informa cuántos hay; si falta el archivo o un motivo, el RAG queda no disponible. `.gitignore` excluye `RAG_2.xlsx`, `data/kb_v2/` y `data/kb_index_v2/`.
+- **MIG-06 (ADR 0017 propuesto): conversor de la hoja maestra.** `scripts/convert_rag_xlsx.py` y `scripts/xlsx_reader.py` convierten `RAG_2.xlsx` en `entries.jsonl` y `cuadros.jsonl` con validación completa (columnas, celdas, enfoque/etapa/ruta, 12 etapas por cuadro, datos del cuadro iguales en sus filas), solo con la biblioteca estándar. Si hay errores, no escribe nada.
+- **MIG-05 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (ADR 0017 propuesto): modelo de la base v2.** `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`. `knowledge_files.py`: carga de `cuadros.jsonl` y serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`). La base v1 sigue cargando sin cambios.
+
+### Fixed
+- `.gitignore` excluye los archivos auxiliares de SQLite (`*.db-shm`, `*.db-wal`, `*.db-journal`): con el modo WAL aparecían como archivos nuevos y podían subirse con datos de los chats.
+
+### Changed
+- **MIG-07:** al convertir a otra carpeta, `convert_rag_xlsx.py` indica las variables de `.env` antes de reconstruir el índice, para no reconstruir por error el de la v1.
+- **MIG-06:** al arrancar, el índice se compara también por el hash del archivo de la base (`check_entries_file`): editar un texto sin cambiar su id obliga a reconstruir el índice.
+
 > **2026-10-25:** la fase 1 de la migración (entradas de MIG-01 a MIG-04 y sus ajustes) se fusionó a `main` junto con la HU-10.
 
 ### Fixed

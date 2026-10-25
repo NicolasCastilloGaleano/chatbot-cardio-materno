@@ -239,6 +239,8 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 
 ### Fase 2: integración de la base v2 (orden estricto)
 
+> **Estado (2026-10-25):** ✅ terminada y verificada en el PC de pruebas, aplicada paso a paso en `feat/migracion-rag2-fase2` (sin fusionar). La v2 se prueba por `.env` sin reemplazar la v1; el reemplazo y la recalibración esperan P1 y P7. Línea base medida con MIG-08 (preguntas de T1 y verificación, sin filtro por etapa): cuadro correcto primero en 238/384 (62 %) y entre los tres primeros en 324/384 (84 %); similitud del primero al acertar p25 0,64 · p50 0,67 y al fallar p25 0,61 · p50 0,65; con el umbral 0,50 solo 2 aciertos quedan por debajo; el primer resultado es de una etapa de orientación, remisión o acompañamiento en 76 de 384 (20 %), 20 de ellos `traslado_urgencias`.
+
 #### MIG-05 Modelo de datos de la base v2 (#22)
 - **Código:** `domain/knowledge.py` (`Focus` de 4 valores, enumeraciones `Stage` y `Route`, campos `motive`, `stage`, `route`; entidad `CaseProfile` con lectura clínica, datos a extraer, señales y ruta base), `knowledge_files.py`, `tests/unit/fakes.py`, `test_rag_components.py`.
 - **Datos:** `knowledge/kb/entries.jsonl` (2.304) + `knowledge/kb/cuadros.jsonl` (192).
@@ -253,6 +255,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 #### MIG-07 Carga, reindexado y recalibración
 - **Pasos:** generar los JSONL, reconstruir el índice (`run_build_kb_index.py`), recalibrar `evidence_policy.json` (v2.0.0) con el conjunto de Preguntas, actualizar `tests/live/test_live_rag.py`.
 - **Puertas:** P1 y P7.
+- **Estado (2026-10-25):** en la migración paso a paso se dividió en dos. Hecho: activar la v2 por `.env` con su propio índice, sin reemplazar la v1 (`KB_CASES_FILE`, `load_profiles_for`). Pendiente de P1 y P7: reemplazar la v1, retirar `Solucionar` y recalibrar `evidence_policy.json`.
 - **Documentos:** `knowledge/kb/README.md` (estado de validación), CHANGELOG, `riesgos-ia.md`.
 
 #### MIG-08 Conjuntos de evaluación (#23)
@@ -263,6 +266,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
   - Precisión de motivo top-1/top-3 y de etapa usando la columna Preguntas.
 - **Pruebas sin Ollama:** el filtro 1 sobre las Preguntas de cuadros con ruta base urgencias (cobertura) y de cuadros de autocuidado (falsos positivos).
 - **Documentos:** `estrategia-pruebas.md`.
+- **Estado (2026-10-25):** hecho como script de medición (`scripts/evaluate_kb_v2.py`, modos `alarmas` y `recuperacion`), no como pruebas `live` de aprobado/reprobado, porque todavía no hay umbrales decididos. Primera medición del filtro 1 sobre la conversión real: 43 urgencias inmediatas en cuadros de autocuidado (18) y de consulta prioritaria (25), varias por negaciones ("no me ahogo ni nada", "no me he desmayado"), y 29 de 588 preguntas de cuadros de urgencias activan una urgencia. Quedan pendientes `descarte_indebido` y `profundidad_indagacion`, que dependen del flujo por etapas (fase 3).
 
 ### Fase 3: estado del caso y recuperación dirigida por etapa
 
@@ -275,12 +279,13 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Idea:** el motivo se elige por votación de los mejores registros recuperados (en ambos dominios mientras no esté fijado) y queda fijado en el `CaseState`. Un cambio de tema detectado por el análisis (`thread_action = nuevo`) lo libera.
 - **Código:** `application/evidence.py`, `hybrid_retriever.py`.
 - **Documentos:** ADR 0008 (enmienda), HU-02.
-- **Criterios:** precisión de motivo medida con MIG-08 por encima de un umbral que decide el equipo.
+- **Criterios:** precisión de motivo medida con MIG-08 por encima de un umbral que decide el equipo. Línea base sin fijar el cuadro: 62 % primero, 84 % entre los tres primeros. Como la similitud de aciertos y fallos se solapa, un solo resultado no basta: hay que votar entre los primeros y confirmar con la pregunta de verificación.
 
 #### MIG-11 Máquina de etapas y filtro por etapa (#15, #12)
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
 - **Código:** nuevo módulo de aplicación para la transición de etapas; `HybridRetriever._allowed_ids` filtra por motivo y etapa.
 - **Documentos:** HU-02, HU-05, `flujo-conversacional.md`, BPMN si cambia el flujo.
+- **Evidencia (prueba de MIG-07, 2026-10-25):** con la v2 elegida solo por similitud, el primer turno recuperó registros de etapas posteriores (`verificacion_del_cuadro`, `evolucion_leve`) y el agente repitió datos que la persona no dio ("en la cocina", "que la acidez haya cedido"). La verificación no lo detecta porque esos datos están en el registro: restringir la etapa es lo que lo evita.
 
 #### MIG-12 Prompt de respuesta v4 y auditor de salida (#16, #20)
 - **Código:** `prompts/reply_prompt_v4.md` (citar también las preguntas del registro), `application/output_audit.py`.

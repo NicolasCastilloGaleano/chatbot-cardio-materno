@@ -23,11 +23,16 @@ from cardio_materno.application.user_conversations import UserConversations
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
+    STAGE_FOCUS,
+    STAGE_ROUTE,
+    CaseProfile,
     EvidenceItem,
     Focus,
     KnowledgeEntry,
     RetrievalResult,
     RetrievalStatus,
+    Route,
+    Stage,
 )
 
 ANALYSIS_KEYS = (
@@ -385,3 +390,31 @@ def thread_of(result: TurnResult) -> ConversationThread:
     """Hilo de un turno que sí se registró (falla la prueba si fue fuera de alcance)."""
     assert result.thread is not None
     return result.thread
+
+
+def case_entry(motive: str, stage: Stage, answer: str | None = None) -> KnowledgeEntry:
+    """Registro v2 de un cuadro en la etapa dada (respuesta por defecto que termina en pregunta)."""
+    return KnowledgeEntry(
+        id=f"materno_infantil:{motive}:{stage}",
+        domain=Domain.MATERNAL_CHILD,
+        category="Categoría",
+        focus=STAGE_FOCUS[stage],
+        question=f"pregunta {stage}",
+        answer=answer or f"Respuesta de {stage}. ¿Cómo sigue?",
+        motive=motive,
+        stage=stage,
+        route=STAGE_ROUTE[stage],
+    )
+
+
+def case_profile(motive: str, base_route: Route = Route.SELF_CARE) -> CaseProfile:
+    """Cuadro de la base v2 con la ruta base dada."""
+    return CaseProfile(
+        motive,
+        Domain.MATERNAL_CHILD,
+        "Categoría",
+        "Lectura clínica.",
+        ("dato",),
+        ("señal",),
+        base_route,
+    )
