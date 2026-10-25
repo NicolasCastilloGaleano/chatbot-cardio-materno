@@ -282,6 +282,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
 - **Código:** nuevo módulo de aplicación para la transición de etapas; `HybridRetriever._allowed_ids` filtra por motivo y etapa.
 - **Documentos:** HU-02, HU-05, `flujo-conversacional.md`, BPMN si cambia el flujo.
+- **Evidencia (prueba de MIG-07, 2026-10-25):** con la v2 elegida solo por similitud, el primer turno recuperó registros de etapas posteriores (`verificacion_del_cuadro`, `evolucion_leve`) y el agente repitió datos que la persona no dio ("en la cocina", "que la acidez haya cedido"). La verificación no lo detecta porque esos datos están en el registro: restringir la etapa es lo que lo evita.
 
 #### MIG-12 Prompt de respuesta v4 y auditor de salida (#16, #20)
 - **Código:** `prompts/reply_prompt_v4.md` (citar también las preguntas del registro), `application/output_audit.py`.
