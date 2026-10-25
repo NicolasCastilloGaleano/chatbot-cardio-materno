@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Changed
+- **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).
+
 ### Fixed
 - **El texto literal se muestra sin el prefijo** "Según la información validada del proyecto:" (ADR 0010). Que la respuesta es literal sigue en la traza.
 - **Texto literal del registro más parecido (ADR 0010):** si la redacción no se verifica, el texto literal sale del registro de mayor similitud y no del primero que citó el agente. En la prueba del 2026-10-24, "tengo acidez en el embarazo" mostraba el aviso de un registro de preeclampsia que pedía mencionar hipertensión.

@@ -48,3 +48,7 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 ## Actualización 2026-10-24: el texto literal se muestra sin prefijo
 - **Motivo:** en la prueba del PC de pruebas, el prefijo "Según la información validada del proyecto: …" del punto 5 sonaba a sistema y no le aportaba nada a la persona. Además, la base v2 aún no tiene validación clínica (puerta P1 del plan de migración), así que "validada" podía inducir a error.
 - **Decisión** (Santiago Silva): el texto literal se muestra solo con el contenido del registro (`LITERAL_TEMPLATE = "{answer}"`). Que la respuesta es literal sigue quedando en la traza (`grounding.literal`, "Texto literal: Sí" en el panel web y `[respaldo: … texto literal]` en la consola).
+
+## Actualización 2026-10-24: la abstención pregunta (MIG-03)
+- **Motivo:** la abstención era un texto fijo sin pregunta ni acción: un fallo de la búsqueda se convertía en el abandono de la persona (causa D3 del [plan de migración](../../00-gestion/plan-migracion-rag2.md)).
+- **Decisión:** con búsqueda **insuficiente**, `ABSTENTION_TEXT` sigue sin llamar al LLM, pero termina con una pregunta fija que pide más detalles (qué siente, desde cuándo y a quién le pasa), para que el siguiente turno pueda encontrar evidencia. No dice "validada", igual que el texto literal. Con el RAG **no disponible** se usa `UNAVAILABLE_TEXT` (el texto anterior), porque pedir más detalles no ayudaría. Elige `grounded_reply.py::abstention_text`.

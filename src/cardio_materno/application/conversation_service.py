@@ -12,7 +12,8 @@ Flujo de cada turno (ADR 0007 y 0008):
    un mensaje fijo que invita a seguir; queda en el hilo activo sin cambiarlo y nunca abre uno
    (MIG-02). Si es conversacional, se responde sin evidencia y nunca se abre un hilo.
 5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
-   suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
+   suficiente no se llama al LLM: se muestra un mensaje fijo de abstención que pide más
+   detalles (ADR 0010, MIG-03).
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
@@ -43,7 +44,7 @@ from cardio_materno.application.agent_turn import (
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, compose_grounded_reply
+from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -295,7 +296,9 @@ class ConversationService:
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
-            reply = compose_reply(decisions, None) if decisions else ABSTENTION_TEXT
+            reply = (
+                compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
+            )
             return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
         outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
         return with_search_query(outcome, query.text)

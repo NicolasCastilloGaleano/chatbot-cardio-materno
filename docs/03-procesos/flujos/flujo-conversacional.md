@@ -55,7 +55,7 @@ sequenceDiagram
             S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
-                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
+                S-->>U: abstención fija que pide más detalles (o RAG no disponible, o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
             else suficiente
                 S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
                 L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}

@@ -103,7 +103,7 @@ Escenario: Respuesta respaldada por evidencia
 
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
-  Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Entonces se muestra el mensaje fijo de abstención, que pide más detalles con una pregunta (qué siente, desde cuándo y a quién le pasa) y sugiere consultar con el personal de salud (MIG-03)
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
 
@@ -152,7 +152,7 @@ Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
   Entonces avisa al arrancar que el RAG no está disponible
-  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
+  Y cada consulta de salud recibe el mensaje fijo de RAG no disponible (sin pedir más detalles), sin llamar al modelo de lenguaje
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
 
