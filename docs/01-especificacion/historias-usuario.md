@@ -131,6 +131,11 @@ Escenario: El texto literal sale del registro más parecido (2026-10-24)
   Entonces se muestra el texto literal del registro de acidez, que es el más parecido a la consulta
   Y ante un empate de similitud se usa el registro que citó el agente
 
+Escenario: Registros coherentes con su etapa (MIG-05, ADR 0017 propuesto)
+  Cuando se carga un registro con etapa cuyo enfoque o ruta no corresponden a ella, o sin motivo
+  Entonces la carga falla indicando la línea del archivo
+  Y los registros de la base v1 (sin etapa) se siguen cargando hasta que se reemplace la base (MIG-07)
+
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
   Entonces se conservan (máximo 2)

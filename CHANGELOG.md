@@ -5,6 +5,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+### Added
+- **MIG-05 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (ADR 0017 propuesto): modelo de la base v2.** `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`. `knowledge_files.py`: carga de `cuadros.jsonl` y serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`). La base v1 sigue cargando sin cambios.
+
 > **2026-10-25:** la fase 1 de la migración (entradas de MIG-01 a MIG-04 y sus ajustes) se fusionó a `main` junto con la HU-10.
 
 ### Fixed
