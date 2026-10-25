@@ -30,6 +30,10 @@ data/kb_v2/
 data/kb_index_v2/
 *.sqlite3
 *.db
+# Archivos auxiliares de SQLite (modo WAL): contienen los mismos datos que la base
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Índices vectoriales generados
 knowledge/.index/
