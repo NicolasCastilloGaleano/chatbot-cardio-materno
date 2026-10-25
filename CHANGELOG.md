@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Changed
+- **Textos de abstención más claros (ADR 0010):** sin evidencia suficiente, "Todavía no tengo suficiente información para orientarte…" (con la pregunta de MIG-03); con el RAG no disponible, "En este momento no puedo consultar la información para orientarte…". Ya no mencionan "información del proyecto" ni "validada".
 - **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).
 
 ### Fixed

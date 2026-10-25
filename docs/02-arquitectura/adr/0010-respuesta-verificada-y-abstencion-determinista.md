@@ -52,3 +52,9 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 ## Actualización 2026-10-24: la abstención pregunta (MIG-03)
 - **Motivo:** la abstención era un texto fijo sin pregunta ni acción: un fallo de la búsqueda se convertía en el abandono de la persona (causa D3 del [plan de migración](../../00-gestion/plan-migracion-rag2.md)).
 - **Decisión:** con búsqueda **insuficiente**, `ABSTENTION_TEXT` sigue sin llamar al LLM, pero termina con una pregunta fija que pide más detalles (qué siente, desde cuándo y a quién le pasa), para que el siguiente turno pueda encontrar evidencia. No dice "validada", igual que el texto literal. Con el RAG **no disponible** se usa `UNAVAILABLE_TEXT` (el texto anterior), porque pedir más detalles no ayudaría. Elige `grounded_reply.py::abstention_text`.
+
+## Actualización 2026-10-24 (2): textos de abstención más claros
+- **Motivo:** en la prueba del PC de pruebas, "información del proyecto" y "base de conocimiento del proyecto" sonaban raros para la persona, y el texto de RAG no disponible parecía decir que el tema no existía, cuando es un problema técnico del sistema.
+- **Decisión** (Santiago Silva):
+  - `ABSTENTION_TEXT`: "Todavía no tengo suficiente información para orientarte sobre lo que me cuentas. Mientras tanto, si tienes dudas, consúltalo con el personal de salud de tu EPS o centro de salud. ¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
+  - `UNAVAILABLE_TEXT`: "En este momento no puedo consultar la información para orientarte. Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."

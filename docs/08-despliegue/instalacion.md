@@ -142,9 +142,9 @@ sqlite3 data/cardio_materno.db "SELECT channel_message_id, kind, status, error_c
 **Evidencia (HU-02, ADR 0010):** con `SHOW_THREAD_DEBUG=true`. Anota los `[tiempos …]` de cada turno.
 1. `¿por qué es importante controlar la presión si no me duele nada?` → respuesta con `[evidencia: … | citadas: E…]` y `[respaldo: N/N frases]` (sin "texto literal")
 2. `¿qué puedo comer si tengo acidez en el embarazo?` → la base no tiene registros de alimentación: abstención (`[respaldo: abstención sin LLM …]`) o el texto literal de un registro (`[respaldo: … · texto literal del registro]`). **Nunca** consejos como jengibre, manzanilla o listas de alimentos
-3. Abstención: `tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?` → mensaje fijo "No tengo información validada…", `[evidencia: insuficiente …]`, `[respaldo: abstención sin LLM …]` y **sin** tiempo de `respuesta` en `[tiempos …]`
+3. Abstención: `tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?` → mensaje fijo "Todavía no tengo suficiente información para orientarte…" que termina en una pregunta, `[evidencia: insuficiente …]`, `[respaldo: abstención sin LLM …]` y **sin** tiempo de `respuesta` en `[tiempos …]`
 4. `salir` y abre el JSON más reciente de `data/threads/`: la respuesta del paso 1 tiene `trace` con la evidencia ofrecida, la citada, `grounding` (frases mostradas, total, `literal`, `dropped`) y los tiempos
-5. RAG no disponible: `KB_INDEX_DIR=data/no-existe .venv/bin/python run_console.py` → al arrancar aparece "⚠️ RAG no disponible…"; repite el paso 1: mensaje fijo de abstención y `[evidencia: no disponible …]`
+5. RAG no disponible: `KB_INDEX_DIR=data/no-existe .venv/bin/python run_console.py` → al arrancar aparece "⚠️ RAG no disponible…"; repite el paso 1: mensaje fijo "En este momento no puedo consultar la información…" (sin pregunta) y `[evidencia: no disponible …]`
 6. Latencia: anota los `[tiempos …]` de los pasos 1 y 2. El embedder ya corre en CPU por defecto y los modelos se cargan al arrancar, así que el primer turno ya no debería ser más lento
 7. Si una respuesta muestra el texto literal, copia la línea `[respaldo …]` y el `grounding.dropped` del JSON: sirven para calibrar `min_support`
 

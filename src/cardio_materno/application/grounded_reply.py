@@ -22,13 +22,13 @@ from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
 
 # Sin evidencia suficiente: el sistema pregunta en lugar de abandonar a la persona (MIG-03).
 ABSTENTION_TEXT = (
-    "Todavía no encuentro información del proyecto sobre lo que me cuentas. Mientras tanto, "
-    "si tienes dudas, consúltalo con el personal de salud de tu EPS o centro de salud. "
-    "¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
+    "Todavía no tengo suficiente información para orientarte sobre lo que me cuentas. "
+    "Mientras tanto, si tienes dudas, consúltalo con el personal de salud de tu EPS o centro "
+    "de salud. ¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
 )
 # El buscador no está disponible: pedir más detalles no ayudaría.
 UNAVAILABLE_TEXT = (
-    "No tengo información validada sobre eso en la base de conocimiento del proyecto. "
+    "En este momento no puedo consultar la información para orientarte. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
 )
 # Sin prefijo: que la respuesta es literal queda en la traza (`GroundingCheck.literal`).
