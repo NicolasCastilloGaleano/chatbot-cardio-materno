@@ -22,7 +22,7 @@ from cardio_materno.adapters.outbound.persistence.trace_codec import (
     trace_from_dict,
     trace_to_dict,
 )
-from cardio_materno.domain.alarms import Alert
+from cardio_materno.domain.alarms import Alert, AlertOrigin, Severity
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -102,6 +102,11 @@ class JsonFileThreadRepository:
             KeyError: Si el hilo no existe.
         """
         self._append(thread_id, ALERTS_KEY, alert_to_dict(alert))
+
+    def all_alerts(self, thread_id: str) -> list[Alert]:
+        """Devuelve las alertas del hilo en orden de registro (vacío si no existe)."""
+        data = self._read(thread_id)
+        return [alert_from_dict(item) for item in data.get(ALERTS_KEY, [])] if data else []
 
     def recent_messages(self, thread_id: str, limit: int) -> list[ChatMessage]:
         """Devuelve los últimos `limit` mensajes del hilo (vacío si no existe)."""
@@ -200,3 +205,13 @@ def alert_to_dict(alert: Alert) -> dict[str, Any]:
         "origin": str(alert.origin),
         "created_at": alert.created_at.isoformat(),
     }
+
+
+def alert_from_dict(data: dict[str, Any]) -> Alert:
+    """Reconstruye una alerta desde su forma serializada."""
+    return Alert(
+        tuple(data["rule_ids"]),
+        Severity(data["severity"]),
+        AlertOrigin(data["origin"]),
+        datetime.fromisoformat(data["created_at"]),
+    )

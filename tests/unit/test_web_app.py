@@ -1,195 +1,300 @@
-"""Pruebas del adaptador web local sin Ollama."""
+"""Pruebas de la API web de auditoría multicanal y chat directo (HU-10), sin Ollama."""
 
+import itertools
+from collections.abc import Iterator
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
-from cardio_materno.adapters.inbound.api.web_app import create_app
+from cardio_materno.adapters.inbound.api.web_app import WebOptions, create_app
+from cardio_materno.adapters.outbound.persistence.sqlite_channel_log import SqliteChannelLog
+from cardio_materno.adapters.outbound.persistence.sqlite_chat_audit import SqliteChatAudit
+from cardio_materno.adapters.outbound.persistence.sqlite_database import (
+    IN_MEMORY,
+    SqliteDatabase,
+)
+from cardio_materno.adapters.outbound.persistence.sqlite_user_directory import (
+    SqliteUserDirectory,
+)
+from cardio_materno.adapters.outbound.persistence.sqlite_user_thread_store import (
+    SqliteUserThreadStore,
+)
+from cardio_materno.application.direct_chat import DirectChat, open_console_session
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.ports.channel_log import InboundEvent
+from cardio_materno.application.scope import OUT_OF_SCOPE_MESSAGE
+from cardio_materno.domain.user import Channel, new_user
 from tests.unit.fakes import (
-    InMemoryThreadRepository,
+    URGENT_MESSAGE,
+    FakeClock,
     ScriptedAgent,
+    agent_json,
+    citing,
     knowledge_entry,
     make_alarm_policy,
-    make_service,
+    make_user_conversations,
     scoped,
 )
 
+PAGE_SIZE = 2
+NOW = datetime(2026, 10, 18, 9, 0, tzinfo=UTC)
 
-def make_client(
-    turns: list[dict[str, Any] | Exception],
-    with_alarm_policy: bool = False,
-) -> tuple[TestClient, InMemoryThreadRepository]:
-    """Construye el cliente HTTP con agente guionizado y repositorio en memoria."""
-    agent = ScriptedAgent(*turns)
-    repository = InMemoryThreadRepository()
-    config = {"alarm_policy": make_alarm_policy()} if with_alarm_policy else None
-    service = make_service(agent, repo=repository, config=config)
+
+@dataclass
+class WebHarness:
+    client: TestClient
+    chat: DirectChat
+    database: SqliteDatabase
+
+
+@pytest.fixture
+def database() -> Iterator[SqliteDatabase]:
+    db = SqliteDatabase(IN_MEMORY)
+    yield db
+    db.close()
+
+
+def build(database: SqliteDatabase, *turns: dict[str, Any] | Exception) -> WebHarness:
+    agent, clock, ids = ScriptedAgent(*turns), FakeClock(), itertools.count(1)
+    conversations = make_user_conversations(
+        agent,
+        SqliteUserThreadStore(database),
+        clock,
+        service_config={"alarm_policy": make_alarm_policy()},
+    )
+    chat = DirectChat(
+        SqliteUserDirectory(database), conversations, clock, lambda: f"chat-{next(ids):04d}"
+    )
     entry = knowledge_entry(answer="Orientación validada para la prueba")
-    return TestClient(create_app(service, repository, [entry])), repository
+    app = create_app(chat, SqliteChatAudit(database), [entry], WebOptions(PAGE_SIZE, 3.0))
+    return WebHarness(TestClient(app), chat, database)
 
 
-def test_send_message_returns_trace_and_full_evidence() -> None:
-    client, _ = make_client(
-        [
-            scoped(
-                {
-                    "thread_action": "nuevo",
-                    "domain": "materno_infantil",
-                    "summary": "Consulta de alimentación",
-                    "reported_symptoms": ["acidez"],
-                    "reported_signs": [],
-                    "search_query": "alimentación y acidez",
-                    "scope": "en_alcance",
-                    "scope_reason": "consulta de salud",
-                    "reply": "Orientación validada para la prueba",
-                    "evidence_ids": ["E1"],
-                },
-                "en_alcance",
-            )
-        ]
+def new_web_chat(harness: WebHarness) -> str:
+    response = harness.client.post("/api/chats")
+    assert response.status_code == 201
+    chat_id: str = response.json()["id"]
+    return chat_id
+
+
+def send(harness: WebHarness, chat_id: str, text: str, after: int = 0) -> Any:
+    return harness.client.post(
+        f"/api/chats/{chat_id}/messages", json={"text": text, "after": after}
     )
 
-    response = client.post("/api/messages", json={"text": "Tengo acidez"})
 
-    assert response.status_code == 200
-    result = response.json()
-    assert result["reply"] == "Orientación validada para la prueba"
-    assert result["thread"]["summary"] == "Consulta de alimentación"
-    assert result["trace"]["reported_symptoms"] == ["acidez"]
-    assert result["trace"]["search_query"] == "alimentación y acidez"
-    assert result["trace"]["evidence"][0]["answer"] == "Orientación validada para la prueba"
-    assert result["trace"]["cited_evidence"] == ["E1"]
+def whatsapp_chat(database: SqliteDatabase) -> str:
+    SqliteUserDirectory(database).register(new_user("wa-1", NOW), Channel.WHATSAPP, "hash")
+    return "wa-1"
 
 
-def test_out_of_scope_reply_is_not_added_to_persisted_thread() -> None:
-    client, repository = make_client(
-        [
-            scoped(
-                {
-                    "thread_action": "nuevo",
-                    "domain": "ninguno",
-                    "summary": "sin hilo",
-                    "reported_symptoms": [],
-                    "reported_signs": [],
-                    "search_query": "",
-                    "scope": "fuera_de_alcance",
-                    "scope_reason": "tema ajeno",
-                    "reply": "No puedo ayudar con ese tema.",
-                    "evidence_ids": [],
-                },
-                "fuera_de_alcance",
-                "tema ajeno",
-            )
-        ]
-    )
-
-    response = client.post("/api/messages", json={"text": "¿Quién ganó el partido?"})
-
-    assert response.status_code == 200
-    assert response.json()["out_of_scope"] is True
-    assert response.json()["thread"] is None
-    assert repository.list_threads() == []
+# --- Página y configuración -------------------------------------------------------------
 
 
-def test_saved_thread_can_be_listed_and_opened_read_only() -> None:
-    client, _ = make_client(
-        [
-            {
-                "thread_action": "nuevo",
-                "domain": "materno_infantil",
-                "summary": "Consulta guardada",
-                "reported_symptoms": [],
-                "reported_signs": [],
-                "search_query": "consulta guardada",
-                "scope": "en_alcance",
-                "scope_reason": "",
-                "reply": "Orientación validada para la prueba",
-                "evidence_ids": ["E1"],
-            }
-        ]
-    )
-    client.post("/api/messages", json={"text": "Consulta guardada"})
+def test_page_script_and_config_are_served(database: SqliteDatabase) -> None:
+    harness = build(database)
 
-    listed = client.get("/api/threads")
-    thread_id = listed.json()[0]["id"]
-    history = client.get(f"/api/threads/{thread_id}")
+    config = harness.client.get("/api/config").json()
 
-    assert listed.status_code == 200
-    assert len(history.json()["messages"]) == 2
-    assert history.json()["messages"][1]["trace"]["evidence"][0]["question"] == "¿Pregunta?"
+    assert harness.client.get("/").status_code == 200
+    assert harness.client.get("/static/app.js").status_code == 200
+    assert harness.client.get("/static/../web_app.py").status_code == 404
+    assert config["page_size"] == PAGE_SIZE and config["poll_seconds"] == 3.0
+    assert {"id": "whatsapp", "label": "WhatsApp"} in config["channels"]
 
 
-def test_missing_thread_returns_not_found() -> None:
-    client, _ = make_client([])
+def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> None:
+    harness = build(database)
 
-    assert client.get("/api/threads/inexistente").status_code == 404
+    page = harness.client.get("/").text
+    script = harness.client.get("/static/app.js").text
+    styles = harness.client.get("/static/styles.css").text
+
+    assert 'id="chat-list"' in page and 'id="channel-filters"' in page
+    assert 'id="release-chat"' in page and 'id="audit-panel"' in page
+    assert "/api/chats" in script and "before=" in script and "after=" in script
+    assert 'event.key !== "Enter" || event.shiftKey || event.isComposing' in script
+    assert "Estoy procesando tu mensaje" in script and "setInterval(poll" in script
+    assert "textContent" in script and "innerHTML" not in script
+    assert "--thread-5" in styles and ".thread-separator" in styles
 
 
-def test_language_model_failure_is_a_clear_gateway_error() -> None:
-    client, _ = make_client([LanguageModelError("detalle interno")])
+# --- Chats --------------------------------------------------------------------------------
 
-    response = client.post("/api/messages", json={"text": "Tengo una consulta"})
+
+def test_new_session_creates_an_empty_writable_web_chat(database: SqliteDatabase) -> None:
+    harness = build(database)
+
+    chat_id = new_web_chat(harness)
+
+    chat = harness.client.get(f"/api/chats/{chat_id}").json()
+    assert chat["channel"] == "web" and chat["writable"] is True and chat["lock"] is None
+    assert chat["label"] == f"Web · {chat_id[:8]}"
+    assert [c["id"] for c in harness.client.get("/api/chats").json()] == [chat_id]
+
+
+def test_chat_list_can_be_filtered_by_channel(database: SqliteDatabase) -> None:
+    harness = build(database)
+    web = new_web_chat(harness)
+    whatsapp = whatsapp_chat(database)
+
+    only_whatsapp = harness.client.get("/api/chats", params={"channel": "whatsapp"}).json()
+
+    assert [c["id"] for c in only_whatsapp] == [whatsapp]
+    assert {c["id"] for c in harness.client.get("/api/chats").json()} == {web, whatsapp}
+    assert harness.client.get("/api/chats", params={"channel": "otro"}).status_code == 422
+
+
+def test_unknown_chat_is_not_found(database: SqliteDatabase) -> None:
+    harness = build(database)
+
+    assert harness.client.get("/api/chats/no-existe").status_code == 404
+    assert harness.client.get("/api/chats/no-existe/messages").status_code == 404
+    assert send(harness, "no-existe", "hola").status_code == 404
+
+
+# --- Enviar ---------------------------------------------------------------------------------
+
+
+def test_sending_returns_the_turn_and_the_persisted_messages_with_full_evidence(
+    database: SqliteDatabase,
+) -> None:
+    harness = build(database, citing(agent_json("Orientación validada para la prueba"), "E1"))
+    chat_id = new_web_chat(harness)
+
+    body = send(harness, chat_id, "tengo acidez").json()
+
+    assert body["turn"]["reply"] == "Orientación validada para la prueba"
+    reply = body["messages"][-1]
+    assert [m["role"] for m in body["messages"]] == ["user", "assistant"]
+    assert reply["seq"] > body["messages"][0]["seq"]
+    assert reply["thread"]["status"] == "abierto"
+    assert reply["trace"]["evidence"][0]["answer"] == "Orientación validada para la prueba"
+    assert body["chat"]["message_count"] == 2
+
+
+def test_whatsapp_chat_is_read_only_on_the_server(database: SqliteDatabase) -> None:
+    harness = build(database, agent_json("r1"))
+    chat_id = whatsapp_chat(database)
+
+    response = send(harness, chat_id, "intento escribir")
+    chat = harness.client.get(f"/api/chats/{chat_id}").json()
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Chat de WhatsApp: solo auditoría."
+    assert chat["writable"] is False and chat["lock_text"] == "Chat de WhatsApp: solo auditoría."
+
+
+def test_console_chat_is_locked_until_released(database: SqliteDatabase) -> None:
+    harness = build(database, agent_json("r1"))
+    session = open_console_session(harness.chat)
+    chat_id = session.user_id
+
+    locked = send(harness, chat_id, "desde la web")
+    released = harness.client.post(f"/api/chats/{chat_id}/release").json()
+    accepted = send(harness, chat_id, "desde la web")
+
+    assert locked.status_code == 403
+    assert locked.json()["detail"].startswith("En uso en la consola")
+    assert released["writable"] is True
+    assert accepted.status_code == 200
+    assert harness.client.post(f"/api/chats/{chat_id}/release").status_code == 409
+
+
+def test_model_failure_is_a_clear_gateway_error(database: SqliteDatabase) -> None:
+    harness = build(database, LanguageModelError("detalle interno"))
+    chat_id = new_web_chat(harness)
+
+    response = send(harness, chat_id, "Tengo una consulta")
 
     assert response.status_code == 502
-    assert response.json()["detail"] == (
-        "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
+    assert (
+        response.json()["detail"] == "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
     )
 
 
-def test_new_session_closes_the_active_thread() -> None:
-    client, repository = make_client(
-        [
-            {
-                "thread_action": "nuevo",
-                "domain": "materno_infantil",
-                "summary": "Consulta guardada",
-                "reported_symptoms": [],
-                "reported_signs": [],
-                "search_query": "consulta guardada",
-                "scope": "en_alcance",
-                "scope_reason": "",
-                "reply": "Orientación validada para la prueba",
-                "evidence_ids": ["E1"],
-            }
-        ]
+def test_empty_text_is_rejected(database: SqliteDatabase) -> None:
+    harness = build(database)
+    chat_id = new_web_chat(harness)
+
+    assert send(harness, chat_id, "   ").status_code == 422
+
+
+def test_out_of_scope_reply_is_returned_but_not_persisted(database: SqliteDatabase) -> None:
+    harness = build(database, scoped(agent_json(), "fuera_de_alcance", "deportes"))
+    chat_id = new_web_chat(harness)
+
+    body = send(harness, chat_id, "¿quién ganó el partido?").json()
+
+    assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is None
+    assert body["messages"] == []
+
+
+def test_out_of_scope_reply_inside_a_thread_is_saved_once_in_that_thread(
+    database: SqliteDatabase,
+) -> None:
+    # MIG-02 con la HU-10: el turno ya viene en `messages`; la interfaz no debe duplicarlo.
+    harness = build(
+        database,
+        agent_json("r1", summary="acidez"),
+        scoped(agent_json(thread_action="nuevo"), "fuera_de_alcance", "deportes"),
     )
-    client.post("/api/messages", json={"text": "Consulta guardada"})
+    chat_id = new_web_chat(harness)
+    send(harness, chat_id, "tengo acidez")
 
-    assert client.post("/api/session/end").json() == {"status": "cerrada"}
-    assert repository.list_threads()[0].is_open is False
+    body = send(harness, chat_id, "¿quién ganó el partido?").json()
 
-
-def test_message_request_rejects_empty_text() -> None:
-    client, _ = make_client([])
-
-    assert client.post("/api/messages", json={"text": "   "}).status_code == 422
-
-
-def test_local_page_and_script_are_served() -> None:
-    client, _ = make_client([])
-
-    page = client.get("/")
-    script = client.get("/static/app.js")
-    styles = client.get("/static/styles.css")
-
-    assert page.status_code == 200
-    assert "Hilos guardados" in page.text
-    assert script.status_code == 200
-    assert "showAudit" in script.text
-    assert 'event.key !== "Enter" || event.shiftKey || event.isComposing' in script.text
-    assert "Estoy procesando tu mensaje" in script.text
-    assert styles.status_code == 200
-    assert ".messages" in styles.text and "overflow-y: auto" in styles.text
-    assert ".side-column" in styles.text and "height: 100%" in styles.text
+    assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is not None
+    contents = [m["content"] for m in body["messages"]]
+    assert contents[-2:] == ["¿quién ganó el partido?", OUT_OF_SCOPE_MESSAGE]
+    assert contents.count(OUT_OF_SCOPE_MESSAGE) == 1
 
 
-def test_immediate_alarm_is_returned_without_calling_agent() -> None:
-    client, repository = make_client([], with_alarm_policy=True)
+def test_immediate_alarm_is_stored_with_its_alert(database: SqliteDatabase) -> None:
+    harness = build(database)
+    chat_id = new_web_chat(harness)
 
-    response = client.post("/api/messages", json={"text": "tengo sangrado vaginal"})
+    body = send(harness, chat_id, "tengo sangrado vaginal").json()
 
-    assert response.status_code == 200
-    assert response.json()["trace"] is None
-    assert response.json()["alerts"][0]["severity"] == "urgencia_inmediata"
-    assert len(repository.list_threads()) == 1
+    reply = body["messages"][-1]
+    assert reply["content"] == URGENT_MESSAGE and reply["trace"] is None
+    assert reply["alerts"][0]["severity"] == "urgencia_inmediata"
+
+
+# --- Leer por páginas ---------------------------------------------------------------------
+
+
+def test_messages_load_newest_first_and_page_backwards(database: SqliteDatabase) -> None:
+    harness = build(database, agent_json("r1"), agent_json("r2"))
+    chat_id = new_web_chat(harness)
+    send(harness, chat_id, "p1")
+    send(harness, chat_id, "p2")
+    url = f"/api/chats/{chat_id}/messages"
+
+    latest = harness.client.get(url).json()
+    older = harness.client.get(url, params={"before": latest["next_before"]}).json()
+
+    assert [m["content"] for m in latest["messages"]] == ["p2", "r2"]
+    assert [m["content"] for m in older["messages"]] == ["p1", "r1"]
+    assert older["next_before"] is None
+
+
+def test_polling_after_the_last_seq_returns_only_new_messages_and_pending(
+    database: SqliteDatabase,
+) -> None:
+    harness = build(database, agent_json("r1"), agent_json("r2"))
+    chat_id = new_web_chat(harness)
+    first = send(harness, chat_id, "p1").json()
+    last_seq = first["messages"][-1]["seq"]
+    send(harness, chat_id, "p2")
+    SqliteChannelLog(database).register_inbound(
+        InboundEvent(Channel.WHATSAPP, "wamid.x", chat_id, "text", NOW)
+    )
+
+    update = harness.client.get(f"/api/chats/{chat_id}/messages", params={"after": last_seq}).json()
+
+    assert [m["content"] for m in update["messages"]] == ["p2", "r2"]
+    assert update["pending"] == 1

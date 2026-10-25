@@ -25,7 +25,7 @@ EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
 EVIDENCE_ITEM_TEMPLATE = "{label} {score:.2f} {category}"
 EVIDENCE_NOT_SEARCHED_TEXT = "[evidencia: no se buscó (urgencia detectada en los síntomas)]"
 EVIDENCE_CONVERSATIONAL_TEXT = "[evidencia: no se buscó (mensaje conversacional)]"
-OUT_OF_SCOPE_TEMPLATE = "[fuera de alcance: {reason} · no se registra en el hilo]"
+OUT_OF_SCOPE_TEMPLATE = "[fuera de alcance: {reason} · sin búsqueda ni respuesta del agente]"
 NO_REASON_TEXT = "sin motivo"
 UNRECORDED_CONVERSATIONAL_TEXT = "[sin hilo: mensaje conversacional · no se registra]"
 CONVERSATIONAL_SCOPE = "conversacional"
@@ -80,7 +80,7 @@ def format_unstated_debug(trace: ReplyTrace) -> str:
 
 
 def out_of_scope_lines(trace: ReplyTrace | None) -> list[str]:
-    """Líneas de un mensaje descartado por estar fuera de alcance (no se registra en el hilo)."""
+    """Líneas de un mensaje fuera de alcance (queda en el hilo activo, si lo hay, MIG-02)."""
     reason = (trace.scope_reason if trace else "") or NO_REASON_TEXT
     lines = [OUT_OF_SCOPE_TEMPLATE.format(reason=reason)]
     if trace is not None and trace.timings:

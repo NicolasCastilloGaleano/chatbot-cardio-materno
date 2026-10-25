@@ -3,7 +3,6 @@
 import logging
 import os
 import sys
-from dataclasses import replace
 from datetime import timedelta
 from functools import partial
 
@@ -25,28 +24,20 @@ from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     DatabaseVersionError,
     SqliteDatabase,
 )
-from cardio_materno.adapters.outbound.persistence.sqlite_thread_repository import (
-    SqliteThreadRepository,
-)
 from cardio_materno.adapters.outbound.persistence.sqlite_user_directory import (
     SqliteUserDirectory,
-)
-from cardio_materno.adapters.outbound.persistence.sqlite_user_thread_store import (
-    SqliteUserThreadStore,
 )
 from cardio_materno.adapters.outbound.whatsapp.cloud_sender import (
     CloudApiSettings,
     WhatsAppCloudSender,
 )
-from cardio_materno.application.conversation_service import ConversationService
 from cardio_materno.application.handle_incoming_message import (
     ChannelConfig,
     ChannelPorts,
     HandleIncomingMessage,
-    ServiceFactory,
 )
 from cardio_materno.application.incoming_message import make_identity_hasher
-from cardio_materno.application.ports.thread_repository import ThreadRepository
+from cardio_materno.bootstrap.conversation_factory import build_user_conversations
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.main import (
     ENV_FILE,
@@ -54,16 +45,20 @@ from cardio_materno.bootstrap.main import (
     EXIT_OK,
     PROJECT_ROOT,
     STARTUP_ERRORS,
-    build_conversation,
     use_utf8_streams,
 )
 from cardio_materno.bootstrap.settings import (
+    PersistenceSettings,
     WhatsAppSettings,
-    load_conversation_settings,
     load_whatsapp_settings,
 )
 
 INTERRUPTED_ERROR = "interrumpido"
+
+
+def idle_timeout(persistence: PersistenceSettings) -> timedelta:
+    """Inactividad que cierra el hilo abierto, como intervalo de tiempo."""
+    return timedelta(hours=persistence.idle_timeout_hours)
 
 
 def create_whatsapp_runtime(
@@ -80,11 +75,10 @@ def create_whatsapp_runtime(
     """
     use_case = HandleIncomingMessage(
         _channel_ports(settings, database),
-        ChannelConfig(
-            idle_timeout=timedelta(hours=settings.idle_timeout_hours),
-            wait_notice_seconds=settings.wait_notice_seconds,
+        ChannelConfig(wait_notice_seconds=settings.wait_notice_seconds),
+        build_user_conversations(
+            database, timedelta(hours=settings.persistence.idle_timeout_hours)
         ),
-        _service_factory(database),
     )
     dispatcher = MessageDispatcher(use_case.handle, settings.max_pending)
     hasher = make_identity_hasher(settings.user_hash_secret)
@@ -96,21 +90,8 @@ def create_whatsapp_runtime(
     return app, dispatcher
 
 
-def _service_factory(database: SqliteDatabase) -> ServiceFactory:
-    """Conecta modelos y RAG una sola vez; cada mensaje usa un servicio acotado al usuario."""
-    settings = load_conversation_settings(os.environ, PROJECT_ROOT)
-    base_ports, config = build_conversation(settings, SqliteThreadRepository(database, None))
-
-    def create(repository: ThreadRepository, active_thread_id: str | None) -> ConversationService:
-        return ConversationService(
-            replace(base_ports, repository=repository), config, active_thread_id
-        )
-
-    return create
-
-
 def _channel_ports(settings: WhatsAppSettings, database: SqliteDatabase) -> ChannelPorts:
-    """Puertos del canal: usuarios, hilos, registro, envío a Meta y aviso de espera."""
+    """Puertos del canal: usuarios, registro, envío a Meta y aviso de espera."""
     sender = WhatsAppCloudSender(
         CloudApiSettings(
             settings.token,
@@ -121,7 +102,6 @@ def _channel_ports(settings: WhatsAppSettings, database: SqliteDatabase) -> Chan
     )
     return ChannelPorts(
         SqliteUserDirectory(database),
-        SqliteUserThreadStore(database),
         SqliteChannelLog(database),
         sender,
         ThreadingDelayedActions(),
@@ -139,7 +119,7 @@ def main() -> int:
         load_env_file(ENV_FILE)
         settings = load_whatsapp_settings(os.environ, PROJECT_ROOT)
         logging.basicConfig(level=settings.log_level, format="%(levelname)s %(name)s: %(message)s")
-        database = SqliteDatabase(settings.database_path)
+        database = SqliteDatabase(settings.persistence.database_path)
         interrupted = SqliteChannelLog(database).fail_unfinished(INTERRUPTED_ERROR)
         app, dispatcher = create_whatsapp_runtime(settings, database)
     except (*STARTUP_ERRORS, DatabaseVersionError) as error:

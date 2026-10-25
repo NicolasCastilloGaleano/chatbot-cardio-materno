@@ -24,7 +24,6 @@ from cardio_materno.application.channel_messages import (
     UNSUPPORTED_MESSAGE_TEXT,
     WAIT_NOTICE_TEXT,
 )
-from cardio_materno.application.conversation_service import ConversationService
 from cardio_materno.application.errors import ChannelDeliveryError, LanguageModelError
 from cardio_materno.application.handle_incoming_message import (
     ChannelConfig,
@@ -36,7 +35,6 @@ from cardio_materno.application.incoming_message import (
     MessageKind,
     make_identity_hasher,
 )
-from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.domain.conversation import ThreadStatus
 from cardio_materno.domain.user import Channel
 from tests.unit.fakes import (
@@ -45,10 +43,9 @@ from tests.unit.fakes import (
     FakeDelayedActions,
     FakeSender,
     ScriptedAgent,
-    SequentialIds,
     agent_json,
     make_alarm_policy,
-    make_service,
+    make_user_conversations,
 )
 
 ANA, BETO = "573000000001", "573000000002"
@@ -94,22 +91,14 @@ def build(
     service_config: dict[str, Any] | None = None,
     max_chars: int = 4096,
 ) -> ChannelHarness:
-    clock, thread_ids, user_ids = FakeClock(), SequentialIds(), itertools.count(1)
+    clock, user_ids = FakeClock(), itertools.count(1)
     sender, delayed = FakeSender(), FakeDelayedActions()
-    options = {"clock": clock, "new_id": thread_ids} | (service_config or {})
-
-    def factory(repository: ThreadRepository, active: str | None) -> ConversationService:
-        return make_service(agent, repository, options, active_thread_id=active)
-
-    ports = ChannelPorts(
-        SqliteUserDirectory(database),
-        SqliteUserThreadStore(database),
-        SqliteChannelLog(database),
-        sender,
-        delayed,
+    conversations = make_user_conversations(
+        agent, SqliteUserThreadStore(database), clock, IDLE, service_config
     )
-    config = ChannelConfig(IDLE, 10.0, max_chars, clock, lambda: f"usuario-{next(user_ids)}")
-    handler = HandleIncomingMessage(ports, config, factory)
+    ports = ChannelPorts(SqliteUserDirectory(database), SqliteChannelLog(database), sender, delayed)
+    config = ChannelConfig(10.0, max_chars, clock, lambda: f"usuario-{next(user_ids)}")
+    handler = HandleIncomingMessage(ports, config, conversations)
     return ChannelHarness(handler, database, sender, delayed, clock, agent)
 
 

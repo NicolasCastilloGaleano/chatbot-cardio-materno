@@ -46,6 +46,10 @@ TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
 # Interfaz web local (ADR 0013): solo puede escuchar en la propia máquina.
 DEFAULT_WEB_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = "8000"
+# Auditoría multicanal (ADR 0016): mensajes por página y frecuencia de la actualización.
+DEFAULT_WEB_PAGE_SIZE = "30"
+DEFAULT_WEB_POLL_SECONDS = "3"
+MAX_WEB_PAGE_SIZE = 200
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -219,22 +223,65 @@ class WebSettings:
     Attributes:
         host: Dirección de escucha; solo se admite la propia máquina (loopback).
         port: Puerto TCP.
+        page_size: Mensajes por página al abrir un chat o subir con el scroll.
+        poll_seconds: Cada cuánto la interfaz busca mensajes nuevos.
     """
 
     host: str
     port: int
+    page_size: int = int(DEFAULT_WEB_PAGE_SIZE)
+    poll_seconds: float = float(DEFAULT_WEB_POLL_SECONDS)
 
 
 def load_web_settings(env: Mapping[str, str]) -> WebSettings:
-    """Lee `WEB_HOST` y `WEB_PORT`.
+    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
 
     Raises:
-        ConfigurationError: Si el host no es local (la interfaz no se expone en la red) o el
-            puerto no es válido.
+        ConfigurationError: Si el host no es local (la interfaz no se expone en la red), el
+            puerto no es válido o el tamaño de página o la frecuencia están fuera de rango.
     """
+    page_size = _get_int(env, "WEB_PAGE_SIZE", DEFAULT_WEB_PAGE_SIZE)
+    if not 1 <= page_size <= MAX_WEB_PAGE_SIZE:
+        raise ConfigurationError(
+            f"WEB_PAGE_SIZE debe estar entre 1 y {MAX_WEB_PAGE_SIZE}, se recibió {page_size}."
+        )
+    poll_seconds = _get_float(env, "WEB_POLL_SECONDS", DEFAULT_WEB_POLL_SECONDS)
+    if poll_seconds <= 0:
+        raise ConfigurationError(
+            f"WEB_POLL_SECONDS debe ser mayor que 0, se recibió {poll_seconds}."
+        )
     return WebSettings(
         _get_loopback_host(env, "WEB_HOST", DEFAULT_WEB_HOST),
         _get_port(env, "WEB_PORT", DEFAULT_WEB_PORT),
+        page_size,
+        poll_seconds,
+    )
+
+
+@dataclass(frozen=True)
+class PersistenceSettings:
+    """Base SQLite por usuario, común a todos los canales (ADR 0015 y 0016).
+
+    Attributes:
+        database_path: Archivo SQLite (`DATABASE_PATH`).
+        idle_timeout_hours: Inactividad que cierra el hilo abierto (`THREAD_IDLE_TIMEOUT_HOURS`).
+    """
+
+    database_path: Path
+    idle_timeout_hours: float
+
+
+def load_persistence_settings(env: Mapping[str, str], project_root: Path) -> PersistenceSettings:
+    """Lee la ubicación de la base y la regla de inactividad.
+
+    Raises:
+        ConfigurationError: Si la inactividad no es un número.
+    """
+    return PersistenceSettings(
+        database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
+        idle_timeout_hours=_get_float(
+            env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
+        ),
     )
 
 
@@ -253,10 +300,9 @@ class WhatsAppSettings:
         port: Puerto del webhook.
         send_timeout_seconds: Tiempo máximo de cada envío a Meta.
         wait_notice_seconds: Espera antes del aviso de "estoy revisando".
-        idle_timeout_hours: Inactividad que cierra el hilo abierto.
         max_pending: Mensajes en cola antes de pedir a Meta que reintente.
-        database_path: Archivo SQLite.
         log_level: Nivel de los registros del proceso.
+        persistence: Base SQLite e inactividad.
     """
 
     token: str
@@ -269,10 +315,9 @@ class WhatsAppSettings:
     port: int
     send_timeout_seconds: float
     wait_notice_seconds: float
-    idle_timeout_hours: float
     max_pending: int
-    database_path: Path
     log_level: str
+    persistence: PersistenceSettings
 
 
 def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsAppSettings:
@@ -299,12 +344,9 @@ def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsA
         wait_notice_seconds=_get_float(
             env, "WHATSAPP_WAIT_NOTICE_SECONDS", DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS
         ),
-        idle_timeout_hours=_get_float(
-            env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
-        ),
         max_pending=_get_int(env, "WHATSAPP_MAX_PENDING", DEFAULT_WHATSAPP_MAX_PENDING),
-        database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
         log_level=_get(env, "LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
+        persistence=load_persistence_settings(env, project_root),
     )
 
 

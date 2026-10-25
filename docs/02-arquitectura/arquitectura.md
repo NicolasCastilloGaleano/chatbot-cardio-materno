@@ -80,6 +80,7 @@ sequenceDiagram
 | `ThreadRepository` (`application/ports/thread_repository.py`) | Persistir hilos y mensajes (con `thread_id`) | ✅ `JsonFileThreadRepository` (`adapters/outbound/persistence/`, [ADR 0006](adr/0006-hilos-conversacionales-con-resumen.md)) para consola y web; ✅ `SqliteThreadRepository`, acotado a un usuario ([ADR 0015](adr/0015-persistencia-sqlite-y-usuarios.md)). Los dos cumplen el mismo contrato (`test_thread_repository_contract.py`) |
 | `UserThreadStore` (`application/ports/user_thread_store.py`) | Hilo abierto de cada usuario (con su última actividad) y su repositorio acotado | ✅ `SqliteUserThreadStore` (ADR 0015) |
 | `UserDirectory` (`application/ports/user_directory.py`) | Usuarios y su identidad seudonimizada por canal | ✅ `SqliteUserDirectory` (ADR 0015) |
+| `ChatAudit` (`application/ports/chat_audit.py`) | Leer los chats de todos los canales para auditarlos: lista por canal, páginas por *keyset* sobre `seq`, alertas por turno y mensajes en proceso | ✅ `SqliteChatAudit` ([ADR 0016](adr/0016-auditoria-multicanal-y-chats-por-usuario.md)) |
 | `ChannelLog` (`application/ports/channel_log.py`) | Deduplicar mensajes del canal y auditar lo recibido y enviado, sin texto | ✅ `SqliteChannelLog` (ADR 0014 y 0015) |
 | `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
 
@@ -106,9 +107,28 @@ flowchart LR
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```
-- **Interfaz local (HU-08):** FastAPI sirve la vista y las operaciones de conversación, lista e historial. Se inicia con `python run_web.py`; `WEB_HOST`/`WEB_PORT` (`.env`, por defecto `127.0.0.1:8000`) y la configuración rechaza cualquier host que no sea local (`load_web_settings`). Las respuestas seleccionables muestran los datos de `ReplyTrace`; los `entry_id` se resuelven contra la base para mostrar pregunta y respuesta completas. El historial guardado es de solo lectura. `POST /api/session/end` cierra el hilo activo antes de iniciar otro.
-- **Lectura de hilos:** `ThreadRepository.list_threads` y `all_messages` soportan auditoría sin alterar los datos persistidos. El acceso sigue limitado al repositorio local de archivos JSON.
+- **Interfaz local (HU-08, HU-10):** se inicia con `python run_web.py` (`bootstrap/web.py`). `WEB_HOST` solo admite loopback (`load_web_settings`).
+  - **Desde la HU-10** lee y escribe en la base SQLite de todos los canales: `DirectChat` para escribir y `SqliteChatAudit` para leer.
+  - La API está en `adapters/inbound/api/web_app.py` y el contrato JSON en `serializers.py`:
+
+    | Ruta | Uso |
+    |---|---|
+    | `GET /api/config` | Tamaño de página, frecuencia de actualización y canales |
+    | `GET /api/chats` | Lista de chats, con filtro `channel` y `limit`/`offset` |
+    | `POST /api/chats` | Nueva sesión: crea un chat web |
+    | `GET /api/chats/{id}` | Resumen del chat, `writable` y motivo del bloqueo |
+    | `GET /api/chats/{id}/messages` | `before` para las páginas anteriores, `after` para lo nuevo; incluye `pending` |
+    | `POST /api/chats/{id}/messages` | 403 en WhatsApp, Telegram, histórico o consola abierta; 409 si ya hay un turno en curso en ese chat |
+    | `POST /api/chats/{id}/release` | Libera un chat de consola que quedó marcado |
+
+  - Los `entry_id` de la traza se resuelven contra la base de conocimiento para mostrar la pregunta y la respuesta completas.
+  - La consola (`bootstrap/console.py`) también usa SQLite: un chat por arranque, bloqueado para la web mientras está abierta.
 - **Hilos por usuario (HU-09, fase 2, [ADR 0015](adr/0015-persistencia-sqlite-y-usuarios.md)):** para los canales de chat continuo se crea un `ConversationService` por mensaje con `ports.repository = UserThreadStore.scoped(user_id)` y `active_thread_id` = hilo abierto del usuario. El agente recibe el mismo contexto que en la consola (`test_conversation_per_user.py` lo compara llamada por llamada) y no puede ver hilos de otra persona. Base SQLite: `sqlite_database.py` (esquema versionado, transacciones). La usa el canal de WhatsApp (siguiente punto).
+- **Chats por usuario en todos los canales (HU-10, [ADR 0016](adr/0016-auditoria-multicanal-y-chats-por-usuario.md), en implementación):**
+  - `application/user_conversations.py::UserConversations`: cierra el hilo inactivo y crea el `ConversationService` del usuario. Lo comparten WhatsApp (`HandleIncomingMessage`), la consola y la web.
+  - `application/direct_chat.py::DirectChat`: chats de consola y web. Hace cumplir la regla `domain/user.py::chat_lock` (WhatsApp, Telegram e histórico son de solo lectura; un chat abierto en una consola queda bloqueado para la web). `ConsoleChatSession` le da a la consola la misma interfaz que antes.
+  - `application/import_history.py` (`run_import_history.py`): importa los hilos JSON anteriores a un chat `historico`.
+  - Fábrica común en `bootstrap/conversation_factory.py`.
 - **Canal WhatsApp (HU-09, fase 3, [ADR 0014](adr/0014-canal-whatsapp-cloud-api.md)):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`) sirve el webhook en loopback y ngrok lo publica. El flujo es: webhook (`adapters/inbound/whatsapp/webhook.py`: verificación, firma, `payload.py` → `IncomingMessage`) → 200 inmediato → `MessageDispatcher` (cola de un trabajador) → `HandleIncomingMessage` (`application/`). Este último resuelve el usuario, deduplica, acusa recibo, cierra el hilo inactivo, crea el `ConversationService` del usuario, programa el aviso de espera, divide la respuesta y la envía por `MessageSender` → `WhatsAppCloudSender` (Graph API).
 
 ```mermaid
@@ -123,7 +143,7 @@ flowchart LR
     H --> MS{{MessageSender}} -.-> WS[WhatsAppCloudSender] --> M
 ```
 - **Contratos** (`application/agent_turn.py`): análisis `{thread_action, domain, summary, reported_symptoms, search_query, scope, scope_reason}`; respuesta con evidencia `{sentences: [{text, evidence_id}]}`, con `evidence_id` restringido por `enum` a las etiquetas ofrecidas o `"ninguna"`; respuesta conversacional `{reply, evidence_ids: []}`.
-- **Respaldo** ([ADR 0010](adr/0010-respuesta-verificada-y-abstencion-determinista.md), `application/grounded_reply.py` + `domain/grounding.py`): sin evidencia suficiente, `ABSTENTION_TEXT` sin llamar al LLM; con evidencia, cada frase citada debe estar respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números); si una falla, se muestra el texto literal del registro.
+- **Respaldo** ([ADR 0010](adr/0010-respuesta-verificada-y-abstencion-determinista.md), `application/grounded_reply.py` + `domain/grounding.py`): sin evidencia suficiente, `ABSTENTION_TEXT` (que pide más detalles) o `UNAVAILABLE_TEXT` sin llamar al LLM; con evidencia, cada frase citada debe estar respaldada por su registro (palabras con contenido ≥ `min_support` y todos los números); si una falla, se muestra el texto literal del registro.
 - **Contexto:** `application/turn_context.py`. El análisis recibe prompt + JSON del hilo + últimos N mensajes; la respuesta recibe prompt + caso analizado + últimos N mensajes + EVIDENCIA. La evidencia nunca entra al análisis (ADR 0008).
 - **Alarmas** ([ADR 0007](adr/0007-alarmas-deterministas-doble-filtro.md)): con urgencia en el filtro 1, no hay llamadas ni RAG; con urgencia en el filtro 2, no hay RAG ni llamada de respuesta. Desde el [ADR 0012](adr/0012-signos-reportados-como-codigos-cerrados.md) (provisional), el filtro 2 revisa los síntomas en texto **y** cruza de forma exacta los códigos de `reported_signs` (`AlarmPolicy.evaluate_codes`, `domain/alarms.py::rules_for_codes`); el esquema del análisis se arma con los códigos del catálogo.
 - **Alcance** ([ADR 0009](adr/0009-control-de-alcance-por-intencion.md), `application/scope.py`): sin alarma, `fuera_de_alcance` da un mensaje fijo, sin RAG ni respuesta y sin registro; `conversacional` da respuesta sin RAG. Las alarmas y los síntomas reportados de nuestros dominios nunca se descartan.

@@ -21,8 +21,9 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - La base de conocimiento no contiene datos personales.
 - La `trace` de cada respuesta incluye los síntomas reportados (datos de salud) y se guarda con el hilo, en `data/threads/`, que no se versiona.
 
-## Interfaz web local (HU-08, ADR 0013)
-- La interfaz muestra **todas** las conversaciones guardadas en `data/threads/`, con su texto completo y sus trazas, que son datos de salud. **No tiene autenticación.**
+## Interfaz web local (HU-08, HU-10, ADR 0013 y 0016)
+- La interfaz muestra **todas** las conversaciones guardadas en `data/cardio_materno.db`, con su texto completo y sus trazas, que son datos de salud. **Desde la HU-10 esto incluye los chats de WhatsApp de las personas** (hoy solo números de prueba del equipo), además de la consola, la web y el histórico. **No tiene autenticación.**
+- Los chats de WhatsApp y Telegram solo se auditan: el servidor rechaza escribir en ellos. Se identifican con un prefijo del identificador interno, nunca con el número ni el nombre, que no se guardan.
 - Por eso solo puede escuchar en la propia máquina: `WEB_HOST` admite únicamente `127.0.0.1`, `localhost` o `::1`, y cualquier otra dirección impide arrancar (`bootstrap/settings.py::load_web_settings`).
 - Es para demostración y depuración con datos ficticios. **No se expone en una red ni se usa con usuarios reales.** Antes de un piloto harían falta autenticación, cifrado y control de acceso por persona.
 

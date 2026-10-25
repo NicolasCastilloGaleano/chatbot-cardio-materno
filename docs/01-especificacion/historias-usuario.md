@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-18 (HU-09 aceptada)*
+*Última actualización: 2026-10-18 (HU-10 propuesta)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -103,7 +103,7 @@ Escenario: Respuesta respaldada por evidencia
 
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
-  Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Entonces se muestra el mensaje fijo de abstención, que pide más detalles con una pregunta (qué siente, desde cuándo y a quién le pasa) y sugiere consultar con el personal de salud (MIG-03)
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
 
@@ -118,6 +118,18 @@ Escenario: Los avisos no se suavizan
   Dado que el registro dice "necesita atención obstétrica inmediata"
   Cuando el agente lo redacta como "es importante que hables con tu médico"
   Entonces la frase no está respaldada y se muestra el texto literal del registro
+
+Escenario: Las frases de remisión también se verifican (MIG-04)
+  Dado que el registro citado no habla de urgencias ni de la línea 123
+  Cuando el agente redacta "Acude de inmediato a urgencias o llama al 123" citando ese registro
+  Entonces la frase no está respaldada y se muestra el texto literal del registro
+  Y los avisos de urgencia que no salen de un registro solo los muestra la política de alarmas
+
+Escenario: El texto literal sale del registro más parecido (2026-10-24)
+  Dado que la evidencia ofrecida incluye un registro de acidez (similitud 0,60) y uno de preeclampsia (0,55)
+  Cuando el agente cita el de preeclampsia con frases que no están en él
+  Entonces se muestra el texto literal del registro de acidez, que es el más parecido a la consulta
+  Y ante un empate de similitud se usa el registro que citó el agente
 
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
@@ -146,7 +158,7 @@ Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
   Entonces avisa al arrancar que el RAG no está disponible
-  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
+  Y cada consulta de salud recibe el mensaje fijo de RAG no disponible (sin pedir más detalles), sin llamar al modelo de lenguaje
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
 
@@ -252,9 +264,9 @@ Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo 
 ```gherkin
 Escenario: Mensaje completamente ajeno
   Cuando escribo "¿qué opinas del fútbol?"
-  Entonces el asistente responde con el mensaje fijo de alcance del servicio
+  Entonces el asistente responde con el mensaje fijo de alcance del servicio, que termina con una pregunta abierta para seguir conversando (MIG-02)
   Y no busca evidencia ni hace la llamada de respuesta
-  Y no se registra nada en el hilo
+  Y si no hay un hilo activo, no se registra ni se abre un hilo
 
 Escenario: Síntoma de origen incierto (prompt de análisis v6, 2026-10-17)
   Cuando escribo "tengo un dolor muy fuerte en el brazo por que me asustó una gallina"
@@ -275,10 +287,16 @@ Escenario: Seguimiento dentro de un hilo
   Cuando escribo "sí, desde ayer"
   Entonces el mensaje se atiende dentro del mismo hilo
 
+Escenario: La respuesta a una pregunta del asistente nunca se descarta (MIG-01)
+  Dado un hilo cuyo último mensaje del asistente contiene una pregunta (al final o en medio del texto)
+  Cuando respondo "no sé" o "desde ayer" y el análisis lo marca fuera de alcance pero como continuación del hilo
+  Entonces la regla determinista lo atiende como consulta en alcance, con búsqueda de evidencia
+  Y si el análisis lo marca como tema nuevo ("¿quién ganó el partido?"), se respeta su decisión
+
 Escenario: Mensaje ajeno en medio de una consulta
   Dado un hilo abierto sobre acidez en el embarazo
   Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
-  Entonces el primer mensaje recibe el mensaje fijo y no se registra
+  Entonces el primer mensaje recibe el mensaje fijo y queda registrado en ese hilo, una sola vez, sin cambiar su dominio ni su resumen (MIG-02)
   Y el segundo continúa el mismo hilo
 
 Escenario: Saludo o agradecimiento
@@ -339,7 +357,7 @@ Escenario: Error del modelo
   Cuando envío un mensaje
   Entonces veo un error claro y no una traza inventada
 ```
-Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local.
+Estado: ✅ Implementada y verificada automáticamente; falta el recorrido visual en el PC de pruebas. Solo para demostración y depuración local. **La HU-10 la reemplaza en parte:** "Hilos guardados" y "Nueva sesión" pasan a ser una lista de chats por persona y un chat nuevo.
 
 ### HU-09: Atención por WhatsApp con historial por persona
 **Como** persona de la comunidad, **quiero** consultar al asistente desde mi WhatsApp en un solo chat continuo, **para** recibir orientación sin instalar nada y sin que mis consultas se mezclen con las de otras personas.
@@ -417,3 +435,81 @@ Escenario: Los canales actuales no cambian
   Entonces funcionan igual que antes, con su repositorio JSON
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-18 con el número de prueba de Meta, ngrok y dos teléfonos: personas separadas, urgencia sin LLM, aviso de "solo texto" con imagen, aviso de espera, reenvío sin duplicar, cierre por inactividad, error del modelo y base sin números). Solo con números de prueba del equipo: falta el consentimiento (HU-01) para personas reales
+
+### HU-10: Auditoría multicanal con chat continuo
+**Como** integrante del equipo, **quiero** revisar en la interfaz local los chats de todos los canales (WhatsApp, Telegram, consola y web) como un chat continuo por persona, y seguir conversando en los de consola y web, **para** auditar en qué se basó cada respuesta sin importar por dónde llegó.
+
+Notas técnicas (ADR 0016): la consola y la web pasan a la base SQLite por usuario (ADR 0015). Cada arranque de la consola y cada "Nueva sesión" de la web crean un usuario con su chat. WhatsApp, Telegram y el histórico importado son de solo lectura. **El agente no cambia:** cada turno usa el repositorio acotado al usuario y su hilo abierto.
+
+```gherkin
+Escenario: Lista de chats de todos los canales
+  Dado que hay chats de WhatsApp, consola y web guardados
+  Cuando abro la interfaz
+  Entonces veo un chat por persona, del más reciente al más antiguo, con su canal, su última actividad y si es de solo lectura
+  Y puedo filtrar por canal (Todos, Consola, Web, WhatsApp, Telegram, Histórico)
+
+Escenario: El chat se carga por partes
+  Dado un chat con más de WEB_PAGE_SIZE mensajes
+  Cuando lo abro
+  Entonces veo solo los WEB_PAGE_SIZE mensajes más recientes
+  Y al subir hasta el principio se cargan los anteriores sin perder mi posición, hasta que no queden más
+
+Escenario: Los hilos se distinguen dentro del chat
+  Dado un chat con varios hilos
+  Cuando lo reviso
+  Entonces los mensajes de un mismo hilo comparten color
+  Y donde cambia el hilo aparece un separador con su dominio, su estado y su resumen
+
+Escenario: Auditar una respuesta
+  Cuando selecciono una respuesta del asistente en cualquier chat
+  Entonces queda resaltada y veo su traza: síntomas, signos, búsqueda, evidencia completa, citas, verificación, tiempos y las alertas del turno
+
+Escenario: WhatsApp, Telegram y el histórico son solo de auditoría
+  Cuando abro un chat de WhatsApp, de Telegram o el histórico
+  Entonces el campo de texto está desactivado y se explica por qué
+  Y si se intenta enviar un mensaje a ese chat a través del servidor, se rechaza
+
+Escenario: Nueva sesión en la web
+  Cuando selecciono "Nueva sesión"
+  Entonces se crea un chat web nuevo, vacío, en el que puedo escribir
+  Y ese chat puede tener varios hilos, como el de una persona en WhatsApp
+
+Escenario: La consola crea su propio chat
+  Cuando inicio la consola
+  Entonces se crea un chat de consola y se muestra su identificador corto
+  Y mientras la consola está abierta, en la interfaz ese chat aparece "en uso en la consola" y no se puede escribir en él
+
+Escenario: Continuar en la web un chat de consola
+  Dado que cerré la consola con "salir"
+  Cuando abro su chat en la interfaz
+  Entonces puedo seguir escribiendo en él
+  Y al iniciar la consola de nuevo se crea un chat nuevo: la consola no retoma chats anteriores
+
+Escenario: Consola cerrada de golpe
+  Dado que la consola terminó sin "salir" y su chat quedó "en uso en la consola"
+  Cuando selecciono "Liberar"
+  Entonces el chat queda disponible para escribir desde la web
+
+Escenario: Mensajes nuevos de otro canal
+  Dado que tengo abierto el chat de una persona de WhatsApp
+  Cuando la persona escribe
+  Entonces en pocos segundos veo que su mensaje se está procesando
+  Y al terminar el turno aparecen su mensaje y la respuesta sin recargar la página
+  Y si estoy leyendo más arriba, se me avisa que hay mensajes nuevos en lugar de moverme
+
+Escenario: Inactividad en todos los canales
+  Dado un chat de web o consola cuyo hilo abierto lleva más de THREAD_IDLE_TIMEOUT_HOURS sin actividad
+  Cuando escribo un mensaje nuevo
+  Entonces ese hilo se cierra antes de procesar el mensaje, igual que en WhatsApp
+
+Escenario: Histórico importado
+  Dado que había hilos en archivos JSON de antes de la migración
+  Cuando ejecuto la importación
+  Entonces aparecen en un chat "Histórico" de solo lectura con sus mensajes, trazas y alertas
+  Y ejecutar la importación otra vez no los duplica
+
+Escenario: Mensajes fuera de alcance
+  Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
+  Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
+```
+Estado: 🔄 Aprobada (2026-10-18); en implementación. Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08

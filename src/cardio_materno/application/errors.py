@@ -9,6 +9,23 @@ class LanguageModelError(Exception):
     """
 
 
+class ChatNotFoundError(Exception):
+    """No existe un chat (usuario) con ese identificador."""
+
+
+class ChatReadOnlyError(Exception):
+    """No se puede escribir en el chat desde la interfaz (ADR 0016).
+
+    Attributes:
+        reason: Motivo del bloqueo (`ChatLock`): canal de solo lectura o consola abierta.
+    """
+
+    def __init__(self, reason: str) -> None:
+        """Crea el error con el motivo del bloqueo."""
+        super().__init__(reason)
+        self.reason = reason
+
+
 class ChannelDeliveryError(Exception):
     """El canal (p. ej., WhatsApp) no aceptó o no recibió un envío.
 

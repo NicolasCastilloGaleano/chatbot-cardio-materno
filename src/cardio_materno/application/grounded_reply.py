@@ -1,6 +1,7 @@
 """Respuesta de salud siempre respaldada: verificación, texto literal y abstención (ADR 0010).
 
-- Sin evidencia suficiente no se llama al LLM: se muestra `ABSTENTION_TEXT`.
+- Sin evidencia suficiente no se llama al LLM: se muestra `ABSTENTION_TEXT`, que pide más
+  detalles para volver a buscar (MIG-03). Si el buscador no está disponible, `UNAVAILABLE_TEXT`.
 - Con evidencia, el LLM redacta frase por frase y cada frase de salud cita su registro. Si una
   frase citada no está respaldada por ese registro, se muestra el **texto literal** del
   registro, para no perder ni deformar lo que dice (p. ej., un aviso de atención inmediata).
@@ -17,13 +18,21 @@ from cardio_materno.domain.grounding import (
     is_supported,
 )
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
-from cardio_materno.domain.trace import GroundingCheck
+from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
 
+# Sin evidencia suficiente: el sistema pregunta en lugar de abandonar a la persona (MIG-03).
 ABSTENTION_TEXT = (
-    "No tengo información validada sobre eso en la base de conocimiento del proyecto. "
+    "Todavía no tengo suficiente información para orientarte sobre lo que me cuentas. "
+    "Mientras tanto, si tienes dudas, consúltalo con el personal de salud de tu EPS o centro "
+    "de salud. ¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
+)
+# El buscador no está disponible: pedir más detalles no ayudaría.
+UNAVAILABLE_TEXT = (
+    "En este momento no puedo consultar la información para orientarte. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
 )
-LITERAL_TEMPLATE = "Según la información validada del proyecto: {answer}"
+# Sin prefijo: que la respuesta es literal queda en la traza (`GroundingCheck.literal`).
+LITERAL_TEMPLATE = "{answer}"
 SENTENCE_SEPARATOR = " "
 
 
@@ -48,6 +57,18 @@ class SentenceVerdict:
 
     sentence: DraftSentence
     accepted: bool
+
+
+def abstention_text(status: RetrievalStatus) -> str:
+    """Mensaje fijo cuando no hay evidencia suficiente (no se llama al LLM, ADR 0010).
+
+    Args:
+        status: Resultado de la búsqueda (insuficiente o no disponible).
+
+    Returns:
+        `UNAVAILABLE_TEXT` si el buscador no está disponible; si no, `ABSTENTION_TEXT`.
+    """
+    return UNAVAILABLE_TEXT if status is RetrievalStatus.UNAVAILABLE else ABSTENTION_TEXT
 
 
 def compose_grounded_reply(
@@ -104,9 +125,14 @@ def verify_sentences(
 
 
 def main_label(draft: Sequence[DraftSentence], items: Sequence[EvidenceItem]) -> str:
-    """Etiqueta del registro principal: el primero que citó el agente o, si no citó, el mejor."""
-    cited = [s.evidence_id for s in draft if s.evidence_id]
-    return cited[0] if cited else items[0].label
+    """Etiqueta del registro principal: el de mayor similitud; ante un empate, uno citado.
+
+    Si la redacción falló, la cita del agente no es confiable: en la prueba del 2026-10-24,
+    "tengo acidez en el embarazo" citó un registro de preeclampsia (0,55) habiendo uno de
+    acidez (0,60), y el texto literal mandó a urgencias por hipertensión.
+    """
+    cited = {s.evidence_id for s in draft if s.evidence_id}
+    return max(items, key=lambda item: (item.score, item.label in cited)).label
 
 
 def entry_of(label: str, items: Sequence[EvidenceItem]) -> KnowledgeEntry:
@@ -127,5 +153,5 @@ def evidence_text(entry: KnowledgeEntry) -> str:
 
 
 def literal_text(entry: KnowledgeEntry) -> str:
-    """Texto literal del registro, presentado como información validada."""
+    """Texto literal del registro, tal como está escrito en la base."""
     return LITERAL_TEMPLATE.format(answer=entry.answer)

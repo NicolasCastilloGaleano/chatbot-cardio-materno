@@ -2,14 +2,13 @@
 
 El agente no cambia: por cada mensaje se crea un `ConversationService` con el repositorio
 acotado al usuario y su hilo abierto, así que recibe el mismo contexto que en la consola.
-Este caso de uso solo añade lo propio del canal: usuario, deduplicación, cierre por
-inactividad, aviso de espera, división de respuestas largas y registro de lo enviado.
+Este caso de uso solo añade lo propio del canal: usuario, deduplicación, aviso de espera,
+división de respuestas largas y registro de lo enviado. El cierre por inactividad lo aplica
+`UserConversations`, común a todos los canales.
 """
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
 
 from cardio_materno.application.channel_messages import (
     MODEL_ERROR_TEXT,
@@ -20,7 +19,6 @@ from cardio_materno.application.channel_messages import (
 )
 from cardio_materno.application.conversation_service import (
     Clock,
-    ConversationService,
     IdGenerator,
     TurnResult,
     new_uuid,
@@ -36,13 +34,10 @@ from cardio_materno.application.ports.channel_log import (
     OutboundRecord,
 )
 from cardio_materno.application.ports.message_sender import DelayedActions, MessageSender
-from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.application.ports.user_directory import UserDirectory
-from cardio_materno.application.ports.user_thread_store import UserThreadStore
-from cardio_materno.domain.conversation import close_thread
-from cardio_materno.domain.user import is_idle, new_user, seen_user
+from cardio_materno.application.user_conversations import UserConversations
+from cardio_materno.domain.user import new_user, seen_user
 
-ServiceFactory = Callable[[ThreadRepository, str | None], ConversationService]
 ERROR_MODEL = "modelo"
 ERROR_DELIVERY = "envio"
 
@@ -55,14 +50,12 @@ class ChannelPorts:
 
     Attributes:
         users: Directorio de usuarios.
-        threads: Hilos por usuario.
         log: Registro de mensajes recibidos y enviados.
         sender: Envío por el canal.
         delayed: Programación del aviso de espera.
     """
 
     users: UserDirectory
-    threads: UserThreadStore
     log: ChannelLog
     sender: MessageSender
     delayed: DelayedActions
@@ -73,14 +66,12 @@ class ChannelConfig:
     """Configuración del canal.
 
     Attributes:
-        idle_timeout: Inactividad tras la cual se cierra el hilo abierto.
         wait_notice_seconds: Espera antes de enviar el aviso de "estoy revisando".
         max_message_chars: Máximo de caracteres por mensaje del canal.
         clock: Reloj (UTC).
         new_id: Generador de identificadores de usuario.
     """
 
-    idle_timeout: timedelta
     wait_notice_seconds: float
     max_message_chars: int = WHATSAPP_MAX_CHARS
     clock: Clock = utc_now
@@ -91,19 +82,19 @@ class HandleIncomingMessage:
     """Atiende un mensaje de un canal y responde por el mismo canal."""
 
     def __init__(
-        self, ports: ChannelPorts, config: ChannelConfig, service_factory: ServiceFactory
+        self, ports: ChannelPorts, config: ChannelConfig, conversations: UserConversations
     ) -> None:
         """Crea el caso de uso.
 
         Args:
-            ports: Usuarios, hilos, registro, envío y aviso de espera.
-            config: Inactividad, aviso, tamaño de mensaje, reloj e ids.
-            service_factory: Crea el servicio conversacional para un repositorio acotado y
-                un hilo activo (o None).
+            ports: Usuarios, registro, envío y aviso de espera.
+            config: Aviso, tamaño de mensaje, reloj e ids.
+            conversations: Servicio conversacional de cada usuario (con la regla de
+                inactividad).
         """
         self._ports = ports
         self._config = config
-        self._service_factory = service_factory
+        self._conversations = conversations
 
     def handle(self, message: IncomingMessage) -> None:
         """Procesa el mensaje; un reenvío del canal (mismo identificador) se ignora.
@@ -138,7 +129,7 @@ class HandleIncomingMessage:
 
     def _converse(self, message: IncomingMessage, user_id: str) -> TurnResult | None:
         """Llama al agente con el aviso de espera programado; None si el modelo falló."""
-        service = self._service_for(user_id)
+        service = self._conversations.service_for(user_id)
         cancel = self._ports.delayed.schedule(
             self._config.wait_notice_seconds, lambda: self._notify_wait(message, user_id)
         )
@@ -148,16 +139,6 @@ class HandleIncomingMessage:
             return None
         finally:
             cancel()
-
-    def _service_for(self, user_id: str) -> ConversationService:
-        """Servicio con el repositorio del usuario y su hilo abierto (cerrado si está inactivo)."""
-        repository = self._ports.threads.scoped(user_id)
-        active = self._ports.threads.open_thread(user_id)
-        now = self._config.clock()
-        if active is not None and is_idle(active.last_activity, now, self._config.idle_timeout):
-            repository.save_thread(close_thread(active.thread, now))
-            active = None
-        return self._service_factory(repository, active.thread.id if active else None)
 
     def _resolve_user(self, message: IncomingMessage) -> str:
         """Busca al usuario de la identidad del canal o lo crea en su primer contacto."""

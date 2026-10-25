@@ -113,9 +113,12 @@ def test_alert_on_missing_thread_raises_key_error(repo: ThreadRepository) -> Non
 def test_alert_on_existing_thread_is_accepted(repo: ThreadRepository) -> None:
     repo.save_thread(open_thread("t1", Domain.CARDIOVASCULAR, "s", NOW))
 
-    repo.append_alert("t1", Alert(("RN-CV-01",), Severity.IMMEDIATE, AlertOrigin.AGENT, NOW))
+    alert = Alert(("RN-CV-01", "RN-CV-02"), Severity.IMMEDIATE, AlertOrigin.AGENT, NOW)
 
-    assert repo.get_thread("t1") is not None
+    repo.append_alert("t1", alert)
+
+    assert repo.all_alerts("t1") == [alert]
+    assert repo.all_alerts("no-existe") == []
 
 
 def test_trace_round_trip_only_for_assistant_messages(repo: ThreadRepository) -> None:

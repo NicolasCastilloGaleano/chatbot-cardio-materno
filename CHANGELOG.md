@@ -5,7 +5,48 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+> **2026-10-25:** la fase 1 de la migración (entradas de MIG-01 a MIG-04 y sus ajustes) se fusionó a `main` junto con la HU-10.
+
+### Fixed
+- **MIG-04:** el verificador de respaldo ya no exime las frases de remisión: una frase hecha solo de "acude a urgencias o llama al 123" pasaba siempre, aunque el registro citado no lo dijera (causa U1). Se retiran `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py` (ADR 0010).
+
+### Changed
+- **Textos de abstención más claros (ADR 0010):** sin evidencia suficiente, "Todavía no tengo suficiente información para orientarte…" (con la pregunta de MIG-03); con el RAG no disponible, "En este momento no puedo consultar la información para orientarte…". Ya no mencionan "información del proyecto" ni "validada".
+- **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).
+
+### Fixed
+- **El texto literal se muestra sin el prefijo** "Según la información validada del proyecto:" (ADR 0010). Que la respuesta es literal sigue en la traza.
+- **Texto literal del registro más parecido (ADR 0010):** si la redacción no se verifica, el texto literal sale del registro de mayor similitud y no del primero que citó el agente. En la prueba del 2026-10-24, "tengo acidez en el embarazo" mostraba el aviso de un registro de preeclampsia que pedía mencionar hipertensión.
+
+### Changed
+- **MIG-01 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md):** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") ya no se descarta como fuera de alcance cuando el análisis la marca como continuación del hilo y el último mensaje del asistente contiene una pregunta (`scope.py::answers_pending_question`, ADR 0009).
+- **MIG-02:** el turno fuera de alcance se registra en el hilo activo sin cambiarlo (sin hilo no se registra ni abre uno) y el mensaje fijo termina en una pregunta de reenganche (ADR 0009). La web solo lo muestra como no guardado si no había hilo, para no duplicarlo, y la línea de depuración de la consola ya no dice que no se registra.
+
 ### Added
+- **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.
+- **HU-10, fase 2 (dominio, aplicación y SQLite):**
+  - Canal `historico`, canales de solo lectura y regla `chat_lock` (`domain/user.py`).
+  - Esquema SQLite v2 con migración automática (`users.live_session_at`).
+  - `UserConversations`, que concentra la regla de inactividad y la creación del servicio por usuario (WhatsApp ahora la usa).
+  - `DirectChat` y `ConsoleChatSession` para chats de consola y web.
+  - Puerto `ChatAudit` + `SqliteChatAudit`: lista de chats, páginas por *keyset*, alertas por turno y mensajes en proceso.
+  - `ThreadRepository.all_alerts`.
+  - Importación única del histórico JSON (`run_import_history.py`), idempotente.
+  - Configuración común `PersistenceSettings` (`DATABASE_PATH`, `THREAD_IDLE_TIMEOUT_HOURS`).
+  - La consola y la web todavía no usan estos componentes (fases 3 a 5).
+- **HU-10, fases 3 y 4 (consola y API web sobre SQLite):**
+  - **Consola** (`bootstrap/console.py`): cada arranque crea un chat en SQLite, muestra su identificador y lo bloquea para la web mientras está abierta. Al salir cierra el hilo y lo libera. `ConsoleChat` recibe la sesión por un `Protocol`.
+  - **API web nueva:** lista de chats con filtro por canal, chat nuevo, páginas por `before`/`after`, mensajes en proceso, envío con 403 en chats de solo lectura y 409 si ya hay un turno en curso, y liberación de chats de consola.
+  - El contrato JSON pasa a `serializers.py`.
+  - Variables `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
+- **HU-10, fase 5 (interfaz gráfica):** tres columnas (chats, conversación, auditoría).
+  - Filtros por canal y chats de solo lectura con candado.
+  - Mensajes de cada hilo con su color y separadores donde cambia el hilo.
+  - Carga hacia arriba por páginas conservando la posición.
+  - Actualización automática con "procesando…" y "mensajes nuevos".
+  - Composer bloqueado con el motivo y botón "Liberar".
+  - Mensajes fuera de alcance mostrados como no guardados.
+  - Respuesta seleccionada resaltada; chat abierto recordado en el navegador; diseño para pantallas angostas.
 - **Especificación propuesta del canal WhatsApp (B-010):** HU-09 (atención por WhatsApp con historial por persona), ADR 0014 (WhatsApp Cloud API con webhook firmado, cola de un trabajador y ngrok) y ADR 0015 (SQLite con usuarios, identidad seudonimizada con HMAC e hilos acotados por usuario, sin cambiar el agente). Aprobados por el equipo el 2026-10-17.
 - **Persistencia SQLite por usuario (HU-09, fase 2, ADR 0015):** entidades `User`, `Channel` y la regla `is_idle` (`domain/user.py`); puertos `UserDirectory`, `UserThreadStore` y `ChannelLog`; adaptadores `SqliteDatabase` (esquema versionado, transacciones, WAL), `SqliteThreadRepository` acotado a un usuario, `SqliteUserThreadStore`, `SqliteUserDirectory` y `SqliteChannelLog`. Sin dependencias nuevas (`sqlite3` de la biblioteca estándar). Aún no la usa ningún canal: la consola y la web siguen con JSON.
 - **Canal WhatsApp (HU-09, fase 3, ADR 0014):** `python run_whatsapp.py` (`bootstrap/whatsapp.py`).
@@ -20,6 +61,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - **HU-09 verificada en el PC de pruebas (2026-10-18)** con el número de prueba de Meta y dos teléfonos. ADR 0014 actualizado con el posible cobro de los mensajes de servicio desde octubre de 2026 (pendiente de confirmar en la facturación de Meta).
 - `ConversationService` acepta `active_thread_id` (opcional) para retomar el hilo abierto de un usuario; sin él, se comporta exactamente igual que antes.
 - Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
+
+### Removed
+- Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
 - `bootstrap/main.py`: `build_conversation` arma los puertos y la configuración del agente; `build_service` la usa y la consola y la web no cambian. `load_web_settings` reutiliza la validación de host local y puerto.

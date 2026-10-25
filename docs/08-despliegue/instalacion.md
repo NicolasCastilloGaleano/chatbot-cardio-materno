@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-18 (HU-09: suscripción de la cuenta de WhatsApp Business)*
+*Última actualización: 2026-10-18 (HU-10: consola y web sobre SQLite)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -43,11 +43,24 @@ git pull
 Si acabas de cambiar a una rama que incorpora dependencias nuevas, instala primero las versiones de esa rama con `.venv/bin/pip install -r requirements.txt`.
 Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa y el estado de la base de conocimiento. Si el índice no existe o no corresponde, aparece `⚠️ RAG no disponible…` con la instrucción para reconstruirlo; el chat sigue, pero sin información de salud.
 
-Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). Cada consulta queda en un hilo, guardado en `data/threads/<id>.json`.
+Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). **Desde la HU-10**, cada arranque de la consola crea su propio chat en `data/cardio_materno.db` y muestra su identificador corto ("Chat de consola 1a2b3c4d…"). Al salir, ese chat se continúa en la interfaz web; la consola no retoma chats anteriores. Si la consola se cierra de golpe, el chat queda "en uso en la consola" hasta liberarlo desde la web.
 
-### Interfaz local de chat y auditoría (HU-08)
-Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). La app carga los mismos modelos, reglas, RAG e hilos que la consola. Haz clic en una respuesta del asistente para inspeccionar la traza y los registros completos de evidencia. Los hilos guardados se pueden consultar en modo de solo lectura; "Nueva sesión" cierra el hilo actual. El servicio escucha solo en el equipo local; no lo expongas a una red ni lo uses con usuarios reales.
+### Interfaz local de auditoría multicanal (HU-08 y HU-10)
+Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). Carga los mismos modelos, reglas y RAG que la consola y lee la base `data/cardio_materno.db`, la misma de la consola y WhatsApp, que pueden correr a la vez.
+- **Izquierda:** los chats de todos los canales, con filtros. 🔒 marca los de solo lectura (WhatsApp, Telegram, Histórico y las consolas abiertas).
+- **Centro:** el chat como una sola conversación. Cada hilo tiene un color, y un separador marca dónde cambia. Al subir con el scroll se cargan los mensajes anteriores (`WEB_PAGE_SIZE`).
+- **Derecha:** la traza de la respuesta que selecciones, con la evidencia completa y las alertas del turno.
+- **Escritura:** solo en chats de consola y web. "Nueva sesión" crea un chat web; un chat de consola se continúa aquí cuando la consola se cierra ("Liberar" si se cerró de golpe).
+- **Actualización:** cada `WEB_POLL_SECONDS` (3 s) aparecen solos los mensajes nuevos. Si una persona escribe por WhatsApp, primero verás "procesando…" y, al terminar el turno, su mensaje y la respuesta.
+- Los mensajes fuera de alcance no se guardan (HU-07) y no aparecen al auditar.
+- No la expongas a una red: muestra datos de salud sin autenticación.
 
+### Importar el histórico JSON (HU-10, una sola vez)
+Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):
+```bash
+.venv/bin/python run_import_history.py
+```
+Quedan en un chat "Histórico" de solo lectura, cerrados y con sus mensajes, trazas y alertas. Repetir el comando no duplica nada. Los archivos JSON no se modifican ni se borran.
 ### Canal WhatsApp (HU-09, ADR 0014 y 0015)
 El canal corre en el PC de pruebas (donde está Ollama). Meta envía cada mensaje a una URL pública HTTPS (el **webhook**); **ngrok** la publica y la reenvía al servidor local `run_whatsapp.py`, que escucha solo en `127.0.0.1:8001`. Cada persona tiene su usuario (identificado por un hash del número, nunca el número) y sus hilos en `data/cardio_materno.db`.
 
@@ -129,9 +142,9 @@ sqlite3 data/cardio_materno.db "SELECT channel_message_id, kind, status, error_c
 **Evidencia (HU-02, ADR 0010):** con `SHOW_THREAD_DEBUG=true`. Anota los `[tiempos …]` de cada turno.
 1. `¿por qué es importante controlar la presión si no me duele nada?` → respuesta con `[evidencia: … | citadas: E…]` y `[respaldo: N/N frases]` (sin "texto literal")
 2. `¿qué puedo comer si tengo acidez en el embarazo?` → la base no tiene registros de alimentación: abstención (`[respaldo: abstención sin LLM …]`) o el texto literal de un registro (`[respaldo: … · texto literal del registro]`). **Nunca** consejos como jengibre, manzanilla o listas de alimentos
-3. Abstención: `tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?` → mensaje fijo "No tengo información validada…", `[evidencia: insuficiente …]`, `[respaldo: abstención sin LLM …]` y **sin** tiempo de `respuesta` en `[tiempos …]`
+3. Abstención: `tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?` → mensaje fijo "Todavía no tengo suficiente información para orientarte…" que termina en una pregunta, `[evidencia: insuficiente …]`, `[respaldo: abstención sin LLM …]` y **sin** tiempo de `respuesta` en `[tiempos …]`
 4. `salir` y abre el JSON más reciente de `data/threads/`: la respuesta del paso 1 tiene `trace` con la evidencia ofrecida, la citada, `grounding` (frases mostradas, total, `literal`, `dropped`) y los tiempos
-5. RAG no disponible: `KB_INDEX_DIR=data/no-existe .venv/bin/python run_console.py` → al arrancar aparece "⚠️ RAG no disponible…"; repite el paso 1: mensaje fijo de abstención y `[evidencia: no disponible …]`
+5. RAG no disponible: `KB_INDEX_DIR=data/no-existe .venv/bin/python run_console.py` → al arrancar aparece "⚠️ RAG no disponible…"; repite el paso 1: mensaje fijo "En este momento no puedo consultar la información…" (sin pregunta) y `[evidencia: no disponible …]`
 6. Latencia: anota los `[tiempos …]` de los pasos 1 y 2. El embedder ya corre en CPU por defecto y los modelos se cargan al arrancar, así que el primer turno ya no debería ser más lento
 7. Si una respuesta muestra el texto literal, copia la línea `[respaldo …]` y el `grounding.dropped` del JSON: sirven para calibrar `min_support`
 
@@ -204,6 +217,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 |---|---|---|
 | `WEB_HOST` | `127.0.0.1` | Dirección de escucha. Solo `127.0.0.1`, `localhost` o `::1`: cualquier otra impide arrancar, porque la interfaz muestra datos de salud sin autenticación |
 | `WEB_PORT` | `8000` | Puerto |
+| `WEB_PAGE_SIZE` | `30` | Mensajes por página al abrir un chat o subir con el scroll (1 a 200) |
+| `WEB_POLL_SECONDS` | `3` | Segundos entre consultas de mensajes nuevos (actualización automática) |
 
 **6. Alarmas, hilos y consola**
 | Variable | Por defecto | Para qué |
@@ -211,7 +226,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `ALARM_RULES_FILE` | `knowledge/alarm_rules.json` | Catálogo de reglas de alarma (PROVISIONAL) |
 | `THREAD_CONTEXT_MESSAGES` | `6` | Mensajes recientes del hilo que se envían al agente |
 | `SHOW_THREAD_DEBUG` | `true` | Muestra las líneas de depuración |
-| `THREADS_DIR` | `data/threads` | Carpeta de los JSON de los hilos |
+| `THREADS_DIR` | `data/threads` | Carpeta de los hilos JSON anteriores a la HU-10; solo la usa `run_import_history.py` |
 
 **7. Canal WhatsApp y persistencia por usuario (ADR 0014 y 0015)**
 | Variable | Por defecto | Para qué |

@@ -52,6 +52,10 @@ class ThreadRepository(Protocol):
         """
         ...
 
+    def all_alerts(self, thread_id: str) -> list[Alert]:
+        """Devuelve las alertas del hilo en orden de registro (vacío si no existe)."""
+        ...
+
     def recent_messages(self, thread_id: str, limit: int) -> list[ChatMessage]:
         """Devuelve los últimos `limit` mensajes del hilo, del más antiguo al más reciente."""
         ...

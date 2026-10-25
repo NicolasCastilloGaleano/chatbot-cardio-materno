@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -87,6 +87,11 @@ SCHEMA_V1: tuple[str, ...] = (
 )
 
 
+# v2 (ADR 0016): un chat de consola abierto queda marcado para que la web no escriba en él.
+SCHEMA_V2: tuple[str, ...] = ("ALTER TABLE users ADD COLUMN live_session_at TEXT",)
+MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2}
+
+
 class DatabaseVersionError(RuntimeError):
     """La base de datos tiene un esquema más nuevo que el que conoce esta versión."""
 
@@ -142,18 +147,22 @@ class SqliteDatabase:
             self._connection.close()
 
     def _migrate(self) -> None:
-        """Crea las tablas si la base es nueva; rechaza esquemas desconocidos."""
-        version = int(self.query("PRAGMA user_version")[0][0])
-        if version > SCHEMA_VERSION:
-            raise DatabaseVersionError(
-                f"La base tiene el esquema {version} y esta versión solo conoce hasta "
-                f"el {SCHEMA_VERSION}."
-            )
-        if version == 0:
-            with self.transaction() as connection:
-                for statement in SCHEMA_V1:
+        """Aplica las versiones pendientes del esquema; rechaza esquemas desconocidos.
+
+        La versión se vuelve a leer dentro de la transacción: si otro proceso (p. ej., la
+        web y WhatsApp a la vez) ya migró, no se repite.
+        """
+        with self.transaction() as connection:
+            version = int(connection.execute("PRAGMA user_version").fetchone()[0])
+            if version > SCHEMA_VERSION:
+                raise DatabaseVersionError(
+                    f"La base tiene el esquema {version} y esta versión solo conoce hasta "
+                    f"el {SCHEMA_VERSION}."
+                )
+            for step in range(version + 1, SCHEMA_VERSION + 1):
+                for statement in MIGRATIONS[step]:
                     connection.execute(statement)
-                connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
 def _connect(path: Path | str) -> sqlite3.Connection:

@@ -18,6 +18,8 @@ from cardio_materno.application.ports.knowledge_retriever import (
     KnowledgeRetriever,
 )
 from cardio_materno.application.ports.thread_repository import ThreadRepository
+from cardio_materno.application.ports.user_thread_store import UserThreadStore
+from cardio_materno.application.user_conversations import UserConversations
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
@@ -215,6 +217,22 @@ def make_service(
     )
 
 
+def make_user_conversations(
+    agent: "ScriptedAgent",
+    threads: UserThreadStore,
+    clock: "FakeClock",
+    idle_timeout: timedelta = timedelta(hours=12),
+    service_config: dict[str, Any] | None = None,
+) -> UserConversations:
+    """Servicio por usuario con el agente guionizado, reloj compartido e ids hilo-1, hilo-2…"""
+    options = {"clock": clock, "new_id": SequentialIds()} | (service_config or {})
+
+    def factory(repository: ThreadRepository, active: str | None) -> ConversationService:
+        return make_service(agent, repository, options, active_thread_id=active)
+
+    return UserConversations(threads, factory, idle_timeout, clock)
+
+
 class FakeTimer:
     """Reloj monotónico que avanza medio segundo en cada lectura."""
 
@@ -256,6 +274,9 @@ class InMemoryThreadRepository:
         if thread_id not in self.threads:
             raise KeyError(thread_id)
         self.alerts.setdefault(thread_id, []).append(alert)
+
+    def all_alerts(self, thread_id: str) -> list[Alert]:
+        return list(self.alerts.get(thread_id, []))
 
     def recent_messages(self, thread_id: str, limit: int) -> list[ChatMessage]:
         return self.messages.get(thread_id, [])[-limit:] if limit > 0 else []
