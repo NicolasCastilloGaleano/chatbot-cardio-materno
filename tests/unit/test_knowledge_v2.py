@@ -18,6 +18,8 @@ from cardio_materno.adapters.outbound.rag.knowledge_files import (
     write_jsonl,
 )
 from cardio_materno.adapters.outbound.rag.vector_index import IndexManifest, VectorIndex
+from cardio_materno.bootstrap.rag_setup import load_profiles_for
+from cardio_materno.bootstrap.settings import load_rag_settings
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.knowledge import (
     STAGE_FOCUS,
@@ -161,3 +163,30 @@ def test_index_built_from_another_version_of_the_file_is_rejected(tmp_path: Path
 
     with pytest.raises(KnowledgeBaseError, match="cambió"):
         check_entries_file(index, path)
+
+
+# --- Activación por .env (MIG-07) --------------------------------------------------------------
+
+
+def test_profiles_are_loaded_only_for_a_base_with_cases(tmp_path: Path) -> None:
+    path = tmp_path / "cuadros.jsonl"
+    v1 = KnowledgeEntry(
+        "abc", Domain.CARDIOVASCULAR, "Presión", Focus.SOLVE, "¿Qué es?", "Es la presión."
+    )
+    v2 = [v2_entry(Stage.DISCRIMINATORS)]
+
+    assert load_profiles_for([v1], path) == {}
+    with pytest.raises(KnowledgeBaseError):
+        load_profiles_for(v2, path)
+    other = CaseProfile(**(vars(profile()) | {"motive": "fiebre_bebe"}))
+    write_jsonl([case_profile_to_dict(other)], path)
+    with pytest.raises(KnowledgeBaseError, match=MOTIVE):
+        load_profiles_for(v2, path)
+    write_jsonl([case_profile_to_dict(profile())], path)
+    assert set(load_profiles_for(v2, path)) == {MOTIVE}
+
+
+def test_cases_file_setting_has_a_default_and_can_be_changed(tmp_path: Path) -> None:
+    assert load_rag_settings({}, tmp_path).cases_file == tmp_path / "knowledge/kb/cuadros.jsonl"
+    custom = load_rag_settings({"KB_CASES_FILE": "data/kb_v2/cuadros.jsonl"}, tmp_path)
+    assert custom.cases_file == tmp_path / "data/kb_v2/cuadros.jsonl"

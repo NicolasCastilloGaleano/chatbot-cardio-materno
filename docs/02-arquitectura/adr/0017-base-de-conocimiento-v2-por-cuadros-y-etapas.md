@@ -37,3 +37,9 @@ El código solo admitía los enfoques `Indagar` y `Solucionar` y seis campos por
 - ⚠️ Mientras convivan, el código acepta las dos versiones de la base. MIG-07 debe retirar `Solucionar` y la rama v1.
 - ⚠️ Cargar la base v2 no cambia todavía cómo se busca: aprovechar las etapas (estado del caso y recuperación por etapa) es la fase 3 del plan.
 - ⏳ Pendiente: aprobación de este ADR, decisión sobre la validación de la base (P1) y sobre reemplazar la base v1 (P7), y luego MIG-07 en el PC de pruebas.
+
+## Actualización 2026-10-25: activación por `.env` (MIG-07)
+- La base v2 se prueba **sin reemplazar la v1**: `KB_ENTRIES_FILE` y `KB_INDEX_DIR` apuntan a la conversión y a su propio índice, y `KB_CASES_FILE` (por defecto `knowledge/kb/cuadros.jsonl`) a los cuadros. Volver a la v1 es comentar esas líneas.
+- Al arrancar, `bootstrap/rag_setup.py::load_profiles_for` lee los cuadros solo si la base los usa. Si falta el archivo o un motivo de la base, el RAG queda no disponible con el error (el asistente se abstiene), igual que con un índice incompatible. Los cuadros quedan en `RagSetup.case_profiles`, todavía sin uso en la conversación (fase 3).
+- El conversor indica las variables de `.env` cuando escribe en otra carpeta, para no reconstruir por error el índice de la v1.
+- Reemplazar la v1 (retirar `Solucionar` y la rama v1, recalibrar `evidence_policy.json`) sigue pendiente de las puertas P1 y P7; la medición con `scripts/evaluate_kb_v2.py` (MIG-08) es el insumo para decidir.

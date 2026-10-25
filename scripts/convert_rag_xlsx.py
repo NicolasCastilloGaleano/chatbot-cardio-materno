@@ -44,6 +44,8 @@ OUTPUT_ARG = 2
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "knowledge" / "kb"
 ENTRIES_FILE = "entries.jsonl"
 CASES_FILE = "cuadros.jsonl"
+# Índice sugerido para probar la base v2 sin tocar el de la v1 (MIG-07).
+TRIAL_INDEX_DIR = "data/kb_index_v2"
 HEADER_ROW = 1  # Número de fila (como en Excel) de los encabezados.
 LIST_SEPARATOR = "|"
 ID_TEMPLATE = "{domain}:{motive}:{stage}"
@@ -301,6 +303,29 @@ def write_outputs(result: Conversion, output_dir: Path) -> None:
     write_jsonl((case_profile_to_dict(profile) for profile in profiles), output_dir / CASES_FILE)
 
 
+def next_step_lines(output_dir: Path) -> list[str]:
+    """Qué hacer después de convertir: reconstruir el índice, o antes configurar `.env`.
+
+    Args:
+        output_dir: Carpeta donde quedaron los archivos.
+
+    Returns:
+        Las líneas a mostrar. Si la carpeta no es la de la base versionada, indica las
+        variables de `.env` para probarla sin reemplazar la base v1.
+    """
+    build = "python run_build_kb_index.py"
+    if output_dir.resolve() == DEFAULT_OUTPUT_DIR.resolve():
+        return [f"Siguiente paso: {build}"]
+    folder = output_dir.as_posix()
+    return [
+        "Para probarla sin reemplazar la base actual, pon en .env:",
+        f"  KB_ENTRIES_FILE={folder}/{ENTRIES_FILE}",
+        f"  KB_CASES_FILE={folder}/{CASES_FILE}",
+        f"  KB_INDEX_DIR={TRIAL_INDEX_DIR}",
+        f"y después: {build}",
+    ]
+
+
 def main(argv: list[str]) -> int:
     """Punto de entrada del script: 0 si escribió los archivos, 1 si no."""
     if len(argv) <= SOURCE_ARG:
@@ -318,7 +343,7 @@ def main(argv: list[str]) -> int:
         return 1
     write_outputs(result, output_dir)
     print(f"Escritos {ENTRIES_FILE} y {CASES_FILE} en {output_dir}")
-    print("Siguiente paso: python run_build_kb_index.py")
+    print("\n".join(next_step_lines(output_dir)))
     return 0
 
 

@@ -253,6 +253,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 #### MIG-07 Carga, reindexado y recalibración
 - **Pasos:** generar los JSONL, reconstruir el índice (`run_build_kb_index.py`), recalibrar `evidence_policy.json` (v2.0.0) con el conjunto de Preguntas, actualizar `tests/live/test_live_rag.py`.
 - **Puertas:** P1 y P7.
+- **Estado (2026-10-25):** en la migración paso a paso se dividió en dos. Hecho: activar la v2 por `.env` con su propio índice, sin reemplazar la v1 (`KB_CASES_FILE`, `load_profiles_for`). Pendiente de P1 y P7: reemplazar la v1, retirar `Solucionar` y recalibrar `evidence_policy.json`.
 - **Documentos:** `knowledge/kb/README.md` (estado de validación), CHANGELOG, `riesgos-ia.md`.
 
 #### MIG-08 Conjuntos de evaluación (#23)

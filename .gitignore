@@ -23,6 +23,11 @@ data/private/
 data/threads/
 # Índice vectorial derivado de knowledge/kb/entries.jsonl (se reconstruye)
 data/kb_index/
+# Hoja maestra de la base v2 (la mantiene el equipo, no se versiona) y su conversión para
+# probarla sin reemplazar la v1 (MIG-07)
+RAG_2.xlsx
+data/kb_v2/
+data/kb_index_v2/
 *.sqlite3
 *.db
 

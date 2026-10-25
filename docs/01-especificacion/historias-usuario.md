@@ -149,6 +149,13 @@ Escenario: El índice corresponde al archivo exacto de la base (MIG-06)
   Cuando se edita el texto de un registro sin cambiar su id
   Entonces al arrancar se avisa que hay que reconstruir el índice y el asistente se abstiene hasta hacerlo
 
+Escenario: Probar la base v2 sin reemplazar la v1 (MIG-07)
+  Dado KB_ENTRIES_FILE, KB_CASES_FILE y KB_INDEX_DIR apuntando a la conversión de la base v2 y a su índice
+  Cuando arranca el asistente
+  Entonces informa los registros y los cuadros cargados
+  Y la base v1 y su índice no cambian
+  Y si falta el archivo de cuadros o uno de sus motivos, el RAG queda no disponible y el asistente se abstiene
+
 Escenario: Registros coherentes con su etapa (MIG-05, ADR 0017 propuesto)
   Cuando se carga un registro con etapa cuyo enfoque o ruta no corresponden a ella, o sin motivo
   Entonces la carga falla indicando la línea del archivo

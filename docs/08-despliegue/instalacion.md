@@ -61,6 +61,27 @@ Los hilos de consola y web anteriores a la migración están en `data/threads/*.
 .venv/bin/python run_import_history.py
 ```
 Quedan en un chat "Histórico" de solo lectura, cerrados y con sus mensajes, trazas y alertas. Repetir el comando no duplica nada. Los archivos JSON no se modifican ni se borran.
+### Probar la base v2 sin reemplazar la v1 (MIG-07, ADR 0017 propuesto)
+La hoja maestra (`RAG_2.xlsx`) no se versiona: cópiala en la raíz del proyecto (está en `.gitignore`). Conviértela a otra carpeta, apunta `.env` a ella y construye un índice aparte:
+```bash
+python scripts/convert_rag_xlsx.py RAG_2.xlsx data/kb_v2
+```
+En `.env` (sección 4):
+```
+KB_ENTRIES_FILE=data/kb_v2/entries.jsonl
+KB_CASES_FILE=data/kb_v2/cuadros.jsonl
+KB_INDEX_DIR=data/kb_index_v2
+```
+```bash
+python run_build_kb_index.py
+python run_web.py
+```
+Al arrancar debe decir `Base de conocimiento: 2304 registros · … · base v2 con 192 cuadros`. Construir el índice de 2.304 registros tarda unos minutos.
+
+- La base v1 y su índice (`data/kb_index`) no se tocan: para volver, comenta las tres líneas y reinicia.
+- En este paso la búsqueda sigue siendo solo por similitud y el umbral (0,50) está calibrado para la v1. Las etapas se aprovechan en la fase 3 del [plan de migración](../00-gestion/plan-migracion-rag2.md).
+- Sirve para evaluar la v2, **no** para usarla con personas reales: aún no está validada (puerta P1).
+
 ### Canal WhatsApp (HU-09, ADR 0014 y 0015)
 El canal corre en el PC de pruebas (donde está Ollama). Meta envía cada mensaje a una URL pública HTTPS (el **webhook**); **ngrok** la publica y la reenvía al servidor local `run_whatsapp.py`, que escucha solo en `127.0.0.1:8001`. Cada persona tiene su usuario (identificado por un hash del número, nunca el número) y sus hilos en `data/cardio_materno.db`.
 
@@ -201,6 +222,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `OLLAMA_EMBED_NUM_GPU` | `0` | Capas del embedder en GPU: `0` = CPU (deja la GPU al LLM), `auto` = decide Ollama |
 | `EMBED_BATCH_SIZE` | `16` | Textos por lote al construir el índice |
 | `KB_ENTRIES_FILE` / `KB_INDEX_DIR` | `knowledge/kb/entries.jsonl` / `data/kb_index` | Base de conocimiento e índice (derivado) |
+| `KB_CASES_FILE` | `knowledge/kb/cuadros.jsonl` | Cuadros de la base v2 (ADR 0017). Solo se lee si la base tiene cuadros; si falta o le falta un cuadro, el RAG queda no disponible |
 | `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Valores calibrados por defecto (umbral, top-k, instrucción de consulta) |
 | `RAG_MIN_SIMILARITY` | (archivo: `0.50`) | Similitud mínima para que un registro cuente como evidencia (0 a 1). **0,55 → 0,50 por decisión del equipo (2026-10-12)** |
 | `RAG_TOP_K` / `RAG_CANDIDATE_K` | (archivo: `3` / `12`) | Registros que se entregan al agente / candidatos antes de fusionar |

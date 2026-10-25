@@ -140,6 +140,16 @@ def test_complete_case_is_converted_to_entries_and_case_profile(
     assert "Sugiere" not in (tmp_path / "salida" / ENTRIES_FILE).read_text(encoding="utf-8")
 
 
+def test_converting_to_another_folder_explains_the_env_variables(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert convert(tmp_path, case_rows()) == 0
+
+    out = capsys.readouterr().out
+    assert f"KB_CASES_FILE={(tmp_path / 'salida').as_posix()}/{CASES_FILE}" in out
+    assert "KB_INDEX_DIR=data/kb_index_v2" in out
+
+
 def test_case_with_a_missing_stage_writes_nothing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
