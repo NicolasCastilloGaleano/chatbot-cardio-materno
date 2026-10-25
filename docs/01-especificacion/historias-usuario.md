@@ -66,6 +66,13 @@ Escenario: El contexto enviado al agente está acotado
   Cuando escribo un mensaje nuevo
   Entonces al agente solo se envían el prompt de sistema, el JSON del hilo actual, los últimos N mensajes del hilo y el mensaje nuevo
 
+Escenario: El hilo recuerda el cuadro y las etapas de la base v2 (MIG-09, ADR 0018 propuesto)
+  Dado que la base v2 está activa y el asistente respondió con un registro del cuadro "fiebre_bebe" en la etapa T1
+  Cuando continúo el mismo tema y la respuesta usa el registro de la etapa T2 del mismo cuadro
+  Entonces la traza de la respuesta guarda el cuadro, la etapa T2 y las etapas vistas "T1, T2"
+  Y si cambio de tema, el caso empieza de nuevo con el cuadro del nuevo registro
+  Y con la base v1 las respuestas no tienen cuadro
+
 Escenario: Salir cierra el hilo activo
   Dado que hay un hilo abierto
   Cuando escribo "salir"

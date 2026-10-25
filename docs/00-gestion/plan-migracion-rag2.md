@@ -274,6 +274,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Código:** `domain/case_state.py`, adaptadores JSON y SQLite, `ThreadRepository`, `tests/unit/test_thread_repository_contract.py`.
 - **Documentos:** ADR nuevo "Estado del caso" (extiende ADR 0006 y 0015), HU-06, `modelo-datos.md`.
 - **Criterios:** el estado sobrevive entre turnos y reinicios en los dos adaptadores; nunca guarda datos personales.
+- **Estado (2026-10-25):** hecho en `feat/migracion-rag2-fase3` con el [ADR 0018](../02-arquitectura/adr/0018-estado-del-caso-y-evidencia-por-etapas.md) (propuesto). El estado viaja en la traza de cada respuesta en vez de en una columna del hilo, así que no cambian los adaptadores ni el contrato (que ahora prueba la traza con estado). En este paso solo se observa, desde el registro principal citado.
 
 #### MIG-10 Identificación del motivo por recuperación (#10; alternativa a #17)
 - **Idea:** el motivo se elige por votación de los mejores registros recuperados (en ambos dominios mientras no esté fijado) y queda fijado en el `CaseState`. Un cambio de tema detectado por el análisis (`thread_action = nuevo`) lo libera.

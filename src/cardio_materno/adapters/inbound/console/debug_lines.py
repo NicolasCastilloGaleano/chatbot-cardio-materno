@@ -19,6 +19,7 @@ SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
 UNSTATED_DEBUG_TEMPLATE = "[⚠️ datos que la persona no escribió: {symptoms}]"
 SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}]"
 SIGNS_DEBUG_TEMPLATE = "[signos marcados: {codes}]"
+CASE_DEBUG_TEMPLATE = "[cuadro: {motive} · etapa {stage} · vistas: {visited}]"
 NO_SYMPTOMS_TEXT = "ninguno"
 AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
 EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
@@ -65,11 +66,23 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         else "",
         format_unstated_debug(trace),
         SEARCH_DEBUG_TEMPLATE.format(query=trace.search_query) if trace.search_query else "",
+        format_case_debug(trace),
         format_evidence_debug(trace),
         format_grounding_debug(trace),
         format_timings_debug(trace.timings) if trace.timings else "",
     ]
     return [line for line in optional if line]
+
+
+def format_case_debug(trace: ReplyTrace) -> str:
+    """Cuadro y etapa de la base v2 (ADR 0018), o "" si la respuesta no tiene cuadro."""
+    if not trace.case_motive:
+        return ""
+    return CASE_DEBUG_TEMPLATE.format(
+        motive=trace.case_motive,
+        stage=trace.case_stage,
+        visited=", ".join(trace.case_visited),
+    )
 
 
 def format_unstated_debug(trace: ReplyTrace) -> str:

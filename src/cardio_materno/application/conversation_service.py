@@ -42,6 +42,7 @@ from cardio_materno.application.agent_turn import (
     reply_schema,
 )
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
+from cardio_materno.application.case_flow import case_after_reply
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
 from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
@@ -56,6 +57,7 @@ from cardio_materno.application.scope import (
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
 from cardio_materno.domain.alarms import Alert, AlertOrigin
+from cardio_materno.domain.case_state import CaseState
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -323,7 +325,9 @@ class ConversationService:
             draft, retrieval.items, turn.user_text, self._config.grounding
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
-        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
+        case = case_after_reply(analysis, turn.recent, retrieval.items, grounded.cited)
+        outcome = TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
+        return with_case(outcome, case)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
@@ -504,6 +508,19 @@ def with_search_query(outcome: TurnOutcome, query_text: str) -> TurnOutcome:
     if outcome.trace is None:
         return outcome
     return replace(outcome, trace=replace(outcome.trace, search_query=query_text))
+
+
+def with_case(outcome: TurnOutcome, case: CaseState | None) -> TurnOutcome:
+    """Guarda en la traza el estado del caso tras el turno (base v2, ADR 0018)."""
+    if outcome.trace is None or case is None:
+        return outcome
+    trace = replace(
+        outcome.trace,
+        case_motive=case.motive,
+        case_stage=str(case.stage),
+        case_visited=tuple(str(stage) for stage in case.visited),
+    )
+    return replace(outcome, trace=trace)
 
 
 def with_unstated_details(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:

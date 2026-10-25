@@ -56,6 +56,7 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `unstated_symptoms` | lista de string | Síntomas con números (semanas, meses, edades) que la persona no escribió en el hilo, o con marcadores copiados del prompt ("[N]"): el análisis los inventó, arrastró o copió. Solo para auditar: el síntoma se sigue revisando con las reglas de alarma | `["acidez en el embarazo de 34 semanas"]` |
 | `reported_signs` | lista de string | Códigos de signos del catálogo que marcó el análisis (ADR 0012) | `["VOMITA_TODO"]` |
 | `search_query` | string | Consulta con la que se buscó la evidencia ("" si no se buscó) | `presión arterial alta` |
+| `case` | objeto (opcional) | Estado del caso con la base v2 ([ADR 0018](../02-arquitectura/adr/0018-estado-del-caso-y-evidencia-por-etapas.md)): `motive` (cuadro), `stage` (etapa del registro principal) y `visited` (etapas del cuadro ya mostradas en el hilo, en orden). Solo aparece si el registro principal es de la base v2 | `{"motive": "fiebre_bebe", "stage": "T2_caracterizacion", "visited": ["T1_discriminantes", "T2_caracterizacion"]}` |
 | `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro) y `dropped` (frases descartadas). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"]}` |
 
 ### Entidad: `KNOWLEDGE_ENTRY` (base de conocimiento, `knowledge/kb/entries.jsonl`)

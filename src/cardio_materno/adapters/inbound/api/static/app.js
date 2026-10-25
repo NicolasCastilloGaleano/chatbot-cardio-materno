@@ -476,6 +476,7 @@ function traceSections(trace, thread) {
   if (trace.unstated_symptoms?.length) sections.push(section("Datos que no escribió la persona", tags(trace.unstated_symptoms, true)));
   sections.push(
     section("Consulta de búsqueda", trace.search_query || "No se registró consulta."),
+    ...(trace.case ? [section("Cuadro y etapa (base v2)", metricGrid([["Cuadro", trace.case.motive], ["Etapa", trace.case.stage], ["Etapas vistas", trace.case.visited.join(", ")]]))] : []),
     section("Recuperación de evidencia", metricGrid([["Estado", trace.retrieval_status], ["Mejor puntaje", trace.best_score == null ? "—" : Number(trace.best_score).toFixed(2)], ["Citas", trace.cited_evidence.join(", ") || "Ninguna"], ["Respuesta sin citas", trace.uncited ? "Sí" : "No"]])),
     section("Registros recuperados", evidenceList(trace)),
     ...groundingSections(trace.grounding),
