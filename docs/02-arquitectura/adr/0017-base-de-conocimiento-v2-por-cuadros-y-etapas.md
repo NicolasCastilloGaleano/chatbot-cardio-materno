@@ -18,8 +18,8 @@ El código solo admitía los enfoques `Indagar` y `Solucionar` y seis campos por
    - Los datos comunes del cuadro van en una entidad aparte, `CaseProfile`. Así la **lectura clínica**, que es lenguaje diagnóstico, nunca forma parte de la evidencia que ve el agente ni de lo que se muestra a la persona.
 2. **Archivos:** `knowledge/kb/entries.jsonl` (un registro por línea; los campos v2 solo aparecen en registros con etapa) y `knowledge/kb/cuadros.jsonl` (un cuadro por línea).
 3. **Identificador estable:** `dominio:motivo:etapa` (p. ej., `materno_infantil:colico_lactante:T1_discriminantes`). Es único y legible, y no cambia si se corrige el texto.
-4. *(MIG-06, siguiente paso)* **Compatibilidad del índice:** como el id no cambia al editar un texto, comparar los ids ya no basta. Al arrancar se compara también el hash del archivo con `entries_sha256` del manifiesto del índice (`hybrid_retriever.check_entries_file`).
-5. *(MIG-06, siguiente paso)* **Conversor** `scripts/convert_rag_xlsx.py` (con `scripts/xlsx_reader.py`), **solo con la biblioteca estándar**: lee las dos hojas, valida columnas, celdas obligatorias, coherencia enfoque/etapa/ruta, 12 etapas por cuadro y datos del cuadro iguales en sus filas, y escribe los dos archivos. Si hay un error, no escribe nada. Advierte si faltan los datos de validación.
+4. **Compatibilidad del índice:** como el id no cambia al editar un texto, comparar los ids ya no basta. Al arrancar se compara también el hash del archivo con `entries_sha256` del manifiesto del índice (`hybrid_retriever.check_entries_file`).
+5. **Conversor** `scripts/convert_rag_xlsx.py` (con `scripts/xlsx_reader.py`), **solo con la biblioteca estándar**: lee las dos hojas, valida columnas, celdas obligatorias, coherencia enfoque/etapa/ruta, 12 etapas por cuadro y datos del cuadro iguales en sus filas, y escribe los dos archivos. Si hay un error, no escribe nada. Advierte si faltan los datos de validación.
 6. El Excel sigue siendo la **hoja maestra del equipo** y no se versiona; se versionan los JSONL que genera el conversor.
 
 ## Alternativas consideradas

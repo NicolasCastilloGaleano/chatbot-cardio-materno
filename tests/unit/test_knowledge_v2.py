@@ -3,17 +3,21 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from cardio_materno.adapters.outbound.rag.hybrid_retriever import check_entries_file
 from cardio_materno.adapters.outbound.rag.knowledge_files import (
     KnowledgeBaseError,
     case_profile_to_dict,
     entry_to_dict,
+    file_digest,
     load_case_profiles,
     load_entries,
     parse_entry,
     write_jsonl,
 )
+from cardio_materno.adapters.outbound.rag.vector_index import IndexManifest, VectorIndex
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.knowledge import (
     STAGE_FOCUS,
@@ -144,3 +148,16 @@ def test_case_profiles_round_trip_and_missing_file_is_an_error(tmp_path: Path) -
     assert load_case_profiles(path) == [profile()]
     with pytest.raises(KnowledgeBaseError, match="cuadros"):
         load_case_profiles(tmp_path / "no-existe.jsonl")
+
+
+def test_index_built_from_another_version_of_the_file_is_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "entries.jsonl"
+    path.write_text("contenido original\n", encoding="utf-8")
+    manifest = IndexManifest("modelo", 1, file_digest(path), "2026-10-22", 1)
+    index = VectorIndex(["a"], np.ones((1, 1), dtype=np.float32), manifest)
+
+    check_entries_file(index, path)
+    path.write_text("contenido editado\n", encoding="utf-8")
+
+    with pytest.raises(KnowledgeBaseError, match="cambió"):
+        check_entries_file(index, path)

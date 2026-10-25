@@ -131,6 +131,24 @@ Escenario: El texto literal sale del registro más parecido (2026-10-24)
   Entonces se muestra el texto literal del registro de acidez, que es el más parecido a la consulta
   Y ante un empate de similitud se usa el registro que citó el agente
 
+Escenario: Conversión de la hoja maestra de la base v2 (MIG-06, ADR 0017 propuesto)
+  Dado el Excel de la base v2 con sus hojas CARDIOVASCULAR y MATERNO-INFANTIL
+  Cuando ejecuto "python scripts/convert_rag_xlsx.py RAG_2.xlsx <carpeta>"
+  Entonces se escriben entries.jsonl (un registro por fila) y cuadros.jsonl (un cuadro por motivo)
+  Y cada registro tiene el id "dominio:motivo:etapa"
+  Y la lectura clínica solo queda en cuadros.jsonl, nunca en los registros que ve el agente
+  Y se advierte cuántos registros no tienen Fuente, Validado por y Fecha validación
+
+Escenario: La hoja con errores no se convierte (MIG-06)
+  Cuando a un cuadro le falta una etapa, una etapa tiene un enfoque o una ruta que no le corresponde, una celda obligatoria está vacía o los datos del cuadro difieren entre sus filas
+  Entonces el conversor informa cada error con su hoja y su fila
+  Y no escribe ningún archivo
+
+Escenario: El índice corresponde al archivo exacto de la base (MIG-06)
+  Dado un índice construido con una versión de entries.jsonl
+  Cuando se edita el texto de un registro sin cambiar su id
+  Entonces al arrancar se avisa que hay que reconstruir el índice y el asistente se abstiene hasta hacerlo
+
 Escenario: Registros coherentes con su etapa (MIG-05, ADR 0017 propuesto)
   Cuando se carga un registro con etapa cuyo enfoque o ruta no corresponden a ella, o sin motivo
   Entonces la carga falla indicando la línea del archivo
