@@ -239,6 +239,8 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 
 ### Fase 2: integración de la base v2 (orden estricto)
 
+> **Estado (2026-10-25):** ✅ terminada y verificada en el PC de pruebas, aplicada paso a paso en `feat/migracion-rag2-fase2` (sin fusionar). La v2 se prueba por `.env` sin reemplazar la v1; el reemplazo y la recalibración esperan P1 y P7. Línea base medida con MIG-08 (preguntas de T1 y verificación, sin filtro por etapa): cuadro correcto primero en 238/384 (62 %) y entre los tres primeros en 324/384 (84 %); similitud del primero al acertar p25 0,64 · p50 0,67 y al fallar p25 0,61 · p50 0,65; con el umbral 0,50 solo 2 aciertos quedan por debajo; el primer resultado es de una etapa de orientación, remisión o acompañamiento en 76 de 384 (20 %), 20 de ellos `traslado_urgencias`.
+
 #### MIG-05 Modelo de datos de la base v2 (#22)
 - **Código:** `domain/knowledge.py` (`Focus` de 4 valores, enumeraciones `Stage` y `Route`, campos `motive`, `stage`, `route`; entidad `CaseProfile` con lectura clínica, datos a extraer, señales y ruta base), `knowledge_files.py`, `tests/unit/fakes.py`, `test_rag_components.py`.
 - **Datos:** `knowledge/kb/entries.jsonl` (2.304) + `knowledge/kb/cuadros.jsonl` (192).
@@ -277,7 +279,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Idea:** el motivo se elige por votación de los mejores registros recuperados (en ambos dominios mientras no esté fijado) y queda fijado en el `CaseState`. Un cambio de tema detectado por el análisis (`thread_action = nuevo`) lo libera.
 - **Código:** `application/evidence.py`, `hybrid_retriever.py`.
 - **Documentos:** ADR 0008 (enmienda), HU-02.
-- **Criterios:** precisión de motivo medida con MIG-08 por encima de un umbral que decide el equipo.
+- **Criterios:** precisión de motivo medida con MIG-08 por encima de un umbral que decide el equipo. Línea base sin fijar el cuadro: 62 % primero, 84 % entre los tres primeros. Como la similitud de aciertos y fallos se solapa, un solo resultado no basta: hay que votar entre los primeros y confirmar con la pregunta de verificación.
 
 #### MIG-11 Máquina de etapas y filtro por etapa (#15, #12)
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
