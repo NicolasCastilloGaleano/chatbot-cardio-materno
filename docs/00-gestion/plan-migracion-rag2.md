@@ -286,6 +286,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
 - **Código:** nuevo módulo de aplicación para la transición de etapas; `HybridRetriever._allowed_ids` filtra por motivo y etapa.
 - **Documentos:** HU-02, HU-05, `flujo-conversacional.md`, BPMN si cambia el flujo.
+- **Evidencia (prueba de MIG-09, 2026-10-25):** en un caso de llanto del lactante, la persona respondió las preguntas de T1 y el asistente le volvió a mostrar el mismo registro T1, palabra por palabra: la consulta reformulada repite la queja inicial y sin filtro por etapa la similitud elige siempre el mismo registro.
 - **Evidencia (prueba de MIG-07, 2026-10-25):** con la v2 elegida solo por similitud, el primer turno recuperó registros de etapas posteriores (`verificacion_del_cuadro`, `evolucion_leve`) y el agente repitió datos que la persona no dio ("en la cocina", "que la acidez haya cedido"). La verificación no lo detecta porque esos datos están en el registro: restringir la etapa es lo que lo evita.
 
 #### MIG-12 Prompt de respuesta v4 y auditor de salida (#16, #20)
@@ -313,7 +314,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 |---|---|---|
 | MIG-19 | Seguimiento programado tras una alarma con `ThreadingDelayedActions` y registros `apoyo_en_espera` (#21) | P5, HU-01 |
 | MIG-20 | Métricas en el panel web: % de turnos con contrapregunta, urgencias por filtro, abstenciones, profundidad de indagación (#24) | — |
-| MIG-21 | `num_ctx`, multi-consulta en CPU y paralelismo según hardware (#13, #17–#19) | P6 |
+| MIG-21 | `num_ctx`, multi-consulta en CPU y paralelismo según hardware (#13, #17–#19). Medición del 2026-10-25: el análisis tarda 24 s en un hilo nuevo y 55–75 s a partir del segundo turno, porque crece con el contexto del hilo (resumen y respuestas largas recientes) | P6 |
 
 ---
 
