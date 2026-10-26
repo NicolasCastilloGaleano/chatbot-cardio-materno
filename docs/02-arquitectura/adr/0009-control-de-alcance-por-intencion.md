@@ -41,3 +41,8 @@ El criterio del usuario: se descarta un mensaje **solo si todo el mensaje** es a
   - "fuera_de_alcance" queda **solo** para mensajes ajenos **sin síntomas** (fútbol, tareas, política);
   - **regla determinista** (`application/scope.py`): basta con que haya `reported_symptoms` para quedar en alcance, aunque el dominio sea "ninguno". Antes, además, se exigía un dominio distinto de "ninguno".
 - **Consecuencia:** algunos síntomas que quizás no son de nuestros dominios, como un dolor de muela, ahora pasan a la búsqueda de evidencia. Si no hay evidencia suficiente, reciben la abstención fija (ADR 0010), no un descarte. Que el asistente **pregunte** para aclarar el origen del síntoma, en lugar de abstenerse, es el siguiente paso previsto.
+
+## Actualización 2026-10-26: una respuesta a una pregunta del asistente no se descarta
+- **Motivo:** el prompt v6 ya pide tratar como "en_alcance" los mensajes que responden a una pregunta del asistente, pero no había respaldo determinista. Una respuesta corta ("sí, desde ayer", "no sé") podía recibir el mensaje fijo de alcance en medio de una consulta.
+- **Decisión:** `effective_scope(analysis, recent)` devuelve "en_alcance" cuando se cumplen las tres condiciones: el análisis dijo "fuera_de_alcance", `thread_action` es "continuar" y el último mensaje del asistente en el hilo contiene "?". Cuenta cualquier pregunta del mensaje, no solo la final.
+- **Límites:** un mensaje que el análisis marca como tema nuevo ("¿quién ganó el partido?") sigue recibiendo el mensaje fijo. Los mensajes fuera de alcance siguen sin registrarse, así que el mensaje fijo nunca cuenta como pregunta pendiente.

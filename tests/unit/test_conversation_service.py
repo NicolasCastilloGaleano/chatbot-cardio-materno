@@ -585,6 +585,22 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
     ]
 
 
+def test_answer_to_the_assistant_question_is_answered_in_the_same_thread() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("¿Desde cuándo tiene fiebre?", summary="fiebre del bebé"),
+        scoped(agent_json("Gracias, sigue midiendo."), "fuera_de_alcance", "sin salud"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("mi bebé tiene fiebre")
+    result = service.send("sí, desde ayer")
+
+    assert result.reply == "Gracias, sigue midiendo." and not result.out_of_scope
+    assert thread_of(result).id == "hilo-1" and len(repo.messages["hilo-1"]) == 4
+    assert result.trace is not None and result.trace.scope == "en_alcance"
+
+
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
     agent = ScriptedAgent(scoped(agent_json("consejos"), "fuera_de_alcance", "habla de fútbol"))
     retriever = BackingRetriever(agent)
