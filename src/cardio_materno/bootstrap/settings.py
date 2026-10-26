@@ -105,6 +105,7 @@ class PolicyOverrides:
         min_support: `GROUNDING_MIN_SUPPORT`, respaldo mínimo de una frase citada.
         max_free_sentences: `GROUNDING_MAX_FREE_SENTENCES`, frases sin cita permitidas.
         max_free_words: `GROUNDING_MAX_FREE_WORDS`, palabras de una frase sin cita.
+        case_top_k: `RAG_CASE_TOP_K`, registros por turno con la base v2 (ADR 0018).
     """
 
     min_similarity: float | None = None
@@ -113,6 +114,7 @@ class PolicyOverrides:
     min_support: float | None = None
     max_free_sentences: int | None = None
     max_free_words: int | None = None
+    case_top_k: int | None = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +188,7 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         min_support=_get_optional_fraction(env, "GROUNDING_MIN_SUPPORT"),
         max_free_sentences=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_SENTENCES"),
         max_free_words=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_WORDS"),
+        case_top_k=_get_optional_positive_int(env, "RAG_CASE_TOP_K"),
     )
 
 

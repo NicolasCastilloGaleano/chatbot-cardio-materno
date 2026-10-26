@@ -79,7 +79,7 @@ python run_web.py
 Al arrancar debe decir `Base de conocimiento: 2304 registros · … · base v2 con 192 cuadros`. Construir el índice de 2.304 registros tarda unos minutos.
 
 - La base v1 y su índice (`data/kb_index`) no se tocan: para volver, comenta las tres líneas y reinicia.
-- En este paso la búsqueda sigue siendo solo por similitud y el umbral (0,50) está calibrado para la v1. Las etapas se aprovechan en la fase 3 del [plan de migración](../00-gestion/plan-migracion-rag2.md).
+- Desde MIG-10, con la v2 el asistente identifica el cuadro en los dos dominios, lo mantiene mientras sigas en el mismo tema, usa un solo registro por respuesta y no repite una etapa ya mostrada. El orden de las etapas llega en MIG-11 ([plan de migración](../00-gestion/plan-migracion-rag2.md)); el umbral (0,50) está calibrado para la v1.
 - Sirve para evaluar la v2, **no** para usarla con personas reales: aún no está validada (puerta P1).
 
 Para medirla con sus propias preguntas (MIG-08), con las mismas variables de `.env`:
@@ -233,6 +233,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `EVIDENCE_POLICY_FILE` | `knowledge/evidence_policy.json` | Valores calibrados por defecto (umbral, top-k, instrucción de consulta) |
 | `RAG_MIN_SIMILARITY` | (archivo: `0.50`) | Similitud mínima para que un registro cuente como evidencia (0 a 1). **0,55 → 0,50 por decisión del equipo (2026-10-12)** |
 | `RAG_TOP_K` / `RAG_CANDIDATE_K` | (archivo: `3` / `12`) | Registros que se entregan al agente / candidatos antes de fusionar |
+| `RAG_CASE_TOP_K` | `1` | Con la base v2: registros del cuadro identificado que se entregan al agente por turno (ADR 0018) |
 
 **4. Verificación del respaldo (ADR 0010)**
 | Variable | Por defecto | Para qué |

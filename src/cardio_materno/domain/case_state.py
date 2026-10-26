@@ -2,8 +2,8 @@
 
 Con la base v2 (ADR 0017), cada cuadro tiene un registro por etapa. El estado del caso
 recuerda, dentro de un hilo, de qué cuadro se está hablando y qué etapas ya se mostraron.
-Es la base para elegir la evidencia por etapas (MIG-10 y MIG-11); en este paso solo se
-registra.
+Con él, dentro del cuadro identificado no se repite una etapa ya mostrada
+(`pending_stages`, MIG-10). El orden de las etapas llega en MIG-11.
 """
 
 from dataclasses import dataclass
@@ -41,3 +41,17 @@ def advance(case: CaseState | None, motive: str, stage: Stage) -> CaseState:
         return CaseState(motive, stage, (stage,))
     visited = case.visited if stage in case.visited else (*case.visited, stage)
     return CaseState(motive, stage, visited)
+
+
+def pending_stages(case: CaseState | None) -> tuple[Stage, ...]:
+    """Etapas del cuadro que aún no se mostraron (todas si ya se mostraron todas).
+
+    Args:
+        case: Estado del caso (None si el cuadro se acaba de identificar).
+
+    Returns:
+        Las etapas sin mostrar, en el orden de `Stage`.
+    """
+    visited = case.visited if case is not None else ()
+    pending = tuple(stage for stage in Stage if stage not in visited)
+    return pending or tuple(Stage)

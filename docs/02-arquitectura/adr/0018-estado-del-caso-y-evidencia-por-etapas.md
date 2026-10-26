@@ -18,12 +18,17 @@ El anexo de correcciones proponía tres agentes de LLM en paralelo. Con una GPU 
 1. **Estado del caso** (`domain/case_state.py`, MIG-09): `CaseState {motivo, etapa actual, etapas vistas}`, que avanza con `advance` (si cambia el cuadro, el caso empieza de nuevo).
 2. **Sin almacenamiento propio:** el estado viaja en la traza de cada respuesta del asistente (`case_motive`, `case_stage`, `case_visited`; clave `case` en el JSON de la traza) y se recupera de los mensajes recientes del hilo (`application/case_flow.py::case_from_recent`). No cambian los esquemas de JSON ni de SQLite ni el contrato de `ThreadRepository`; las trazas anteriores se leen sin estado. Si el análisis marca un tema nuevo, el caso empieza de nuevo.
 3. **Primero se observa (MIG-09):** el estado se toma del registro principal que respalda la respuesta (el primero citado, o el del texto literal), sin cambiar todavía cómo se busca la evidencia. Así se puede revisar en el panel de auditoría y en las líneas de depuración antes de que decida algo.
-4. *(Pasos siguientes, se documentarán al implementarse)*:
-   - **MIG-10:** identificar el cuadro por recuperación en los dos dominios y mantenerlo mientras el análisis diga "continuar".
+4. **Identificar el cuadro y mantenerlo (MIG-10, `application/case_flow.py::CaseFlow`):**
+   - Si el hilo no tiene cuadro, o el análisis marca un tema nuevo, se busca en **toda la base, en los dos dominios** (el dominio del análisis ya no confina la búsqueda), con el umbral de la política. El cuadro es el del mejor registro.
+   - Mientras el análisis diga "continuar", el cuadro se mantiene y se busca **solo dentro de él** (`EvidenceQuery.motives`), entre las etapas que aún no se mostraron (`pending_stages`, `EvidenceQuery.stages`), **sin umbral** (`anchored`): una respuesta corta también recibe su registro y nunca se repite el anterior.
+   - **Un registro por turno** (`case_top_k` = 1, `RAG_CASE_TOP_K`), para que la respuesta no mezcle cuadros ni etapas.
+   - Un solo embedding por turno: el buscador reutiliza el vector si el texto se repite.
+   - Desde aquí el estado sale de esta selección (ya no del registro citado, como en MIG-09).
+5. *(Pasos siguientes, se documentarán al implementarse)*:
    - **MIG-11:** reglas deterministas de etapas: indagación primero (T1 → T2 → T3 → verificación), saltos solo por intención explícita, y después de verificar, la etapa de la ruta base del cuadro.
    - **MIG-12:** prompt de respuesta v4 y auditor de la pregunta final.
    - **MIG-13:** ruta de atención desde la ruta base del cuadro.
-5. Las **alarmas deterministas** se evalúan antes, como siempre, y tienen prioridad: el estado del caso nunca rebaja una alarma.
+6. Las **alarmas deterministas** se evalúan antes, como siempre, y tienen prioridad: el estado del caso nunca rebaja una alarma.
 
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
@@ -37,5 +42,7 @@ El anexo de correcciones proponía tres agentes de LLM en paralelo. Con una GPU 
 - ✅ Cada respuesta con evidencia de la base v2 deja registrado su cuadro, su etapa y las etapas vistas, en los dos repositorios, sin cambios de esquema.
 - ✅ La base v1 y las trazas anteriores funcionan igual (sin estado).
 - ⚠️ El estado se lee de los últimos mensajes del hilo (`CONTEXT_MESSAGES`, 6): si se reduce mucho esa ventana o hay muchos turnos sin evidencia seguidos, se pierde.
-- ⚠️ En MIG-09 el estado no cambia la respuesta: los problemas de etapa y de contexto inventado siguen hasta MIG-10 y MIG-11.
+- ✅ Desde MIG-10 una respuesta no repite el registro anterior ni mezcla cuadros, y una respuesta corta dentro del caso no se abstiene.
+- ⚠️ El cuadro se identifica con el mejor registro del primer mensaje (62 % de acierto en la línea base de MIG-08): un cuadro equivocado arrastra el caso hasta que el análisis marque un tema nuevo. La votación entre los primeros resultados que propone el plan queda por medir.
+- ⚠️ Hasta MIG-11 las etapas no tienen orden: dentro del cuadro gana la más parecida que no se haya mostrado, así que todavía puede saltar a orientar o remitir y repetir datos que la persona no dio.
 - ⏳ Pendiente: aprobación de este ADR y de la base v2 (P1 y P7), y verificar en el PC de pruebas que el estado se registra bien.

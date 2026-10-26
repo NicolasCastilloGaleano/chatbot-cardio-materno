@@ -13,7 +13,9 @@ Flujo de cada turno (ADR 0007 y 0008):
    (MIG-02). Si es conversacional, se responde sin evidencia y nunca se abre un hilo.
 5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
    suficiente no se llama al LLM: se muestra un mensaje fijo de abstención que pide más
-   detalles (ADR 0010, MIG-03).
+   detalles (ADR 0010, MIG-03). Con la base v2 (cuadros cargados, ADR 0018), se identifica
+   el cuadro y se mantiene en el hilo; dentro de él no se repite una etapa ya mostrada. El
+   estado del caso se guarda en la traza.
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
@@ -24,7 +26,7 @@ revisan las reglas de alarma. El hilo solo se modifica al final del turno.
 
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
@@ -42,7 +44,7 @@ from cardio_materno.application.agent_turn import (
     reply_schema,
 )
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
-from cardio_materno.application.case_flow import case_after_reply
+from cardio_materno.application.case_flow import CaseFlow, CaseRetrieval
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
 from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
@@ -68,7 +70,7 @@ from cardio_materno.domain.conversation import (
     update_thread,
 )
 from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
-from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
+from cardio_materno.domain.knowledge import CaseProfile, RetrievalResult, RetrievalStatus
 from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace, StageTiming
 
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
@@ -137,6 +139,9 @@ class ConversationConfig:
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
+        case_profiles: Cuadros de la base v2 por motivo. Vacío (base v1): la evidencia se
+            busca solo por similitud, como antes del ADR 0018.
+        case_evidence_items: Registros que se entregan al agente con la base v2.
     """
 
     analysis_prompt: str
@@ -148,6 +153,8 @@ class ConversationConfig:
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
+    case_profiles: Mapping[str, CaseProfile] = field(default_factory=dict)
+    case_evidence_items: int = 1
 
 
 @dataclass(frozen=True)
@@ -215,6 +222,11 @@ class ConversationService:
         self._active_thread_id = active_thread_id
         self._sign_codes = config.alarm_policy.codes
         self._analysis_schema = analysis_schema(self._sign_codes)
+        self._case_flow = (
+            CaseFlow(ports.retriever, config.case_profiles, config.case_evidence_items)
+            if config.case_profiles
+            else None
+        )
 
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje del usuario y devuelve la respuesta.
@@ -295,7 +307,8 @@ class ConversationService:
     ) -> TurnOutcome:
         """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
         query = build_evidence_query(analysis, turn.user_text)
-        retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
+        found = timer.measure(STAGE_RAG, lambda: self._retrieve(query, analysis, turn))
+        retrieval = found.result
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             reply = (
@@ -303,7 +316,15 @@ class ConversationService:
             )
             return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
         outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
-        return with_search_query(outcome, query.text)
+        return with_case(with_search_query(outcome, query.text), found.case)
+
+    def _retrieve(
+        self, query: EvidenceQuery, analysis: AnalysisTurn, turn: TurnInput
+    ) -> CaseRetrieval:
+        """Busca la evidencia: por estado del caso con la base v2; si no, por similitud."""
+        if self._case_flow is None:
+            return CaseRetrieval(self._ports.retriever.retrieve(query), None)
+        return self._case_flow.retrieve(query, analysis, turn.recent)
 
     def _grounded_answer(
         self,
@@ -325,9 +346,7 @@ class ConversationService:
             draft, retrieval.items, turn.user_text, self._config.grounding
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
-        case = case_after_reply(analysis, turn.recent, retrieval.items, grounded.cited)
-        outcome = TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
-        return with_case(outcome, case)
+        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""

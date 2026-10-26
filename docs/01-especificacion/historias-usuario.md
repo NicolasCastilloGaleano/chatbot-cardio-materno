@@ -156,6 +156,13 @@ Escenario: El índice corresponde al archivo exacto de la base (MIG-06)
   Cuando se edita el texto de un registro sin cambiar su id
   Entonces al arrancar se avisa que hay que reconstruir el índice y el asistente se abstiene hasta hacerlo
 
+Escenario: Con la base v2, el cuadro se mantiene y no se repite un registro (MIG-10, ADR 0018 propuesto)
+  Dado que el asistente me respondió con el registro T1 del cuadro "llanto_inconsolable_lactante"
+  Cuando contesto sus preguntas sin cambiar de tema, aunque sea con una respuesta corta
+  Entonces la evidencia es un solo registro de ese mismo cuadro, de una etapa que aún no se mostró
+  Y no se exige el umbral de similitud, así que no se abstiene
+  Y si cambio de tema, el cuadro se vuelve a identificar en los dos dominios
+
 Escenario: Probar la base v2 sin reemplazar la v1 (MIG-07)
   Dado KB_ENTRIES_FILE, KB_CASES_FILE y KB_INDEX_DIR apuntando a la conversión de la base v2 y a su índice
   Cuando arranca el asistente

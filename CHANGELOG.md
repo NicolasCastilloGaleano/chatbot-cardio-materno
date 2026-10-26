@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **MIG-10 (ADR 0018 propuesto): el cuadro se identifica y se mantiene en el hilo.** Con la base v2, `CaseFlow` identifica el cuadro en los dos dominios con el mejor registro y, mientras el análisis diga continuar, busca solo dentro de él, sin umbral y entre las etapas aún no mostradas (`pending_stages`): una respuesta corta recibe su registro y nunca se repite el anterior. Un registro por turno (`case_top_k`, `RAG_CASE_TOP_K`, por defecto 1). `EvidenceQuery` admite `motives`, `stages` y `anchored`, y el buscador calcula un solo embedding si el texto se repite. Doble `CatalogRetriever` en `tests/unit/fakes.py`.
 - **MIG-09 ([ADR 0018](docs/02-arquitectura/adr/0018-estado-del-caso-y-evidencia-por-etapas.md) propuesto): estado del caso con la base v2.** `domain/case_state.py` (`CaseState`, `advance`) y `application/case_flow.py` (`case_after_reply`, `case_from_recent`): cada respuesta con un registro v2 guarda en su traza el cuadro, la etapa y las etapas vistas (clave `case` en el JSON), que se recuperan de los mensajes recientes; un tema nuevo reinicia el caso. Se muestra en el panel de auditoría ("Cuadro y etapa (base v2)") y en las líneas de depuración. En este paso solo se observa: no cambia cómo se busca la evidencia.
 - **MIG-08: medición de la base v2 con sus propias preguntas.** `scripts/evaluate_kb_v2.py alarmas` (sin Ollama) pasa las 2.304 preguntas por el filtro 1 y lo cuenta por la ruta base del cuadro; `recuperacion` (con Ollama) mide, dejando fuera el registro propio, si el cuadro correcto queda primero o entre los tres primeros, las similitudes y la etapa del primer resultado. Dobles `case_entry` y `case_profile` en `tests/unit/fakes.py`.
 - **MIG-07 (ADR 0017 propuesto): probar la base v2 por `.env` sin reemplazar la v1.** Variable `KB_CASES_FILE` y `bootstrap/rag_setup.py::load_profiles_for`: si la base tiene cuadros, se cargan al arrancar (`RagSetup.case_profiles`, todavía sin uso en la conversación) y el arranque informa cuántos hay; si falta el archivo o un motivo, el RAG queda no disponible. `.gitignore` excluye `RAG_2.xlsx`, `data/kb_v2/` y `data/kb_index_v2/`.
@@ -16,6 +17,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - `.gitignore` excluye los archivos auxiliares de SQLite (`*.db-shm`, `*.db-wal`, `*.db-journal`): con el modo WAL aparecían como archivos nuevos y podían subirse con datos de los chats.
 
 ### Changed
+- **MIG-10:** con la base v2, el estado del caso sale de la selección de `CaseFlow` y ya no del registro citado; el filtro de dominio del análisis no limita la búsqueda (ADR 0008, actualización). Se retiró `case_after_reply`.
 - **MIG-07:** al convertir a otra carpeta, `convert_rag_xlsx.py` indica las variables de `.env` antes de reconstruir el índice, para no reconstruir por error el de la v1.
 - **MIG-06:** al arrancar, el índice se compara también por el hash del archivo de la base (`check_entries_file`): editar un texto sin cambiar su id obliga a reconstruir el índice.
 

@@ -32,7 +32,7 @@ MSG_RAG_UNAVAILABLE = (
 MSG_RAG_READY = (
     "Base de conocimiento: {count} registros · índice con '{model}' · umbral {threshold:.2f}"
 )
-MSG_CASES_READY = " · base v2 con {count} cuadros"
+MSG_CASES_READY = " · base v2 con {count} cuadros: el cuadro se mantiene en el hilo (ADR 0018)"
 
 
 @dataclass(frozen=True)
@@ -89,6 +89,7 @@ def apply_policy_overrides(policy: EvidencePolicy, overrides: PolicyOverrides) -
         min_support=pick(overrides.min_support, policy.min_support),
         max_free_sentences=pick(overrides.max_free_sentences, policy.max_free_sentences),
         max_free_words=pick(overrides.max_free_words, policy.max_free_words),
+        case_top_k=pick(overrides.case_top_k, policy.case_top_k),
     )
 
 

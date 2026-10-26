@@ -57,3 +57,6 @@ En el PC de pruebas cada turno tardó unos 60 s (análisis 13–23 s, RAG 7,2 s,
 - `OLLAMA_EMBED_NUM_GPU` (`0` = embedder en CPU).
 
 El diagnóstico está en `docs/08-despliegue/operacion.md`. Además, los mensajes fuera de alcance y conversacionales ya no buscan evidencia (ADR 0009).
+
+## Actualización 2026-10-25: base v2 (ADR 0018, propuesto)
+Con la base v2 cargada, el filtro de dominio del análisis ya no limita la búsqueda: el cuadro se identifica en los dos dominios y luego se busca solo dentro de él, sin umbral y con un registro por turno (MIG-10). Con la base v1 la búsqueda sigue como se describe arriba.

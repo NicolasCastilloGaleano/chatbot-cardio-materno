@@ -36,6 +36,9 @@ class EvidencePolicy:
         min_support: Respaldo mínimo de una frase citada (ver `GroundingPolicy`).
         max_free_sentences: Máximo de frases sin cita que se conservan.
         max_free_words: Longitud máxima, en palabras, de una frase sin cita.
+        case_top_k: Registros que se entregan al agente cuando la base tiene cuadros (base
+            v2, ADR 0018): uno, del cuadro identificado, para que la respuesta haga una
+            sola cosa.
     """
 
     top_k: int = 3
@@ -49,6 +52,7 @@ class EvidencePolicy:
     min_support: float = 0.6
     max_free_sentences: int = 2
     max_free_words: int = 20
+    case_top_k: int = 1
 
     @property
     def grounding(self) -> GroundingPolicy:

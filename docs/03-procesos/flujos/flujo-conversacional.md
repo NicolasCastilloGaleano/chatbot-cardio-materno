@@ -52,7 +52,7 @@ sequenceDiagram
             L2-->>S: {reply}
             S-->>U: saludo / presentación del servicio (nunca abre un hilo; sin hilo activo NO se registra)
         else en alcance (o con alarma prioritaria)
-            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis
+            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis. Con la base v2 (ADR 0018): si el hilo ya tiene cuadro y el análisis dice continuar, un registro de ese cuadro en una etapa aún no mostrada, sin umbral; si no, se identifica el cuadro en los dos dominios
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
                 S-->>U: abstención fija que pide más detalles (o RAG no disponible, o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2

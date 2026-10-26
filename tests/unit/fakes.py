@@ -418,3 +418,42 @@ def case_profile(motive: str, base_route: Route = Route.SELF_CARE) -> CaseProfil
         ("señal",),
         base_route,
     )
+
+
+CATALOG_THRESHOLD = 0.5
+
+
+class CatalogRetriever:
+    """Buscador falso sobre una lista de registros con similitudes fijas.
+
+    Aplica los filtros de la consulta (dominio, cuadro y etapa) y ordena por similitud. Sin
+    `anchored`, exige `CATALOG_THRESHOLD`, como el umbral de la política.
+    """
+
+    def __init__(self, entries: Sequence[KnowledgeEntry], scores: dict[str, float]) -> None:
+        self.entries = list(entries)
+        self.scores = scores
+        self.queries: list[EvidenceQuery] = []
+
+    def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
+        self.queries.append(query)
+        threshold = -1.0 if query.anchored else CATALOG_THRESHOLD
+        ranked = sorted(
+            (e for e in self.entries if self._matches(e, query)),
+            key=lambda e: self.scores.get(e.id, 0.0),
+            reverse=True,
+        )
+        kept = [e for e in ranked if self.scores.get(e.id, 0.0) >= threshold][:3]
+        items = tuple(
+            EvidenceItem(f"E{n}", e, self.scores.get(e.id, 0.0)) for n, e in enumerate(kept, 1)
+        )
+        status = RetrievalStatus.SUFFICIENT if items else RetrievalStatus.INSUFFICIENT
+        return RetrievalResult(status, items, max(self.scores.values(), default=0.0))
+
+    @staticmethod
+    def _matches(entry: KnowledgeEntry, query: EvidenceQuery) -> bool:
+        return (
+            (not query.domains or entry.domain in query.domains)
+            and (not query.motives or entry.motive in query.motives)
+            and (not query.stages or entry.stage in query.stages)
+        )

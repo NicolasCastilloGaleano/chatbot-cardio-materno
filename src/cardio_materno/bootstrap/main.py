@@ -104,6 +104,8 @@ def build_conversation(
         alarm_policy=alarm_policy,
         evidence_item_chars=rag.policy.item_max_chars,
         grounding=rag.policy.grounding,
+        case_profiles=rag.case_profiles,
+        case_evidence_items=rag.policy.case_top_k,
     )
     return ports, config
 

@@ -7,16 +7,16 @@ from cardio_materno.adapters.outbound.persistence.trace_codec import (
     trace_to_dict,
 )
 from cardio_materno.application.case_flow import case_from_recent, parse_case
-from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.domain.case_state import CaseState, advance
 from cardio_materno.domain.conversation import ChatMessage, Role
-from cardio_materno.domain.knowledge import RetrievalResult, Stage
+from cardio_materno.domain.knowledge import Stage
 from cardio_materno.domain.trace import ReplyTrace
 from tests.unit.fakes import (
+    CatalogRetriever,
     ScriptedAgent,
     agent_json,
     case_entry,
-    evidence_result,
+    case_profile,
     make_service,
     thread_of,
 )
@@ -85,41 +85,27 @@ def test_case_is_shown_in_the_panel_and_the_debug_lines() -> None:
 # --- Conversación ------------------------------------------------------------------------------
 
 
-class StageRetriever:
-    """Devuelve, turno a turno, un registro v2 que respalda la respuesta guionizada."""
-
-    def __init__(self, agent: ScriptedAgent, *stages: tuple[str, Stage]) -> None:
-        self._agent = agent
-        self._stages = list(stages)
-
-    def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
-        motive, stage = self._stages.pop(0)
-        return evidence_result(case_entry(motive, stage, answer=self._agent.reply_text))
+def fever_catalog() -> CatalogRetriever:
+    """Cuadro de fiebre completo: T1 es el más parecido y las demás etapas empatan."""
+    entries = [case_entry(FEVER, stage) for stage in Stage]
+    scores = {entry.id: 0.6 for entry in entries} | {case_entry(FEVER, T1).id: 0.8}
+    return CatalogRetriever(entries, scores)
 
 
-def converse(agent: ScriptedAgent, *stages: tuple[str, Stage]) -> list[ReplyTrace | None]:
-    """Envía un mensaje por cada etapa en el mismo servicio (mismo hilo)."""
-    service = make_service(agent, retriever=StageRetriever(agent, *stages))
-    return [service.send("mensaje").trace for _ in stages]
+def test_the_case_is_kept_in_the_thread_and_never_repeats_a_stage() -> None:
+    agent = ScriptedAgent(
+        agent_json(f"Respuesta de {T1}. ¿Cómo sigue?"),
+        agent_json(f"Respuesta de {T2}. ¿Cómo sigue?"),
+    )
+    config = {"case_profiles": {FEVER: case_profile(FEVER)}}
+    service = make_service(agent, config=config, retriever=fever_catalog())
 
-
-def test_the_case_accumulates_the_stages_shown_in_a_thread() -> None:
-    agent = ScriptedAgent(agent_json("Primera."), agent_json("Segunda."))
-
-    first, second = converse(agent, (FEVER, T1), (FEVER, T2))
+    first, second = (service.send(text).trace for text in ("fiebre", "sí, desde ayer"))
 
     assert first is not None and first.case_visited == ("T1_discriminantes",)
-    assert second is not None and second.case_motive == FEVER
+    assert second is not None and second.case_stage == "T2_caracterizacion"
     assert second.case_visited == ("T1_discriminantes", "T2_caracterizacion")
-
-
-def test_a_new_topic_starts_a_new_case() -> None:
-    agent = ScriptedAgent(agent_json("Primera."), agent_json("Segunda.", thread_action="nuevo"))
-
-    _, second = converse(agent, (FEVER, T1), (COLIC, T2))
-
-    assert second is not None and second.case_motive == COLIC
-    assert second.case_visited == ("T2_caracterizacion",)
+    assert [ref.entry_id for ref in second.evidence] == [case_entry(FEVER, T2).id]
 
 
 def test_base_v1_replies_have_no_case() -> None:

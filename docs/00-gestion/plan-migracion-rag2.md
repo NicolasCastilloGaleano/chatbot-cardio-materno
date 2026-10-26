@@ -281,6 +281,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Código:** `application/evidence.py`, `hybrid_retriever.py`.
 - **Documentos:** ADR 0008 (enmienda), HU-02.
 - **Criterios:** precisión de motivo medida con MIG-08 por encima de un umbral que decide el equipo. Línea base sin fijar el cuadro: 62 % primero, 84 % entre los tres primeros. Como la similitud de aciertos y fallos se solapa, un solo resultado no basta: hay que votar entre los primeros y confirmar con la pregunta de verificación.
+- **Estado (2026-10-25):** hecho en `feat/migracion-rag2-fase3`, reaplicado de la integración: el cuadro es el del **mejor registro** (todavía sin votación), se identifica en los dos dominios y se mantiene mientras el análisis diga continuar; dentro del cuadro, un registro por turno, de una etapa aún no mostrada y sin umbral. La votación queda pendiente de medir con `evaluate_kb_v2.py` antes de adoptarla.
 
 #### MIG-11 Máquina de etapas y filtro por etapa (#15, #12)
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
