@@ -123,11 +123,15 @@ def test_literal_fallback_uses_the_first_cited_entry() -> None:
     assert reply.cited == ("E2",) and reply.check.literal
 
 
-def test_urgent_referral_words_and_line_123_do_not_count_against_support() -> None:
-    sentence = "Si hay dolor de cabeza o visión alterada, acude a urgencias o llama al 123."
-
-    assert is_supported(sentence, EVIDENCE, POLICY)
+def test_referral_without_support_in_the_cited_entry_is_rejected() -> None:
+    assert not is_supported("Acude de inmediato a urgencias o llama al 123.", EVIDENCE, POLICY)
     assert not is_supported("Llama al 123 y toma ibuprofeno con agua.", EVIDENCE, POLICY)
+
+
+def test_referral_supported_by_the_cited_entry_is_accepted() -> None:
+    evidence = EVIDENCE + " Si no puedes llegar, acude a urgencias o llama a la línea 123."
+
+    assert is_supported("Acude a urgencias o llama a la línea 123.", evidence, POLICY)
 
 
 # --- Datos que la persona no escribió (B-021, incidente del 2026-10-11) -------------------
