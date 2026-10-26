@@ -43,7 +43,7 @@ from cardio_materno.application.agent_turn import (
 from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, compose_grounded_reply
+from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -294,7 +294,9 @@ class ConversationService:
         retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
-            reply = compose_reply(decisions, None) if decisions else ABSTENTION_TEXT
+            reply = (
+                compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
+            )
             return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
         outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
         return with_search_query(outcome, query.text)

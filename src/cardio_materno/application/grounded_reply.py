@@ -1,6 +1,7 @@
 """Respuesta de salud siempre respaldada: verificación, texto literal y abstención (ADR 0010).
 
-- Sin evidencia suficiente no se llama al LLM: se muestra `ABSTENTION_TEXT`.
+- Sin evidencia suficiente no se llama al LLM: se muestra `ABSTENTION_TEXT`, que pide más
+  detalles para volver a buscar. Si el buscador no está disponible, `UNAVAILABLE_TEXT`.
 - Con evidencia, el LLM redacta frase por frase y cada frase de salud cita su registro. Si una
   frase citada no está respaldada por ese registro, se muestra el **texto literal** del
   registro, para no perder ni deformar lo que dice (p. ej., un aviso de atención inmediata).
@@ -17,10 +18,17 @@ from cardio_materno.domain.grounding import (
     is_supported,
 )
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
-from cardio_materno.domain.trace import GroundingCheck
+from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
 
+# Sin evidencia suficiente: se pide más detalle en lugar de cerrar la conversación.
 ABSTENTION_TEXT = (
     "No tengo información validada sobre eso en la base de conocimiento del proyecto. "
+    "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud. "
+    "¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
+)
+# El buscador no está disponible: pedir más detalles no ayudaría.
+UNAVAILABLE_TEXT = (
+    "En este momento no puedo consultar la información para orientarte. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
 )
 LITERAL_TEMPLATE = "Según la información validada del proyecto: {answer}"
@@ -48,6 +56,18 @@ class SentenceVerdict:
 
     sentence: DraftSentence
     accepted: bool
+
+
+def abstention_text(status: RetrievalStatus) -> str:
+    """Mensaje fijo cuando no hay evidencia suficiente (no se llama al LLM, ADR 0010).
+
+    Args:
+        status: Resultado de la búsqueda (insuficiente o no disponible).
+
+    Returns:
+        `UNAVAILABLE_TEXT` si el buscador no está disponible; si no, `ABSTENTION_TEXT`.
+    """
+    return UNAVAILABLE_TEXT if status is RetrievalStatus.UNAVAILABLE else ABSTENTION_TEXT
 
 
 def compose_grounded_reply(

@@ -9,7 +9,11 @@ import pytest
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
+from cardio_materno.application.grounded_reply import (
+    ABSTENTION_TEXT,
+    LITERAL_TEMPLATE,
+    UNAVAILABLE_TEXT,
+)
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
@@ -447,19 +451,30 @@ def test_citing_unoffered_label_is_an_error_and_saves_nothing() -> None:
     assert repo.threads == {}
 
 
-@pytest.mark.parametrize("status", [RetrievalStatus.INSUFFICIENT, RetrievalStatus.UNAVAILABLE])
+@pytest.mark.parametrize(
+    ("status", "text"),
+    [
+        (RetrievalStatus.INSUFFICIENT, ABSTENTION_TEXT),
+        (RetrievalStatus.UNAVAILABLE, UNAVAILABLE_TEXT),
+    ],
+)
 def test_without_sufficient_evidence_abstains_without_calling_the_reply_model(
-    status: RetrievalStatus,
+    status: RetrievalStatus, text: str
 ) -> None:
     agent = ScriptedAgent(agent_json("el jengibre ayuda"))
     retriever = FakeRetriever(RetrievalResult(status, best_score=0.44))
 
     result = make_service(agent, retriever=retriever).send("¿qué como si tengo acidez?")
 
-    assert result.reply == ABSTENTION_TEXT and agent.responder.calls == []
+    assert result.reply == text and agent.responder.calls == []
     assert result.trace is not None and result.trace.retrieval_status is status
     assert result.trace.grounding is None
     assert [t.stage for t in result.trace.timings] == ["análisis", "RAG"]
+
+
+def test_abstention_asks_for_more_details_and_unavailable_does_not() -> None:
+    assert ABSTENTION_TEXT.rstrip().endswith("?")
+    assert "?" not in UNAVAILABLE_TEXT
 
 
 def test_abstention_with_priority_alarm_shows_only_the_fixed_notice() -> None:

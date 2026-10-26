@@ -39,3 +39,7 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 - ⚠️ El verificador es léxico. Una paráfrasis con sinónimos puede rechazarse, y entonces se muestra el texto literal, que es seguro pero menos natural. La tasa de texto literal se mide en vivo (`tests/live/test_live_grounding.py`) y `min_support` se puede ajustar.
 - ⚠️ Una pregunta sin cita podría insinuar algo ("¿sabías que…?"). Se acepta por ahora, con el límite de longitud y sin números; queda a vigilar en la traza.
 - ⚠️ La base tiene vacíos (p. ej., alimentación con acidez o diabetes gestacional). Con esta decisión, esas preguntas reciben la abstención o un texto *Indagar*. Ampliar la base lo decide el equipo clínico (B-019).
+
+## Actualización 2026-10-26: correcciones de abstención y respaldo (rama `fix/alcance-y-respaldo`)
+- **Abstención que pregunta:** `ABSTENTION_TEXT` conserva el aviso de consultar al personal de salud y termina pidiendo más detalles ("qué sientes, desde cuándo y a quién le pasa"). Así la persona puede reformular y el sistema puede volver a buscar. Sigue sin llamar al LLM y sin afirmaciones de salud.
+- **RAG no disponible:** tiene un mensaje propio (`UNAVAILABLE_TEXT`), que no pide detalles porque no ayudarían. `abstention_text(status)` elige el mensaje según el resultado de la búsqueda.
