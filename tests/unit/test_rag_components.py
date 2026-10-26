@@ -342,3 +342,14 @@ def test_embedder_warm_up_embeds_a_short_text() -> None:
     embedder.warm_up()
 
     assert opener.batches == [1]
+
+
+def test_retriever_reuses_the_query_embedding_for_the_same_text() -> None:
+    embedder = KeywordEmbedder()
+    retriever = make_retriever(embedder=embedder)
+
+    retriever.retrieve(EvidenceQuery("acidez", (Domain.CARDIOVASCULAR,)))
+    retriever.retrieve(EvidenceQuery("acidez"))
+    retriever.retrieve(EvidenceQuery("presion"))
+
+    assert len(embedder.texts) == 2

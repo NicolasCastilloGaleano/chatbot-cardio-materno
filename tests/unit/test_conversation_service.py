@@ -416,7 +416,50 @@ def test_domain_none_searches_all_domains() -> None:
 
     make_service(ScriptedAgent(agent_json(domain="ninguno")), retriever=retriever).send("hola")
 
-    assert retriever.queries[0].domains == ()
+    assert [q.domains for q in retriever.queries] == [()]
+
+
+def test_evidence_in_the_analysis_domain_does_not_repeat_the_search() -> None:
+    retriever = FakeRetriever(evidence_result(knowledge_entry()))
+
+    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("acidez")
+
+    assert [q.domains for q in retriever.queries] == [(Domain.MATERNAL_CHILD,)]
+    assert result.trace is not None and not result.trace.domain_fallback
+
+
+def test_without_evidence_in_the_analysis_domain_the_search_covers_both_domains() -> None:
+    entry = knowledge_entry("cv1", Domain.CARDIOVASCULAR, answer="respuesta")
+    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT), evidence_result(entry))
+    agent = ScriptedAgent(citing(agent_json("respuesta"), "E1"))
+
+    result = make_service(agent, retriever=retriever).send(
+        "me palpita el corazón y estoy embarazada"
+    )
+
+    assert [q.domains for q in retriever.queries] == [(Domain.MATERNAL_CHILD,), ()]
+    assert retriever.queries[0].text == retriever.queries[1].text
+    assert result.reply == "respuesta"
+    assert result.trace is not None and result.trace.domain_fallback
+    assert [ref.entry_id for ref in result.trace.evidence] == ["cv1"]
+
+
+def test_without_evidence_in_both_domains_abstains_without_flagging_the_search() -> None:
+    agent = ScriptedAgent(agent_json("r"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, retriever=retriever).send("¿cuánta insulina me pongo?")
+
+    assert len(retriever.queries) == 2 and result.reply == ABSTENTION_TEXT
+    assert result.trace is not None and not result.trace.domain_fallback
+
+
+def test_unavailable_retriever_does_not_repeat_the_search() -> None:
+    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.UNAVAILABLE))
+
+    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("acidez")
+
+    assert len(retriever.queries) == 1 and result.reply == UNAVAILABLE_TEXT
 
 
 def test_reply_schema_limits_citations_to_offered_labels_and_trace_records_them() -> None:

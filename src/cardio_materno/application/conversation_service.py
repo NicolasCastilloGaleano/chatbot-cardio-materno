@@ -291,15 +291,34 @@ class ConversationService:
     ) -> TurnOutcome:
         """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
         query = build_evidence_query(analysis, turn.user_text)
-        retrieval = timer.measure(STAGE_RAG, lambda: self._ports.retriever.retrieve(query))
+        retrieval, widened = timer.measure(STAGE_RAG, lambda: self._search(query))
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             reply = (
                 compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
             )
-            return with_search_query(TurnOutcome(reply, decisions, trace, analysis), query.text)
+            outcome = TurnOutcome(reply, decisions, trace, analysis)
+            return with_search_query(outcome, query.text, widened)
         outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
-        return with_search_query(outcome, query.text)
+        return with_search_query(outcome, query.text, widened)
+
+    def _search(self, query: EvidenceQuery) -> tuple[RetrievalResult, bool]:
+        """Busca en el dominio del análisis y, si no hay evidencia suficiente, en los dos.
+
+        Solo se repite cuando la primera búsqueda fue insuficiente y tenía dominio: si el
+        análisis se equivocó de dominio, la persona no recibe una abstención innecesaria.
+        Con el buscador no disponible no se repite.
+
+        Returns:
+            El resultado de la búsqueda y True si se usó la búsqueda en los dos dominios.
+        """
+        found = self._ports.retriever.retrieve(query)
+        if found.status is not RetrievalStatus.INSUFFICIENT or not query.domains:
+            return found, False
+        widened = self._ports.retriever.retrieve(replace(query, domains=()))
+        if widened.status is RetrievalStatus.SUFFICIENT:
+            return widened, True
+        return found, False
 
     def _grounded_answer(
         self,
@@ -491,11 +510,12 @@ def analysis_trace(
     )
 
 
-def with_search_query(outcome: TurnOutcome, query_text: str) -> TurnOutcome:
-    """Registra en la traza la consulta con la que se buscó la evidencia (auditoría, B-021)."""
+def with_search_query(outcome: TurnOutcome, query_text: str, widened: bool = False) -> TurnOutcome:
+    """Registra en la traza la consulta de búsqueda (B-021) y si se amplió a los dos dominios."""
     if outcome.trace is None:
         return outcome
-    return replace(outcome, trace=replace(outcome.trace, search_query=query_text))
+    trace = replace(outcome.trace, search_query=query_text, domain_fallback=widened)
+    return replace(outcome, trace=trace)
 
 
 def with_unstated_details(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:

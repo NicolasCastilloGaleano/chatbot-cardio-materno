@@ -57,3 +57,9 @@ En el PC de pruebas cada turno tardó unos 60 s (análisis 13–23 s, RAG 7,2 s,
 - `OLLAMA_EMBED_NUM_GPU` (`0` = embedder en CPU).
 
 El diagnóstico está en `docs/08-despliegue/operacion.md`. Además, los mensajes fuera de alcance y conversacionales ya no buscan evidencia (ADR 0009).
+
+## Actualización 2026-10-26: búsqueda ampliada a los dos dominios
+- **Motivo:** la búsqueda se limita al dominio que decide el análisis. Si el análisis se equivoca (p. ej., palpitaciones de una gestante marcadas como materno-infantil), la persona recibe la abstención aunque la base tenga un registro adecuado en el otro dominio.
+- **Decisión:** si la búsqueda en el dominio del análisis es insuficiente, se repite una vez en los dos dominios, con el mismo texto y el mismo umbral (`ConversationService._search`). Solo se usa ese resultado si es suficiente. No se repite cuando la primera búsqueda ya encontró evidencia, cuando el dominio era "ninguno" ni cuando el buscador no está disponible.
+- **Auditoría:** la traza guarda `domain_fallback`, que se muestra en la interfaz web y en la depuración de la consola.
+- **Costo:** `HybridRetriever` reutiliza el embedding de la última consulta, así que la segunda búsqueda no vuelve a llamar al modelo de embeddings. Solo ocurre en los turnos que hoy terminan en abstención.

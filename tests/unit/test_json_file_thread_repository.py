@@ -106,6 +106,7 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         "grounding": {"supported": 1, "total": 2, "literal": True, "dropped": ["Toma manzanilla."]},
         "unstated_symptoms": ["acidez en el embarazo de 34 semanas"],
         "search_query": "secreción vaginal rosada en el embarazo",
+        "domain_fallback": False,
     }
     assert messages[1].trace == trace
     assert messages[0].trace is None
