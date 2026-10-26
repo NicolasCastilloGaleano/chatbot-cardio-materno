@@ -13,7 +13,7 @@ from cardio_materno.domain.conversation import ChatMessage, Role
 OUT_OF_SCOPE_MESSAGE = (
     "Este servicio solo orienta sobre salud del corazón y la presión arterial, el embarazo, "
     "el parto, el posparto, la lactancia y los niños pequeños. Sobre ese tema no puedo ayudarte. "
-    "Si tienes una duda sobre estos temas, cuéntame."
+    "¿Tienes alguna duda o molestia sobre estos temas que quieras contarme?"
 )
 CONVERSATIONAL_CONTEXT = (
     "MENSAJE CONVERSACIONAL (saludo, agradecimiento o despedida): responde con amabilidad y "

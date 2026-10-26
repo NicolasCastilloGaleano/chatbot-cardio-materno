@@ -3,7 +3,7 @@
 import pytest
 
 from cardio_materno.application.agent_turn import AnalysisTurn, Scope, ThreadAction
-from cardio_materno.application.scope import effective_scope
+from cardio_materno.application.scope import OUT_OF_SCOPE_MESSAGE, effective_scope
 from cardio_materno.domain.conversation import ChatMessage, Domain, Role
 
 
@@ -78,3 +78,7 @@ def test_only_the_last_assistant_message_counts_as_pending_question() -> None:
 
 def test_without_thread_there_is_no_pending_question() -> None:
     assert effective_scope(out_of_scope(ThreadAction.CONTINUE)) is Scope.OUT_OF_SCOPE
+
+
+def test_out_of_scope_message_invites_the_person_to_continue() -> None:
+    assert OUT_OF_SCOPE_MESSAGE.rstrip().endswith("?")
