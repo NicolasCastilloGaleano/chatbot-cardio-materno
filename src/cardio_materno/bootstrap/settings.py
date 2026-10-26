@@ -22,7 +22,6 @@ DEFAULT_EMBED_TIMEOUT_SECONDS = "120"
 DEFAULT_EMBED_BATCH_SIZE = "16"
 DEFAULT_KB_ENTRIES_FILE = "knowledge/kb/entries.jsonl"
 DEFAULT_KB_INDEX_DIR = "data/kb_index"
-DEFAULT_KB_CASES_FILE = "knowledge/kb/cuadros.jsonl"
 DEFAULT_EVIDENCE_POLICY_FILE = "knowledge/evidence_policy.json"
 DEFAULT_EMBED_NUM_GPU = "0"
 AUTO_VALUE = "auto"
@@ -127,8 +126,6 @@ class RagSettings:
         entries_file: Base de conocimiento versionada (`entries.jsonl`).
         index_dir: Carpeta del índice vectorial (derivado, no versionado).
         policy_file: Política de evidencia (umbral, top-k, instrucción de consulta).
-        cases_file: Cuadros de la base v2 (`cuadros.jsonl`, ADR 0017). Solo se lee si la
-            base tiene cuadros; con la base v1 se ignora.
         keep_alive: Tiempo que Ollama mantiene cargado el modelo de embeddings.
         embed_num_gpu: Capas del embedder en GPU (0 = CPU, por defecto; None = decide Ollama).
         policy_overrides: Umbrales de la política de evidencia definidos en .env, que
@@ -142,7 +139,6 @@ class RagSettings:
     entries_file: Path
     index_dir: Path
     policy_file: Path
-    cases_file: Path
     keep_alive: str = DEFAULT_KEEP_ALIVE
     embed_num_gpu: int | None = None
     policy_overrides: PolicyOverrides = field(default_factory=PolicyOverrides)
@@ -166,7 +162,6 @@ def load_rag_settings(env: Mapping[str, str], project_root: Path) -> RagSettings
         policy_file=_get_path(
             env, "EVIDENCE_POLICY_FILE", DEFAULT_EVIDENCE_POLICY_FILE, project_root
         ),
-        cases_file=_get_path(env, "KB_CASES_FILE", DEFAULT_KB_CASES_FILE, project_root),
         keep_alive=_get(env, "OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
         embed_num_gpu=_get_int_or_auto(env, "OLLAMA_EMBED_NUM_GPU", DEFAULT_EMBED_NUM_GPU),
         policy_overrides=load_policy_overrides(env),

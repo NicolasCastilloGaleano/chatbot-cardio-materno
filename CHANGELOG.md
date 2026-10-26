@@ -6,36 +6,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
-- **MIG-08: medición de la base v2 con sus propias preguntas.** `scripts/evaluate_kb_v2.py alarmas` (sin Ollama) pasa las 2.304 preguntas por el filtro 1 y lo cuenta por la ruta base del cuadro; `recuperacion` (con Ollama) mide, dejando fuera el registro propio, si el cuadro correcto queda primero o entre los tres primeros, las similitudes y la etapa del primer resultado. Dobles `case_entry` y `case_profile` en `tests/unit/fakes.py`.
-- **MIG-07 (ADR 0017 propuesto): probar la base v2 por `.env` sin reemplazar la v1.** Variable `KB_CASES_FILE` y `bootstrap/rag_setup.py::load_profiles_for`: si la base tiene cuadros, se cargan al arrancar (`RagSetup.case_profiles`, todavía sin uso en la conversación) y el arranque informa cuántos hay; si falta el archivo o un motivo, el RAG queda no disponible. `.gitignore` excluye `RAG_2.xlsx`, `data/kb_v2/` y `data/kb_index_v2/`.
-- **MIG-06 (ADR 0017 propuesto): conversor de la hoja maestra.** `scripts/convert_rag_xlsx.py` y `scripts/xlsx_reader.py` convierten `RAG_2.xlsx` en `entries.jsonl` y `cuadros.jsonl` con validación completa (columnas, celdas, enfoque/etapa/ruta, 12 etapas por cuadro, datos del cuadro iguales en sus filas), solo con la biblioteca estándar. Si hay errores, no escribe nada.
-- **MIG-05 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (ADR 0017 propuesto): modelo de la base v2.** `domain/knowledge.py`: enfoques `Orientar`, `Remitir` y `Acompañar`; enumeraciones `Stage` (12 etapas) y `Route`; tablas `STAGE_FOCUS` y `STAGE_ROUTE`; campos `motive`, `stage`, `route`, `source`, `validated_by` y `validated_at` en `KnowledgeEntry`, que verifica su coherencia al crearse; entidad `CaseProfile` para los datos del cuadro; `missing_stages`. `knowledge_files.py`: carga de `cuadros.jsonl` y serialización (`entry_to_dict`, `case_profile_to_dict`, `write_jsonl`). La base v1 sigue cargando sin cambios.
-
-### Fixed
-- `.gitignore` excluye los archivos auxiliares de SQLite (`*.db-shm`, `*.db-wal`, `*.db-journal`): con el modo WAL aparecían como archivos nuevos y podían subirse con datos de los chats.
-
-### Changed
-- **MIG-07:** al convertir a otra carpeta, `convert_rag_xlsx.py` indica las variables de `.env` antes de reconstruir el índice, para no reconstruir por error el de la v1.
-- **MIG-06:** al arrancar, el índice se compara también por el hash del archivo de la base (`check_entries_file`): editar un texto sin cambiar su id obliga a reconstruir el índice.
-
-> **2026-10-25:** la fase 1 de la migración (entradas de MIG-01 a MIG-04 y sus ajustes) se fusionó a `main` junto con la HU-10.
-
-### Fixed
-- **MIG-04:** el verificador de respaldo ya no exime las frases de remisión: una frase hecha solo de "acude a urgencias o llama al 123" pasaba siempre, aunque el registro citado no lo dijera (causa U1). Se retiran `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py` (ADR 0010).
-
-### Changed
-- **Textos de abstención más claros (ADR 0010):** sin evidencia suficiente, "Todavía no tengo suficiente información para orientarte…" (con la pregunta de MIG-03); con el RAG no disponible, "En este momento no puedo consultar la información para orientarte…". Ya no mencionan "información del proyecto" ni "validada".
-- **MIG-03:** con búsqueda insuficiente, la abstención (sin LLM) pide más detalles con una pregunta; con el RAG no disponible se mantiene el texto anterior (`UNAVAILABLE_TEXT`, ADR 0010).
-
-### Fixed
-- **El texto literal se muestra sin el prefijo** "Según la información validada del proyecto:" (ADR 0010). Que la respuesta es literal sigue en la traza.
-- **Texto literal del registro más parecido (ADR 0010):** si la redacción no se verifica, el texto literal sale del registro de mayor similitud y no del primero que citó el agente. En la prueba del 2026-10-24, "tengo acidez en el embarazo" mostraba el aviso de un registro de preeclampsia que pedía mencionar hipertensión.
-
-### Changed
-- **MIG-01 del [plan de migración](docs/00-gestion/plan-migracion-rag2.md):** la respuesta a una pregunta pendiente del asistente ("sí, desde ayer", "no sé") ya no se descarta como fuera de alcance cuando el análisis la marca como continuación del hilo y el último mensaje del asistente contiene una pregunta (`scope.py::answers_pending_question`, ADR 0009).
-- **MIG-02:** el turno fuera de alcance se registra en el hilo activo sin cambiarlo (sin hilo no se registra ni abre uno) y el mensaje fijo termina en una pregunta de reenganche (ADR 0009). La web solo lo muestra como no guardado si no había hilo, para no duplicarlo, y la línea de depuración de la consola ya no dice que no se registra.
-
-### Added
 - **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.
 - **HU-10, fase 2 (dominio, aplicación y SQLite):**
   - Canal `historico`, canales de solo lectura y regla `chat_lock` (`domain/user.py`).
@@ -76,6 +46,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Pruebas: contrato común de `ThreadRepository` (JSON y SQLite, `test_thread_repository_contract.py`), aislamiento entre usuarios, un hilo abierto por usuario, deduplicación y dos personas conversando de forma intercalada con el mismo contexto que en la consola.
 
 ### Removed
+- **Reversión de `main` al estado de la HU-10 (`91fe43a`), 2026-10-26:** sale la migración a la base RAG v2 que se había fusionado a `main` (fase 1, MIG-01 a MIG-04: alcance de respuestas a contrapreguntas, registro del fuera de alcance, abstención que pregunta y verificador sin excepción de remisión; fase 2, MIG-05 a MIG-08: modelo v2, `scripts/convert_rag_xlsx.py`, `scripts/evaluate_kb_v2.py`, ADR 0017). Motivo: con la migración el asistente funcionaba peor y la [revisión de la base v2](docs/00-gestion/anexos/revision-base-rag2.md) mostró que es un guion de conversación por cuadro y no una base de conocimiento. El historial y las ramas `feat/migracion-rag2-*` se conservan. Se mantienen el [plan de migración](docs/00-gestion/plan-migracion-rag2.md) (en pausa) y el `.gitignore` de la migración (archivos auxiliares de SQLite y de la base v2).
 - Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed

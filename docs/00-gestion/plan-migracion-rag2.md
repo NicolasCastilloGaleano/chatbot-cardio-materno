@@ -1,5 +1,7 @@
 # Plan de migración: base RAG v2 y correcciones de arquitectura
 
+> **En pausa desde el 2026-10-26.** `main` se revirtió al estado de la HU-10 (`91fe43a`) porque con la migración el asistente funcionaba peor. Ver la [revisión de la base v2](anexos/revision-base-rag2.md). Lo implementado de las fases 1 a 3 se conserva en el historial y en las ramas `feat/migracion-rag2-*`. Las secciones de estado de abajo describen esas ramas, no `main`.
+
 - **Estado:** propuesta para discusión del equipo (no aprobada)
 - **Fecha:** 2026-10-22
 - **Rama:** `docs/plan-migracion-rag2` (desde `main` @ `57e23d8`)

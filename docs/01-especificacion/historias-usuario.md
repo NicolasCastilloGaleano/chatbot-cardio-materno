@@ -103,7 +103,7 @@ Escenario: Respuesta respaldada por evidencia
 
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
-  Entonces se muestra el mensaje fijo de abstención, que pide más detalles con una pregunta (qué siente, desde cuándo y a quién le pasa) y sugiere consultar con el personal de salud (MIG-03)
+  Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
 
@@ -118,48 +118,6 @@ Escenario: Los avisos no se suavizan
   Dado que el registro dice "necesita atención obstétrica inmediata"
   Cuando el agente lo redacta como "es importante que hables con tu médico"
   Entonces la frase no está respaldada y se muestra el texto literal del registro
-
-Escenario: Las frases de remisión también se verifican (MIG-04)
-  Dado que el registro citado no habla de urgencias ni de la línea 123
-  Cuando el agente redacta "Acude de inmediato a urgencias o llama al 123" citando ese registro
-  Entonces la frase no está respaldada y se muestra el texto literal del registro
-  Y los avisos de urgencia que no salen de un registro solo los muestra la política de alarmas
-
-Escenario: El texto literal sale del registro más parecido (2026-10-24)
-  Dado que la evidencia ofrecida incluye un registro de acidez (similitud 0,60) y uno de preeclampsia (0,55)
-  Cuando el agente cita el de preeclampsia con frases que no están en él
-  Entonces se muestra el texto literal del registro de acidez, que es el más parecido a la consulta
-  Y ante un empate de similitud se usa el registro que citó el agente
-
-Escenario: Conversión de la hoja maestra de la base v2 (MIG-06, ADR 0017 propuesto)
-  Dado el Excel de la base v2 con sus hojas CARDIOVASCULAR y MATERNO-INFANTIL
-  Cuando ejecuto "python scripts/convert_rag_xlsx.py RAG_2.xlsx <carpeta>"
-  Entonces se escriben entries.jsonl (un registro por fila) y cuadros.jsonl (un cuadro por motivo)
-  Y cada registro tiene el id "dominio:motivo:etapa"
-  Y la lectura clínica solo queda en cuadros.jsonl, nunca en los registros que ve el agente
-  Y se advierte cuántos registros no tienen Fuente, Validado por y Fecha validación
-
-Escenario: La hoja con errores no se convierte (MIG-06)
-  Cuando a un cuadro le falta una etapa, una etapa tiene un enfoque o una ruta que no le corresponde, una celda obligatoria está vacía o los datos del cuadro difieren entre sus filas
-  Entonces el conversor informa cada error con su hoja y su fila
-  Y no escribe ningún archivo
-
-Escenario: El índice corresponde al archivo exacto de la base (MIG-06)
-  Dado un índice construido con una versión de entries.jsonl
-  Cuando se edita el texto de un registro sin cambiar su id
-  Entonces al arrancar se avisa que hay que reconstruir el índice y el asistente se abstiene hasta hacerlo
-
-Escenario: Probar la base v2 sin reemplazar la v1 (MIG-07)
-  Dado KB_ENTRIES_FILE, KB_CASES_FILE y KB_INDEX_DIR apuntando a la conversión de la base v2 y a su índice
-  Cuando arranca el asistente
-  Entonces informa los registros y los cuadros cargados
-  Y la base v1 y su índice no cambian
-  Y si falta el archivo de cuadros o uno de sus motivos, el RAG queda no disponible y el asistente se abstiene
-
-Escenario: Registros coherentes con su etapa (MIG-05, ADR 0017 propuesto)
-  Cuando se carga un registro con etapa cuyo enfoque o ruta no corresponden a ella, o sin motivo
-  Entonces la carga falla indicando la línea del archivo
-  Y los registros de la base v1 (sin etapa) se siguen cargando hasta que se reemplace la base (MIG-07)
 
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
@@ -188,7 +146,7 @@ Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
   Entonces avisa al arrancar que el RAG no está disponible
-  Y cada consulta de salud recibe el mensaje fijo de RAG no disponible (sin pedir más detalles), sin llamar al modelo de lenguaje
+  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
 
@@ -294,9 +252,9 @@ Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo 
 ```gherkin
 Escenario: Mensaje completamente ajeno
   Cuando escribo "¿qué opinas del fútbol?"
-  Entonces el asistente responde con el mensaje fijo de alcance del servicio, que termina con una pregunta abierta para seguir conversando (MIG-02)
+  Entonces el asistente responde con el mensaje fijo de alcance del servicio
   Y no busca evidencia ni hace la llamada de respuesta
-  Y si no hay un hilo activo, no se registra ni se abre un hilo
+  Y no se registra nada en el hilo
 
 Escenario: Síntoma de origen incierto (prompt de análisis v6, 2026-10-17)
   Cuando escribo "tengo un dolor muy fuerte en el brazo por que me asustó una gallina"
@@ -317,16 +275,10 @@ Escenario: Seguimiento dentro de un hilo
   Cuando escribo "sí, desde ayer"
   Entonces el mensaje se atiende dentro del mismo hilo
 
-Escenario: La respuesta a una pregunta del asistente nunca se descarta (MIG-01)
-  Dado un hilo cuyo último mensaje del asistente contiene una pregunta (al final o en medio del texto)
-  Cuando respondo "no sé" o "desde ayer" y el análisis lo marca fuera de alcance pero como continuación del hilo
-  Entonces la regla determinista lo atiende como consulta en alcance, con búsqueda de evidencia
-  Y si el análisis lo marca como tema nuevo ("¿quién ganó el partido?"), se respeta su decisión
-
 Escenario: Mensaje ajeno en medio de una consulta
   Dado un hilo abierto sobre acidez en el embarazo
   Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
-  Entonces el primer mensaje recibe el mensaje fijo y queda registrado en ese hilo, una sola vez, sin cambiar su dominio ni su resumen (MIG-02)
+  Entonces el primer mensaje recibe el mensaje fijo y no se registra
   Y el segundo continúa el mismo hilo
 
 Escenario: Saludo o agradecimiento

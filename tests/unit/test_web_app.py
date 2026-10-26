@@ -25,7 +25,6 @@ from cardio_materno.adapters.outbound.persistence.sqlite_user_thread_store impor
 from cardio_materno.application.direct_chat import DirectChat, open_console_session
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.ports.channel_log import InboundEvent
-from cardio_materno.application.scope import OUT_OF_SCOPE_MESSAGE
 from cardio_materno.domain.user import Channel, new_user
 from tests.unit.fakes import (
     URGENT_MESSAGE,
@@ -231,26 +230,6 @@ def test_out_of_scope_reply_is_returned_but_not_persisted(database: SqliteDataba
 
     assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is None
     assert body["messages"] == []
-
-
-def test_out_of_scope_reply_inside_a_thread_is_saved_once_in_that_thread(
-    database: SqliteDatabase,
-) -> None:
-    # MIG-02 con la HU-10: el turno ya viene en `messages`; la interfaz no debe duplicarlo.
-    harness = build(
-        database,
-        agent_json("r1", summary="acidez"),
-        scoped(agent_json(thread_action="nuevo"), "fuera_de_alcance", "deportes"),
-    )
-    chat_id = new_web_chat(harness)
-    send(harness, chat_id, "tengo acidez")
-
-    body = send(harness, chat_id, "¿quién ganó el partido?").json()
-
-    assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is not None
-    contents = [m["content"] for m in body["messages"]]
-    assert contents[-2:] == ["¿quién ganó el partido?", OUT_OF_SCOPE_MESSAGE]
-    assert contents.count(OUT_OF_SCOPE_MESSAGE) == 1
 
 
 def test_immediate_alarm_is_stored_with_its_alert(database: SqliteDatabase) -> None:

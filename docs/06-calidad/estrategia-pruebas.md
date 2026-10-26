@@ -16,11 +16,5 @@
 - Las pruebas que usan el LLM real se marcan y se aíslan; las unitarias usan dobles deterministas.
 - La cobertura es orientativa (los lineamientos no la hacen determinante); el dominio debe acercarse al 100 %.
 
-## Evaluación de la base v2 (MIG-08)
-`scripts/evaluate_kb_v2.py` tampoco es de aprobado/reprobado. Usa la columna Preguntas de la base v2 (mensajes reales etiquetados con su cuadro y su etapa) como banco de prueba:
-- `alarmas` (sin Ollama): el filtro 1 sobre cada pregunta, contado por la ruta base del cuadro, con ejemplos de urgencias en cuadros de autocuidado. Es la medición previa a decidir la negación (P2) y la cobertura del catálogo (MIG-18).
-- `recuperacion` (con Ollama): busca cada pregunta dejando fuera su propio registro y mide si el cuadro correcto queda primero o entre los tres primeros, la similitud de aciertos y fallos (para recalibrar `min_similarity`) y la etapa del primer resultado.
-Sus funciones puras tienen pruebas unitarias (`tests/unit/test_evaluate_kb_v2.py`). Ver [instalación](../08-despliegue/instalacion.md).
-
 ## Comparación de modelos (B-022)
 `scripts/benchmark_models.py` no es una prueba de aprobado/reprobado: mide combinaciones de modelos en el PC de pruebas (alcance, filtro 2, respaldo de las respuestas y tiempos) con los mismos casos de `tests/live/`: alcance, sonda y frases coloquiales que el filtro 1 no capta (`colloquial_alarm_phrases.json`, PROVISIONAL). Sus funciones puras tienen pruebas unitarias (`tests/unit/test_benchmark_models.py`). Ver [operacion.md](../08-despliegue/operacion.md).

@@ -25,18 +25,6 @@ Usa `OLLAMA_EMBED_MODEL` (por defecto `qwen3-embedding:8b`). Si este archivo o e
 
 **Efecto de la verificación:** una pregunta que la base no cubre (p. ej., qué comer con acidez o la dosis de insulina en la diabetes gestacional) recibe la abstención o el texto literal de un registro *Indagar*. Llenar esos vacíos es contenido clínico (B-019).
 
-## Base v2 (propuesta; se puede probar por `.env`)
-La base v2 ([ADR 0017](../../docs/02-arquitectura/adr/0017-base-de-conocimiento-v2-por-cuadros-y-etapas.md), propuesto) tiene 2.304 registros en 192 cuadros, con 12 etapas por cuadro. Su hoja maestra (`RAG_2.xlsx`) la mantiene el equipo y **no se versiona**. Se convierte con:
-```bash
-python scripts/convert_rag_xlsx.py RAG_2.xlsx data/kb_v2   # en otra carpeta, para revisarla o probarla
-python scripts/convert_rag_xlsx.py RAG_2.xlsx              # aquí: REEMPLAZA la base v1
-```
-El conversor valida la hoja completa y no escribe nada si encuentra errores. Reemplazar la base v1 exige reconstruir el índice y recalibrar `evidence_policy.json` (MIG-07 del [plan de migración](../../docs/00-gestion/plan-migracion-rag2.md)); antes, el equipo debe decidir su validación (P1: hoy Fuente, Validado por y Fecha validación están vacías) y si reemplaza la v1 (P7).
-
-Desde MIG-06 el arranque compara el **hash del archivo** con el del índice: editar un texto obliga a reconstruir el índice aunque los ids no cambien.
-
-Desde MIG-07 se puede **probar sin reemplazar la v1**, con su propia carpeta e índice (`KB_ENTRIES_FILE`, `KB_CASES_FILE` y `KB_INDEX_DIR`; los pasos están en [instalación](../../docs/08-despliegue/instalacion.md)). Si la base tiene cuadros, al arrancar se exige que `cuadros.jsonl` tenga todos sus motivos.
-
 ## Modificar la base
 1. Editar `entries.jsonl` (o reexportar desde la hoja cuando exista B-019).
 2. Reconstruir el índice.
