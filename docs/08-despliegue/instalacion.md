@@ -79,7 +79,7 @@ python run_web.py
 Al arrancar debe decir `Base de conocimiento: 2304 registros · … · base v2 con 192 cuadros`. Construir el índice de 2.304 registros tarda unos minutos.
 
 - La base v1 y su índice (`data/kb_index`) no se tocan: para volver, comenta las tres líneas y reinicia.
-- Desde MIG-10, con la v2 el asistente identifica el cuadro en los dos dominios, lo mantiene mientras sigas en el mismo tema, usa un solo registro por respuesta y no repite una etapa ya mostrada. El orden de las etapas llega en MIG-11 ([plan de migración](../00-gestion/plan-migracion-rag2.md)); el umbral (0,50) está calibrado para la v1.
+- Desde MIG-10, con la v2 el asistente identifica el cuadro en los dos dominios, lo mantiene mientras sigas en el mismo tema, usa un solo registro por respuesta y no repite una etapa ya mostrada. Desde MIG-11 indaga primero (T1 → T2 → T3 → verificación) y después muestra la etapa de la ruta base del cuadro ([plan de migración](../00-gestion/plan-migracion-rag2.md)); el umbral (0,50) está calibrado para la v1.
 - Sirve para evaluar la v2, **no** para usarla con personas reales: aún no está validada (puerta P1).
 
 Para medirla con sus propias preguntas (MIG-08), con las mismas variables de `.env`:

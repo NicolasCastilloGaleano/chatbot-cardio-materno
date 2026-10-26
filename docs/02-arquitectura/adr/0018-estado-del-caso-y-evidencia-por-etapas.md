@@ -20,15 +20,19 @@ El anexo de correcciones proponía tres agentes de LLM en paralelo. Con una GPU 
 3. **Primero se observa (MIG-09):** el estado se toma del registro principal que respalda la respuesta (el primero citado, o el del texto literal), sin cambiar todavía cómo se busca la evidencia. Así se puede revisar en el panel de auditoría y en las líneas de depuración antes de que decida algo.
 4. **Identificar el cuadro y mantenerlo (MIG-10, `application/case_flow.py::CaseFlow`):**
    - Si el hilo no tiene cuadro, o el análisis marca un tema nuevo, se busca en **toda la base, en los dos dominios** (el dominio del análisis ya no confina la búsqueda), con el umbral de la política. El cuadro es el del mejor registro.
-   - Mientras el análisis diga "continuar", el cuadro se mantiene y se busca **solo dentro de él** (`EvidenceQuery.motives`), entre las etapas que aún no se mostraron (`pending_stages`, `EvidenceQuery.stages`), **sin umbral** (`anchored`): una respuesta corta también recibe su registro y nunca se repite el anterior.
+   - Mientras el análisis diga "continuar", el cuadro se mantiene y se busca **solo dentro de él** (`EvidenceQuery.motives`), entre las etapas que permite la decisión 5 (`EvidenceQuery.stages`), **sin umbral** (`anchored`): una respuesta corta también recibe su registro y nunca se repite el anterior.
    - **Un registro por turno** (`case_top_k` = 1, `RAG_CASE_TOP_K`), para que la respuesta no mezcle cuadros ni etapas.
    - Un solo embedding por turno: el buscador reutiliza el vector si el texto se repite.
    - Desde aquí el estado sale de esta selección (ya no del registro citado, como en MIG-09).
-5. *(Pasos siguientes, se documentarán al implementarse)*:
-   - **MIG-11:** reglas deterministas de etapas: indagación primero (T1 → T2 → T3 → verificación), saltos solo por intención explícita, y después de verificar, la etapa de la ruta base del cuadro.
+5. **Reglas de etapas (MIG-11, `domain/case_state.py::plan_stages`, deterministas):**
+   - **Indagación primero:** T1 → T2 → T3 → verificación del cuadro. En cada turno se ofrece la siguiente o una etapa de **intención explícita** (qué hago ya, ya me atendieron, estoy esperando, tengo miedo), y la similitud elige entre ellas. Así, ni el primer turno ni los siguientes pueden saltar a orientar o remitir mientras falte indagar, salvo que el registro de indagación lo diga.
+   - **Transición:** justo después de verificar el cuadro, la etapa de su **ruta base**, fija (autocuidado → `accion_inmediata`; consulta prioritaria → `consulta_prioritaria`; urgencias → `traslado_urgencias`). Es contenido de la base, no decisión del LLM (ADR 0004).
+   - **Después:** cualquier etapa que no sea de indagación, según lo que pregunte la persona.
+   - **Sin repetir:** de las etapas permitidas se quitan las ya mostradas mientras quede alguna (lo que en MIG-10 hacía `pending_stages`).
+6. *(Pasos siguientes, se documentarán al implementarse)*:
    - **MIG-12:** prompt de respuesta v4 y auditor de la pregunta final.
    - **MIG-13:** ruta de atención desde la ruta base del cuadro.
-6. Las **alarmas deterministas** se evalúan antes, como siempre, y tienen prioridad: el estado del caso nunca rebaja una alarma.
+7. Las **alarmas deterministas** se evalúan antes, como siempre, y tienen prioridad: el estado del caso nunca rebaja una alarma.
 
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
@@ -44,5 +48,7 @@ El anexo de correcciones proponía tres agentes de LLM en paralelo. Con una GPU 
 - ⚠️ El estado se lee de los últimos mensajes del hilo (`CONTEXT_MESSAGES`, 6): si se reduce mucho esa ventana o hay muchos turnos sin evidencia seguidos, se pierde.
 - ✅ Desde MIG-10 una respuesta no repite el registro anterior ni mezcla cuadros, y una respuesta corta dentro del caso no se abstiene.
 - ⚠️ El cuadro se identifica con el mejor registro del primer mensaje (62 % de acierto en la línea base de MIG-08): un cuadro equivocado arrastra el caso hasta que el análisis marque un tema nuevo. La votación entre los primeros resultados que propone el plan queda por medir.
-- ⚠️ Hasta MIG-11 las etapas no tienen orden: dentro del cuadro gana la más parecida que no se haya mostrado, así que todavía puede saltar a orientar o remitir y repetir datos que la persona no dio.
+- ✅ Desde MIG-11 el asistente indaga antes de orientar: en las pruebas de MIG-10, sin orden, el caso del llanto saltó de T2 a `consulta_prioritaria`.
+- ⚠️ La transición tras verificar el cuadro muestra la etapa de su ruta base (p. ej., `traslado_urgencias`) sin que haya una alarma: es contenido de la base v2, que aún no está validada (P1). El equipo clínico debe revisar esa decisión.
+- ⚠️ La intención explícita se detecta por similitud dentro del cuadro y la consulta es la que reformula el análisis: puede saltarse preguntas o no detectar un "¿qué hago?". Se mide en el guion del PC de pruebas.
 - ⏳ Pendiente: aprobación de este ADR y de la base v2 (P1 y P7), y verificar en el PC de pruebas que el estado se registra bien.

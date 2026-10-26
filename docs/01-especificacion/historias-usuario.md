@@ -156,6 +156,14 @@ Escenario: El índice corresponde al archivo exacto de la base (MIG-06)
   Cuando se edita el texto de un registro sin cambiar su id
   Entonces al arrancar se avisa que hay que reconstruir el índice y el asistente se abstiene hasta hacerlo
 
+Escenario: Con la base v2, el asistente indaga antes de orientar (MIG-11, ADR 0018 propuesto)
+  Dado un caso nuevo de un cuadro con ruta base "urgencias"
+  Cuando converso varios turnos sin cambiar de tema
+  Entonces las respuestas salen, en orden, de las etapas T1, T2, T3 y verificación del cuadro
+  Y después de verificar el cuadro, la respuesta sale de la etapa "traslado_urgencias"
+  Y si en cualquier momento pregunto "¿qué hago ya?", la respuesta puede salir de "accion_inmediata"
+  Y las alarmas deterministas se siguen evaluando antes en cada turno
+
 Escenario: Con la base v2, el cuadro se mantiene y no se repite un registro (MIG-10, ADR 0018 propuesto)
   Dado que el asistente me respondió con el registro T1 del cuadro "llanto_inconsolable_lactante"
   Cuando contesto sus preguntas sin cambiar de tema, aunque sea con una respuesta corta

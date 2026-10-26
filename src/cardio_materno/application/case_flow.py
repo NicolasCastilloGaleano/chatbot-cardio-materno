@@ -1,14 +1,14 @@
-"""Recuperación dirigida por el estado del caso con la base v2 (MIG-09 y MIG-10, ADR 0018).
+"""Recuperación dirigida por el estado del caso con la base v2 (MIG-09 a MIG-11, ADR 0018).
 
 Cada turno con evidencia hace, a lo sumo, dos búsquedas con el mismo texto (un solo embedding):
 
 1. **Identificar el cuadro** (si el hilo aún no tiene uno o la persona cambió de tema): se
    busca en toda la base, **en los dos dominios** (un error de dominio en el análisis ya no
    confina la búsqueda), con el umbral de la política. El cuadro es el del mejor registro.
-2. **Elegir el registro dentro del cuadro:** entre las etapas que aún no se mostraron
-   (`pending_stages`), así una respuesta nunca repite el registro anterior. Aquí no se exige
-   el umbral: con el cuadro identificado, una respuesta corta ("sí, desde ayer") también
-   recibe su registro. El orden de las etapas llega en MIG-11.
+2. **Elegir la etapa:** dentro del cuadro, entre las etapas que permiten las reglas
+   deterministas (`domain/case_state.py::plan_stages`): indagar primero, luego la ruta base
+   del cuadro, sin repetir lo ya mostrado. Aquí no se exige el umbral: con el cuadro
+   identificado, una respuesta corta ("sí, desde ayer") también recibe su registro.
 
 El estado del caso no tiene almacenamiento propio: viaja en la traza de cada respuesta del
 asistente y se recupera de los mensajes recientes del hilo. Mientras el análisis diga
@@ -20,7 +20,7 @@ from dataclasses import dataclass, replace
 
 from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
-from cardio_materno.domain.case_state import CaseState, advance, pending_stages
+from cardio_materno.domain.case_state import CaseState, advance, plan_stages
 from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.knowledge import CaseProfile, RetrievalResult, RetrievalStatus, Stage
 
@@ -83,10 +83,9 @@ class CaseFlow:
         return self._select(query.text, motive, None)
 
     def _select(self, text: str, motive: str, current: CaseState | None) -> CaseRetrieval:
-        """Registro del cuadro en una etapa que aún no se mostró."""
-        query = EvidenceQuery(
-            text, motives=(motive,), stages=pending_stages(current), anchored=True
-        )
+        """Registro del cuadro en una de las etapas que permiten las reglas."""
+        plan = plan_stages(current, self._profiles[motive].base_route)
+        query = EvidenceQuery(text, motives=(motive,), stages=plan.stages, anchored=True)
         selected = self._retriever.retrieve(query)
         items = selected.items[: self._evidence_items]
         stage = items[0].entry.stage if items else None

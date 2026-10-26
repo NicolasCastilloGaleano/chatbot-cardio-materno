@@ -1,14 +1,48 @@
-"""Estado del caso con la base v2 (MIG-09, ADR 0018).
+"""Estado del caso y reglas de etapas de la base v2 (MIG-09 a MIG-11, ADR 0018).
 
 Con la base v2 (ADR 0017), cada cuadro tiene un registro por etapa. El estado del caso
 recuerda, dentro de un hilo, de qué cuadro se está hablando y qué etapas ya se mostraron.
-Con él, dentro del cuadro identificado no se repite una etapa ya mostrada
-(`pending_stages`, MIG-10). El orden de las etapas llega en MIG-11.
+Estas reglas deciden, sin el LLM, de qué etapas puede salir la evidencia del turno:
+
+1. **Indagación primero (MIG-11):** mientras falten etapas de `INQUIRY_SEQUENCE` (T1 → T2 →
+   T3 → verificación del cuadro), solo se ofrece la siguiente, o una etapa de intención
+   explícita (`INTENT_STAGES`: qué hago ya, ya me atendieron, estoy esperando, tengo miedo).
+   Así, el primer turno no puede terminar en una remisión, salvo que el registro T1 del
+   cuadro lo diga.
+2. **Transición por la ruta base:** justo después de verificar el cuadro, se muestra la etapa
+   que corresponde a su ruta base (`ROUTE_DEFAULT_STAGE`).
+3. **Después:** cualquier etapa que no sea de indagación, según lo que pregunte la persona.
+4. **Sin repetir (MIG-10):** de las etapas permitidas se quitan las ya mostradas, salvo que
+   no quede ninguna.
+
+Las alarmas deterministas (ADR 0007) se evalúan antes y siempre tienen prioridad: estas
+reglas nunca rebajan una alarma.
 """
 
 from dataclasses import dataclass
 
-from cardio_materno.domain.knowledge import Stage
+from cardio_materno.domain.knowledge import Route, Stage
+
+INQUIRY_SEQUENCE = (
+    Stage.DISCRIMINATORS,
+    Stage.CHARACTERIZATION,
+    Stage.CONTEXT,
+    Stage.CASE_CHECK,
+)
+# Etapas a las que la persona puede saltar en cualquier momento con lo que escribe.
+INTENT_STAGES = (
+    Stage.IMMEDIATE_ACTION,
+    Stage.AFTER_CARE,
+    Stage.WAITING_SUPPORT,
+    Stage.EMOTIONAL_SUPPORT,
+)
+AFTER_INQUIRY_STAGES = tuple(stage for stage in Stage if stage not in INQUIRY_SEQUENCE)
+# Etapa con la que se cierra la indagación según la ruta base del cuadro.
+ROUTE_DEFAULT_STAGE = {
+    Route.SELF_CARE: Stage.IMMEDIATE_ACTION,
+    Route.PRIORITY_VISIT: Stage.PRIORITY_VISIT,
+    Route.EMERGENCY: Stage.EMERGENCY_TRANSFER,
+}
 
 
 @dataclass(frozen=True)
@@ -24,6 +58,19 @@ class CaseState:
     motive: str
     stage: Stage
     visited: tuple[Stage, ...]
+
+
+@dataclass(frozen=True)
+class StagePlan:
+    """De qué etapas puede salir la evidencia del turno.
+
+    Attributes:
+        stages: Etapas permitidas (la similitud elige entre ellas).
+        fixed: True si la etapa está decidida (una sola, sin comparar similitud).
+    """
+
+    stages: tuple[Stage, ...]
+    fixed: bool = False
 
 
 def advance(case: CaseState | None, motive: str, stage: Stage) -> CaseState:
@@ -43,15 +90,34 @@ def advance(case: CaseState | None, motive: str, stage: Stage) -> CaseState:
     return CaseState(motive, stage, visited)
 
 
-def pending_stages(case: CaseState | None) -> tuple[Stage, ...]:
-    """Etapas del cuadro que aún no se mostraron (todas si ya se mostraron todas).
+def next_inquiry_stage(case: CaseState | None) -> Stage | None:
+    """Siguiente etapa de indagación que no se ha mostrado (None si ya se mostraron todas)."""
+    visited = case.visited if case is not None else ()
+    return next((stage for stage in INQUIRY_SEQUENCE if stage not in visited), None)
+
+
+def plan_stages(case: CaseState | None, base_route: Route) -> StagePlan:
+    """Etapas permitidas para el próximo registro del cuadro.
 
     Args:
         case: Estado del caso (None si el cuadro se acaba de identificar).
+        base_route: Ruta base del cuadro.
 
     Returns:
-        Las etapas sin mostrar, en el orden de `Stage`.
+        La siguiente de indagación con las de intención; la de la ruta base, fija, justo
+        después de verificar el cuadro; o todas las que no son de indagación. En todos los
+        casos, sin las ya mostradas mientras quede alguna.
     """
+    following = next_inquiry_stage(case)
+    if following is not None:
+        return StagePlan(unseen((following, *INTENT_STAGES), case))
+    if case is not None and case.stage is Stage.CASE_CHECK:
+        return StagePlan((ROUTE_DEFAULT_STAGE[base_route],), fixed=True)
+    return StagePlan(unseen(AFTER_INQUIRY_STAGES, case))
+
+
+def unseen(stages: tuple[Stage, ...], case: CaseState | None) -> tuple[Stage, ...]:
+    """Etapas que aún no se mostraron (todas las dadas si ya se mostraron todas)."""
     visited = case.visited if case is not None else ()
-    pending = tuple(stage for stage in Stage if stage not in visited)
-    return pending or tuple(Stage)
+    pending = tuple(stage for stage in stages if stage not in visited)
+    return pending or stages
