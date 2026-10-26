@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-18 (HU-10 propuesta)*
+*Última actualización: 2026-10-26 (HU-02 y HU-07: correcciones de alcance y respaldo propuestas)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -104,8 +104,17 @@ Escenario: Respuesta respaldada por evidencia
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
   Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Y desde el 2026-10-26 ese mensaje termina pidiendo más detalles ("qué sientes, desde cuándo y a quién le pasa"), sin afirmaciones de salud
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
+
+Escenario: Si el dominio del análisis no tiene evidencia, se busca en los dos dominios (2026-10-26)
+  Dado que el análisis asignó un dominio (cardiovascular o materno-infantil)
+  Cuando la búsqueda en ese dominio no encuentra evidencia suficiente
+  Entonces se repite la búsqueda en los dos dominios, con el mismo umbral
+  Y si encuentra evidencia suficiente, se responde con ella y la traza lo marca ("búsqueda ampliada a los dos dominios")
+  Y si tampoco encuentra, se muestra el mensaje de abstención
+  Y si la primera búsqueda ya encontró evidencia, no se repite
 
 Escenario: Cada frase de salud está respaldada por el registro que cita (regresión del 2026-10-11)
   Dado que la evidencia ofrecida es un registro que no habla de alimentación
@@ -118,6 +127,17 @@ Escenario: Los avisos no se suavizan
   Dado que el registro dice "necesita atención obstétrica inmediata"
   Cuando el agente lo redacta como "es importante que hables con tu médico"
   Entonces la frase no está respaldada y se muestra el texto literal del registro
+
+Escenario: Las remisiones también necesitan respaldo (2026-10-26)
+  Dado que el registro citado no menciona urgencias ni la línea 123
+  Cuando el agente redacta "acude de inmediato a urgencias o llama al 123" citando ese registro
+  Entonces la frase no está respaldada y se muestra el texto literal del registro
+  Y los avisos de urgencia de las alarmas no cambian, porque los compone el sistema y no el agente
+
+Escenario: El texto literal sale del registro más parecido a la consulta (2026-10-26)
+  Dado que el agente citó un registro con menor similitud que otro de la evidencia ofrecida
+  Cuando la verificación obliga a mostrar el texto literal
+  Entonces se muestra el registro de mayor similitud (si empatan, el que citó el agente)
 
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
@@ -146,9 +166,9 @@ Escenario: RAG no disponible
   Dado que el índice no existe, el modelo de embeddings no coincide o falla
   Cuando el asistente arranca o responde
   Entonces avisa al arrancar que el RAG no está disponible
-  Y cada consulta de salud recibe el mensaje fijo de abstención, sin llamar al modelo de lenguaje
+  Y cada consulta de salud recibe un mensaje fijo que dice que en este momento no se puede consultar la información y recomienda el personal de salud, sin llamar al modelo de lenguaje (desde el 2026-10-26 es distinto del de abstención: no pide más detalles)
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019). 🔄 Cambios propuestos el 2026-10-26 (rama `fix/alcance-y-respaldo`): abstención que pide detalles, mensaje propio de RAG no disponible, búsqueda ampliada a los dos dominios, remisiones con respaldo y literal del registro más parecido; pendientes de verificación en el PC
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
@@ -253,6 +273,7 @@ Criterio (definido por Nicolas Castillo Galeano): se descarta un mensaje **solo 
 Escenario: Mensaje completamente ajeno
   Cuando escribo "¿qué opinas del fútbol?"
   Entonces el asistente responde con el mensaje fijo de alcance del servicio
+  Y desde el 2026-10-26 ese mensaje termina invitando a contar una duda o molestia de los temas del servicio
   Y no busca evidencia ni hace la llamada de respuesta
   Y no se registra nada en el hilo
 
@@ -275,6 +296,14 @@ Escenario: Seguimiento dentro de un hilo
   Cuando escribo "sí, desde ayer"
   Entonces el mensaje se atiende dentro del mismo hilo
 
+Escenario: Una respuesta a una pregunta del asistente nunca se descarta (respaldo determinista, 2026-10-26)
+  Dado un hilo cuyo último mensaje del asistente contiene una pregunta
+  Y el análisis marca el mensaje nuevo como "fuera_de_alcance" pero como continuación del hilo ("continuar")
+  Cuando escribo una respuesta corta ("sí, desde ayer", "no sé")
+  Entonces el mensaje se atiende en alcance, dentro del mismo hilo
+  Y si el análisis lo marca como tema nuevo ("¿quién ganó el partido?"), sigue recibiendo el mensaje fijo de alcance
+  Y si el último mensaje del asistente no tiene preguntas, se respeta la decisión del análisis
+
 Escenario: Mensaje ajeno en medio de una consulta
   Dado un hilo abierto sobre acidez en el embarazo
   Cuando escribo "¿quién ganó el partido?" y luego "¿y qué más puedo comer?"
@@ -292,7 +321,7 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema)
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). 🔄 Cambios propuestos el 2026-10-26 (rama `fix/alcance-y-respaldo`): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; pendientes de verificación en el PC
 
 ### HU-08: Interfaz local de conversación y auditoría
 **Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.

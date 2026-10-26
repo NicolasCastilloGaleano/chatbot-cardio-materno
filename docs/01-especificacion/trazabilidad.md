@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-18 (HU-10 propuesta)*
+*Última actualización: 2026-10-26 (HU-02 y HU-07: correcciones de alcance y respaldo)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -67,12 +67,17 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-02 | Urgencias sin búsqueda de evidencia | `conversation_service.py::_consult_agent` | `test_urgent_user_message_skips_agent_and_rag`, `test_urgent_symptom_from_analysis_skips_rag_and_reply` | ✅ (automática) |
 | HU-02 | Solo se citan las etiquetas ofrecidas | `agent_turn.py::grounded_reply_schema/parse_grounded_reply` | `test_citing_unoffered_label_is_an_error_and_saves_nothing`, `test_invalid_grounded_reply_raises_error` | ✅ (automática) |
 | HU-02 | RAG no disponible | `bootstrap/rag_setup.py`, `HybridRetriever` | `test_index_built_with_other_model_or_other_entries_is_rejected`, `test_retriever_reports_unavailable_when_embedder_fails` | ✅ (automática) |
+| HU-02 | Abstención que pide más detalles y mensaje propio de RAG no disponible (2026-10-26) | `grounded_reply.py::abstention_text` | ⏳ | ⏳ |
+| HU-02 | Sin evidencia en el dominio del análisis → búsqueda en los dos dominios, marcada en la traza (2026-10-26) | `conversation_service.py::_search`, `trace.domain_fallback` | ⏳ | ⏳ |
+| HU-02 | Las remisiones también necesitan respaldo; el literal sale del registro más parecido (2026-10-26) | `domain/grounding.py`, `grounded_reply.py::main_label` | ⏳ | ⏳ |
 | HU-02 | Calidad de recuperación con el modelo real | índice + política | `tests/live/test_live_rag.py` (sonda de 16 casos, meta ≥ 13 en top-3; reporta top-1 y "útil con el umbral real") | ✅ en vivo top-3 (16/16, 2026-10-10); 2026-10-12: top-1 13/16 y útil con el umbral real 15/16 (falla el ACV, que capta RN-CV-03 en el filtro 1; B-021) |
 | HU-02 | Consulta de búsqueda reformulada sin contexto ajeno (B-021) | `agent_turn.py::search_query`, `evidence.py::build_evidence_query` | `test_build_evidence_query_prefers_the_reformulated_search_query`, `test_retrieval_uses_the_reformulated_search_query_when_present`, `tests/live/test_live_analysis.py` (antes vs. ahora) | ✅ (automática); ✅ en vivo (casos difíciles: antes 2/4 → ahora 3/4, 2026-10-12) |
 | HU-07 | Mensaje completamente ajeno → mensaje fijo, sin RAG ni respuesta, sin registro | `application/scope.py`, `conversation_service.py::_route` | `test_out_of_scope_message_gets_fixed_reply_without_rag_reply_or_thread_changes` | ✅ (automática) |
 | HU-07 | Otro tema como contexto / síntomas reportados → en alcance | `scope.py::effective_scope`, `analysis_prompt_v2.md` | `test_reported_symptom_overrides_out_of_scope_decision`, `test_scope.py`, `tests/live/test_live_scope.py` | ✅ (automática y en vivo) |
 | HU-07 | Síntoma de origen incierto nunca se descarta (prompt v6) | `analysis_prompt_v6.md`, `scope.py::effective_scope` | `test_symptoms_of_uncertain_domain_are_never_discarded`, `tests/live/scope_cases.json` (caso del dolor de brazo y el susto) | ✅ (automática); 🔄 en vivo |
 | HU-07 | Mensaje ajeno en medio de un hilo no lo corta | `conversation_service.py::_finish` | `test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active` | ✅ (automática) |
+| HU-07 | Respuesta a una pregunta del asistente nunca se descarta (respaldo determinista, 2026-10-26) | `scope.py::effective_scope` | ⏳ | ⏳ |
+| HU-07 | El mensaje fijo de alcance invita a seguir, sin registrarse (2026-10-26) | `scope.py::OUT_OF_SCOPE_MESSAGE` | ⏳ | ⏳ |
 | HU-07 | Saludos: sin RAG, nunca abren un hilo y no cambian el hilo activo | `_converse`, `continued_domain` | `test_conversational_message_replies_without_rag`, `test_greeting_inside_a_thread_keeps_the_thread_domain`, `test_greeting_never_opens_a_thread_nor_changes_the_active_one`, `test_conversational_message_without_thread_is_not_recorded` | ✅ (automática) |
 | HU-07 | Las alarmas tienen prioridad sobre el alcance | `_route` | `test_priority_alarm_is_never_discarded_as_out_of_scope`, `test_urgent_alarm_wins_over_out_of_scope` | ✅ (automática) |
 | HU-07 | Clasificación real (contexto ajeno, ajenos, saludos, seguimiento) | `analysis_prompt_v2.md` | `tests/live/test_live_scope.py` | ✅ en vivo (2026-10-10) |
