@@ -287,6 +287,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Idea:** progresión por defecto T1 → T2 → T3 → `verificacion_del_cuadro` → Orientar/Remitir según la ruta base. La intención explícita salta etapas (detectada por similitud dentro del motivo). Las alarmas deterministas siempre tienen prioridad.
 - **Código:** nuevo módulo de aplicación para la transición de etapas; `HybridRetriever._allowed_ids` filtra por motivo y etapa.
 - **Documentos:** HU-02, HU-05, `flujo-conversacional.md`, BPMN si cambia el flujo.
+- **Evidencia (prueba de MIG-10, 2026-10-25):** sin repetir etapas pero sin orden, el caso del llanto pasó de T1 a T2 y luego a `consulta_prioritaria`, sin T3 ni verificación del cuadro.
 - **Evidencia (prueba de MIG-09, 2026-10-25):** en un caso de llanto del lactante, la persona respondió las preguntas de T1 y el asistente le volvió a mostrar el mismo registro T1, palabra por palabra: la consulta reformulada repite la queja inicial y sin filtro por etapa la similitud elige siempre el mismo registro.
 - **Evidencia (prueba de MIG-07, 2026-10-25):** con la v2 elegida solo por similitud, el primer turno recuperó registros de etapas posteriores (`verificacion_del_cuadro`, `evolucion_leve`) y el agente repitió datos que la persona no dio ("en la cocina", "que la acidez haya cedido"). La verificación no lo detecta porque esos datos están en el registro: restringir la etapa es lo que lo evita.
 
@@ -294,6 +295,7 @@ Paquetes independientes entre sí. Resuelven buena parte de los descartes sin ca
 - **Código:** `prompts/reply_prompt_v4.md` (citar también las preguntas del registro), `application/output_audit.py`.
 - **Documentos:** `docs/05-ia/prompts/README.md`, ADR 0010.
 - **Criterios:** toda respuesta con evidencia termina en una pregunta respaldada por el registro citado.
+- **Evidencia (prueba de MIG-10, 2026-10-25):** con un solo registro, el agente redactó tres de sus frases y omitió la pregunta final ("¿Para cuándo tiene el próximo control?"); la verificación lo aceptó porque las tres frases estaban respaldadas.
 
 #### MIG-13 Ruta de atención desde el cuadro (HU-05, B-006)
 - **Idea:** la ruta base del cuadro decide Orientar o Remitir cuando no hay alarma; nunca rebaja una alarma.
