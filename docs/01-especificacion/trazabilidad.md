@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-26 (HU-11 propuesta)*
+*Última actualización: 2026-10-26 (HU-03/HU-04: alarmas ya avisadas, propuesta)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -65,6 +65,8 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-03 / HU-04 | La urgencia queda en un hilo de su dominio | `_thread_for_alarm` | `test_urgent_message_of_another_domain_opens_a_thread_of_that_domain`, `test_urgent_message_inside_active_thread_stays_in_that_thread` | ✅ (automática) |
 | RN-MI-01 … RN-CV-06 | Cada regla activa sus frases de referencia y no las cotidianas | `knowledge/alarm_rules.json` | `tests/conversational/test_alarm_phrases.py` | ✅ (automática); ❌ validación clínica |
 | HU-03 / HU-04 | Comportamiento con el modelo real | prompt v5 + catálogo v0.3.0 | Guion en el PC de pruebas (2026-10-10): urgencias por filtro 1 sin consultar al LLM; prioritaria con mensaje fijo + agente; tres frases coloquiales detectadas por el filtro 2 (origen `agente`); una pregunta educativa que nombra 8 signos sin alerta | ✅ |
+| HU-03 / HU-04 | Regla ya avisada en el hilo, encontrada solo por el filtro 2 → recordatorio corto, sin alerta nueva; el turno sigue (ADR 0018, propuesto) | `application/alarm_policy.py`, `conversation_service.py` | ⏳ | ⏳ |
+| HU-03 / HU-04 | El filtro 1 o una regla nueva siempre alarman completo; el recordatorio aparece también fuera de alcance o en la abstención; un hilo nuevo evalúa desde cero | `alarm_policy.py`, `conversation_service.py` | ⏳ | ⏳ |
 | HU-02 | Respuesta respaldada por evidencia, con citas y traza | `application/evidence.py`, `adapters/outbound/rag/*`, `conversation_service.py::_grounded_answer` | `test_reply_schema_limits_citations_to_offered_labels_and_trace_records_them`, `test_rag_components.py` | ✅ (automática) |
 | HU-02 | Sin evidencia suficiente → abstención fija sin llamar al LLM (ADR 0010) | `conversation_service.py::_answer`, `grounded_reply.py::ABSTENTION_TEXT` | `test_without_sufficient_evidence_abstains_without_calling_the_reply_model`, `test_abstention_with_priority_alarm_shows_only_the_fixed_notice` | ✅ (automática) |
 | HU-02 | Cada frase citada está respaldada por su registro; si no, texto literal (ADR 0010) | `domain/grounding.py`, `application/grounded_reply.py` | `test_grounding.py`, `test_unsupported_cited_sentence_shows_the_literal_entry_text`, `test_supported_sentences_and_a_clarifying_question_are_kept`, `test_reply_with_only_uncited_claims_shows_the_literal_entry_text`; calibración con las respuestas reales del guion | ✅ (automática) |

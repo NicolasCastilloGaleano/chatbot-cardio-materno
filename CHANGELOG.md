@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta de alarmas ya avisadas (B-027):** criterios en HU-03/HU-04 y ADR 0018 (propuesto). Una regla que el filtro 2 vuelve a encontrar en el mismo hilo se recuerda con un texto corto y el turno sigue, en lugar de repetir el mensaje fijo completo. La HU-11 se ajusta: no se indaga con una alarma **nueva**.
 - **Especificación propuesta de la indagación guiada por la evidencia (B-026):** HU-11 y ADR 0017 (propuesto). Regla determinista con las señales del RAG para responder, indagar o cerrar; preguntas del agente sin evidencia, verificadas para que no tengan afirmaciones de salud; modo `observar` antes de activar.
 - **Búsqueda ampliada a los dos dominios (B-025, HU-02, ADR 0008):** si la búsqueda en el dominio del análisis no encuentra evidencia suficiente, se repite una vez en los dos dominios con el mismo umbral. La traza lo marca (`domain_fallback`) y se ve en la auditoría web y en la depuración de la consola. `HybridRetriever` reutiliza el embedding de la misma consulta.
 - Guion de verificación `docs/08-despliegue/prueba-alcance-y-respaldo.md`.
