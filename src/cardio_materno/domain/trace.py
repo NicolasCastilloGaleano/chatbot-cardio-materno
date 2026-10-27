@@ -82,6 +82,7 @@ class ReplyTrace:
         reported_signs: Códigos de signos que marcó el análisis (ADR 0012).
         domain_fallback: True si, sin evidencia en el dominio del análisis, la búsqueda se
             amplió a los dos dominios (HU-02, 2026-10-26).
+        reminded_rules: Reglas ya avisadas en el hilo que solo se recordaron (ADR 0018).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -97,6 +98,7 @@ class ReplyTrace:
     search_query: str = ""
     reported_signs: tuple[str, ...] = ()
     domain_fallback: bool = False
+    reminded_rules: tuple[str, ...] = ()
 
     @property
     def uncited(self) -> bool:

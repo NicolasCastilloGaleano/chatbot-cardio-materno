@@ -21,6 +21,17 @@ NO_SIGNS_TEXT = "(no hay signos de alarma cargados)"
 SIGN_LINE_TEMPLATE = "- {code}: {sign}{examples}"
 SIGN_EXAMPLES_TEMPLATE = " (ej.: {examples})"
 EXAMPLES_SEPARATOR = "; "
+# Recordatorio de una regla ya avisada en el hilo que el filtro 2 vuelve a encontrar (ADR 0018).
+REMINDER_MESSAGES = {
+    Severity.IMMEDIATE: (
+        "⚠️ Recuerda lo que te indiqué: por lo que me contaste, lo indicado es acudir al "
+        "servicio de urgencias más cercano o llamar a la línea 123."
+    ),
+    Severity.PRIORITY: (
+        "⚠️ Recuerda lo que te indiqué: por lo que me contaste, conviene que consultes pronto "
+        "con el personal de salud."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -117,6 +128,28 @@ class AlarmPolicy:
         rules = [rule for rule in rules_for_codes(codes, self._rules) if rule.id not in exclude]
         return self._decision(rules, AlertOrigin.AGENT_CODE)
 
+    def split_alerted(
+        self, decisions: Sequence[AlarmDecision], alerted: Collection[str]
+    ) -> tuple[tuple[AlarmDecision, ...], tuple[AlarmRule, ...]]:
+        """Separa las reglas ya avisadas en el hilo de las nuevas (ADR 0018).
+
+        Args:
+            decisions: Decisiones del filtro 2 del turno.
+            alerted: IDs de las reglas con alerta registrada en el hilo activo.
+
+        Returns:
+            Las decisiones solo con reglas nuevas (cada una con el mensaje de su regla más
+            grave) y las reglas ya avisadas, que solo se recuerdan.
+        """
+        fresh: list[AlarmDecision] = []
+        reminded: list[AlarmRule] = []
+        for decision in decisions:
+            new_rules = [rule for rule in decision.rules if rule.id not in alerted]
+            reminded.extend(rule for rule in decision.rules if rule.id in alerted)
+            rebuilt = self._decision(new_rules, decision.origin)
+            fresh.extend([rebuilt] if rebuilt is not None else [])
+        return tuple(fresh), tuple(reminded)
+
     def _decision(self, rules: list[AlarmRule], origin: AlertOrigin) -> AlarmDecision | None:
         """Decisión con el mensaje fijo de la regla más grave, o None si no hay reglas."""
         if not rules:
@@ -190,3 +223,26 @@ def format_sign_line(rule: AlarmRule) -> str:
         sign=rule.sign,
         examples=SIGN_EXAMPLES_TEMPLATE.format(examples=examples) if examples else "",
     )
+
+
+def reminder_for(reminded: Sequence[AlarmRule], decisions: Sequence[AlarmDecision]) -> str | None:
+    """Recordatorio corto de las reglas ya avisadas (ADR 0018).
+
+    No hace falta si el turno ya muestra el aviso de una alarma nueva igual o más grave.
+
+    Args:
+        reminded: Reglas ya avisadas en el hilo que el filtro 2 volvió a encontrar.
+        decisions: Alarmas nuevas del turno, cuyo mensaje fijo se mostrará completo.
+
+    Returns:
+        El texto del recordatorio según la gravedad, o None si no hace falta.
+    """
+    if not reminded:
+        return None
+    severity = most_severe(reminded).severity
+    if (
+        decisions
+        and SEVERITY_RANK[most_severe_decision(decisions).severity] >= SEVERITY_RANK[severity]
+    ):
+        return None
+    return REMINDER_MESSAGES[severity]

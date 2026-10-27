@@ -40,7 +40,13 @@ from cardio_materno.application.agent_turn import (
     parse_reply,
     reply_schema,
 )
-from cardio_materno.application.alarm_policy import AlarmDecision, AlarmPolicy, compose_reply
+from cardio_materno.application.alarm_policy import (
+    REPLY_SEPARATOR,
+    AlarmDecision,
+    AlarmPolicy,
+    compose_reply,
+    reminder_for,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
 from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
@@ -54,7 +60,7 @@ from cardio_materno.application.scope import (
 )
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
-from cardio_materno.domain.alarms import Alert, AlertOrigin
+from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -250,9 +256,25 @@ class ConversationService:
             if pre is None:
                 raise
             return TurnOutcome(compose_reply([pre], None), (pre,))
-        post = self._post_filter(analysis, pre)
+        found = self._post_filter(analysis, pre)
+        post, reminded = self._config.alarm_policy.split_alerted(
+            found, self._alerted_rules(current, analysis)
+        )
         decisions = (pre, *post) if pre is not None else post
-        return with_unstated_details(self._route(analysis, turn, decisions, timer), turn)
+        outcome = self._route(analysis, turn, decisions, timer)
+        return with_unstated_details(with_reminder(outcome, reminded), turn)
+
+    def _alerted_rules(
+        self, current: ConversationThread | None, analysis: AnalysisTurn
+    ) -> frozenset[str]:
+        """Reglas con alerta registrada en el hilo que continúa (vacío si el turno abre otro).
+
+        Un hilo nuevo evalúa las alarmas desde cero (ADR 0018).
+        """
+        if current is None or analysis.thread_action is not ThreadAction.CONTINUE:
+            return frozenset()
+        alerts = self._ports.repository.all_alerts(current.id)
+        return frozenset(rule_id for alert in alerts for rule_id in alert.rule_ids)
 
     def _route(
         self,
@@ -508,6 +530,20 @@ def analysis_trace(
         scope=str(scope),
         scope_reason=analysis.scope_reason,
     )
+
+
+def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> TurnOutcome:
+    """Antepone el recordatorio de las reglas ya avisadas y lo registra en la traza (ADR 0018).
+
+    No se agrega si el turno ya muestra el aviso de una alarma nueva igual o más grave.
+    """
+    reminder = reminder_for(reminded, outcome.decisions)
+    if reminder is None:
+        return outcome
+    trace = outcome.trace
+    if trace is not None:
+        trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
+    return replace(outcome, reply=f"{reminder}{REPLY_SEPARATOR}{outcome.reply}", trace=trace)
 
 
 def with_search_query(outcome: TurnOutcome, query_text: str, widened: bool = False) -> TurnOutcome:

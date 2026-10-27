@@ -261,7 +261,7 @@ Escenario: Un hilo nuevo evalúa las alarmas desde cero
   Cuando el análisis abre un hilo nuevo o el hilo anterior se cerró
   Entonces las reglas avisadas en otros hilos no cuentan como ya avisadas
 ```
-Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. 🔄 Aprobada el 2026-10-26 (B-027, ADR 0018): alarmas ya avisadas como recordatorio, en implementación
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. 🔄 Aprobada e implementada el 2026-10-26 (B-027, ADR 0018): alarmas ya avisadas como recordatorio; falta la verificación en el PC
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.

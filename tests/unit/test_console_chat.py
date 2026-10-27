@@ -269,3 +269,16 @@ def test_debug_marks_a_search_widened_to_both_domains() -> None:
     )
 
     assert "[búsqueda: palpitaciones · ampliada a los dos dominios]" in output
+
+
+def test_debug_shows_the_reminded_alarm_rules() -> None:
+    first = signing(agent_json("r1"), "SANGRADO_VAGINAL")
+    second = signing(agent_json("r2"), "SANGRADO_VAGINAL")
+
+    output = run_console(
+        ["me sale agüita rosada", "sí, desde ayer", "salir"],
+        ScriptedAgent(first, second),
+        show_thread_debug=True,
+    )
+
+    assert "[recordatorio de alarma ya avisada: T-URG]" in output
