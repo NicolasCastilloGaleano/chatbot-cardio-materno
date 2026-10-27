@@ -85,6 +85,8 @@ def grounding_to_dict(check: GroundingCheck) -> dict[str, Any]:
         "total": check.total,
         "literal": check.literal,
         "dropped": list(check.dropped),
+        "literal_shown": check.literal_shown,
+        "literal_total": check.literal_total,
     }
 
 
@@ -95,4 +97,6 @@ def grounding_from_dict(data: dict[str, Any]) -> GroundingCheck:
         int(data["total"]),
         bool(data.get("literal", False)),
         tuple(data.get("dropped", [])),
+        int(data.get("literal_shown", 0)),
+        int(data.get("literal_total", 0)),
     )

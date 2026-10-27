@@ -175,7 +175,7 @@ def test_debug_shows_literal_fallback_and_abstention() -> None:
         show_thread_debug=True,
     )
 
-    assert "[respaldo: 0/1 frases · texto literal del registro]" in literal
+    assert "[respaldo: 0/1 frases · texto literal del registro (1/1 frases)]" in literal
     assert "[respaldo: abstención sin LLM (sin evidencia suficiente)]" in abstention
 
 

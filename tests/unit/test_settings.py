@@ -215,6 +215,15 @@ def test_evidence_thresholds_from_env_override_the_policy_file(tmp_path: Path) -
     assert (policy.min_similarity, policy.top_k, policy.min_support) == (0.5, 4, 0.6)
 
 
+def test_literal_min_overlap_from_env_reaches_the_grounding_policy(tmp_path: Path) -> None:
+    overrides = load_rag_settings({"GROUNDING_LITERAL_MIN_OVERLAP": "2"}, tmp_path).policy_overrides
+    policy = apply_policy_overrides(EvidencePolicy(), overrides)
+
+    assert policy.literal_min_overlap == 2
+    assert policy.grounding.literal_min_overlap == 2
+    assert EvidencePolicy().grounding.literal_min_overlap == 1
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [("RAG_MIN_SIMILARITY", "1.5"), ("GROUNDING_MIN_SUPPORT", "-0.1"), ("RAG_TOP_K", "0")],

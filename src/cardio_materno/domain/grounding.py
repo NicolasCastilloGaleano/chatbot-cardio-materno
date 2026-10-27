@@ -7,6 +7,10 @@ Las frases de remisión ("acude a urgencias o llama al 123") no tienen excepció
 2026-10-26: se respaldan como cualquier otra. Los avisos de urgencia de las alarmas no pasan
 por aquí, porque los compone la política de alarmas y no el agente. Las frases sin cita solo
 se aceptan si no pueden contener afirmaciones de salud.
+
+Cuando hay que mostrar el texto literal de un registro, solo se muestran sus frases
+pertinentes a la consulta (B-028): las que comparten términos con ella y, siempre, las que
+tienen un aviso de atención.
 """
 
 import re
@@ -22,6 +26,19 @@ QUESTION_MARK = "?"
 # Marcadores de los ejemplos del prompt ("[N]", "[lo que describió la persona]").
 PLACEHOLDER_PATTERN = re.compile(r"\[[^\]]*\]")
 SPACES_PATTERN = re.compile(r"\s{2,}")
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+# Avisos de atención (texto sin tildes): una frase del registro con alguno se muestra siempre
+# en el texto literal, para no ocultar una remisión (B-028). Pendiente de revisión clínica.
+ATTENTION_MARKERS = (
+    "urgenc",
+    "emergenc",
+    "inmediat",
+    "123",
+    "acud",
+    "personal de salud",
+    "centro de salud",
+    "servicio de salud",
+)
 
 
 def word_set(text: str) -> frozenset[str]:
@@ -64,6 +81,8 @@ class GroundingPolicy:
         max_free_words: Longitud máxima (en palabras) de una frase sin cita.
         min_word_chars: Longitud mínima de una palabra para contar como contenido.
         stem_chars: Letras iniciales que se comparan (raíz simple: "embarazada" ≈ "embarazo").
+        literal_min_overlap: Raíces que una frase del texto literal debe compartir con la
+            consulta para mostrarse (B-028).
     """
 
     min_support: float = 0.6
@@ -71,6 +90,7 @@ class GroundingPolicy:
     max_free_words: int = 20
     min_word_chars: int = 4
     stem_chars: int = 5
+    literal_min_overlap: int = 1
 
 
 def content_stems(text: str, policy: GroundingPolicy) -> frozenset[str]:
@@ -127,6 +147,47 @@ def is_allowed_without_citation(sentence: str, user_text: str, policy: Grounding
         return True
     is_refusal = REFUSAL_PATTERN.search(normalize_text(sentence)) is not None
     return is_refusal and stems <= allowed | content_stems(user_text, policy)
+
+
+def split_sentences(text: str) -> tuple[str, ...]:
+    """Frases de un texto, cortadas después de un punto, un cierre de pregunta o exclamación."""
+    return tuple(part.strip() for part in SENTENCE_BOUNDARY.split(text) if part.strip())
+
+
+def has_attention_notice(sentence: str) -> bool:
+    """True si la frase tiene un aviso de atención (urgencias, línea 123, personal de salud)."""
+    normalized = normalize_text(sentence)
+    return any(marker in normalized for marker in ATTENTION_MARKERS)
+
+
+def pertinent_sentences(
+    answer: str, query_text: str, policy: GroundingPolicy
+) -> tuple[tuple[str, ...], int]:
+    """Frases del registro que se muestran en el texto literal (B-028).
+
+    Se muestran, en su orden y sin cambios, las frases que comparten al menos
+    `literal_min_overlap` raíces con la consulta y, además, las que tienen un aviso de
+    atención. Si ninguna comparte raíces con la consulta, se muestra el registro completo.
+
+    Args:
+        answer: Respuesta del registro.
+        query_text: Consulta de búsqueda y mensaje de la persona.
+        policy: Parámetros de la verificación.
+
+    Returns:
+        Las frases que se muestran y el total de frases del registro.
+    """
+    sentences = split_sentences(answer)
+    query_stems = content_stems(query_text, policy)
+    on_topic = {
+        s
+        for s in sentences
+        if len(content_stems(s, policy) & query_stems) >= policy.literal_min_overlap
+    }
+    if not on_topic:
+        return sentences, len(sentences)
+    shown = tuple(s for s in sentences if s in on_topic or has_attention_notice(s))
+    return shown, len(sentences)
 
 
 def _stems_of(words: Iterable[str], policy: GroundingPolicy) -> frozenset[str]:

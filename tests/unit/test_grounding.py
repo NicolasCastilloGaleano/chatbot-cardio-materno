@@ -10,10 +10,13 @@ from cardio_materno.application.grounded_reply import (
 from cardio_materno.domain.grounding import (
     GroundingPolicy,
     content_stems,
+    has_attention_notice,
     has_placeholder,
     is_allowed_without_citation,
     is_supported,
+    pertinent_sentences,
     remove_placeholders,
+    split_sentences,
     stated_numbers,
     support_ratio,
     unstated_details,
@@ -185,3 +188,87 @@ def test_literal_fallback_uses_the_most_similar_entry_not_the_cited_one() -> Non
 
     assert reply.text == LITERAL_TEMPLATE.format(answer="Cuenta si el ardor sube.")
     assert reply.cited == ("E2",) and reply.check.literal
+
+
+# --- Literal con las frases pertinentes (B-028, guion de B-027 del 2026-10-27) -------------
+
+BLEEDING_AFTER_SEX = (
+    "¿De cuántas semanas estás y cuánto tiempo después de las relaciones apareció? Describe si "
+    "fueron unas gotas que cesaron o si el sangrado continúa, y si hay dolor o contracciones. "
+    "Indica antecedentes de sangrado, placenta baja o indicaciones de evitar relaciones. "
+    "Notifica el episodio a tu servicio prenatal y pregunta qué actividad es apropiada."
+)
+BLEEDING_QUERY = (
+    "sangrado vaginal en el embarazo, qué hacer mientras llega ¿qué hago mientras llego?"
+)
+
+
+def test_split_sentences_cuts_after_periods_and_question_marks() -> None:
+    assert split_sentences("¿Desde cuándo? Cuenta si arde.  Acude ya!") == (
+        "¿Desde cuándo?",
+        "Cuenta si arde.",
+        "Acude ya!",
+    )
+
+
+def test_literal_shows_only_the_sentences_that_share_terms_with_the_query() -> None:
+    shown, total = pertinent_sentences(BLEEDING_AFTER_SEX, BLEEDING_QUERY, POLICY)
+
+    assert total == 4
+    assert shown == split_sentences(BLEEDING_AFTER_SEX)[1:3]
+
+
+def test_attention_notices_are_always_shown_in_the_literal() -> None:
+    answer = (
+        "Cuenta si el ardor sube. Toma agua. Si hay sangrado, acude a urgencias o llama al 123."
+    )
+
+    shown, _ = pertinent_sentences(answer, "ardor en el pecho", POLICY)
+
+    assert shown == (
+        "Cuenta si el ardor sube.",
+        "Si hay sangrado, acude a urgencias o llama al 123.",
+    )
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Necesita atención obstétrica inmediata.",
+        "Consulta con el personal de salud.",
+        "Llama a la línea 123.",
+        "Ve a Urgencias.",
+    ],
+)
+def test_attention_notices_are_recognized(sentence: str) -> None:
+    assert has_attention_notice(sentence)
+    assert not has_attention_notice("Prefiere versiones sin sal añadida.")
+
+
+def test_without_any_sentence_on_topic_the_whole_entry_is_shown() -> None:
+    answer = "Toma agua. Si empeora, acude a urgencias."
+
+    assert pertinent_sentences(answer, "presión alta", POLICY) == (split_sentences(answer), 2)
+
+
+def test_literal_min_overlap_is_configurable() -> None:
+    strict = GroundingPolicy(literal_min_overlap=2)
+    answer = "Describe el sangrado. Si el sangrado continúa en el embarazo, cuéntalo."
+
+    shown, _ = pertinent_sentences(answer, "sangrado en el embarazo", strict)
+
+    assert shown == ("Si el sangrado continúa en el embarazo, cuéntalo.",)
+
+
+def test_literal_fallback_shows_the_pertinent_sentences_and_counts_them() -> None:
+    items = evidence_result(knowledge_entry(answer=BLEEDING_AFTER_SEX)).items
+    draft = [DraftSentence("Algo inventado sobre medicamentos.", "E1")]
+
+    reply = compose_grounded_reply(
+        draft, items, "¿qué hago mientras llego?", POLICY, BLEEDING_QUERY
+    )
+
+    assert reply.text == LITERAL_TEMPLATE.format(
+        answer=" ".join(split_sentences(BLEEDING_AFTER_SEX)[1:3])
+    )
+    assert (reply.check.literal_shown, reply.check.literal_total) == (2, 4)

@@ -79,6 +79,7 @@ def apply_policy_overrides(policy: EvidencePolicy, overrides: PolicyOverrides) -
         min_support=pick(overrides.min_support, policy.min_support),
         max_free_sentences=pick(overrides.max_free_sentences, policy.max_free_sentences),
         max_free_words=pick(overrides.max_free_words, policy.max_free_words),
+        literal_min_overlap=pick(overrides.literal_min_overlap, policy.literal_min_overlap),
     )
 
 

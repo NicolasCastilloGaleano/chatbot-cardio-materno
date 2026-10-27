@@ -5,17 +5,19 @@
 - Con evidencia, el LLM redacta frase por frase y cada frase de salud cita su registro. Si una
   frase citada no está respaldada por ese registro, se muestra el **texto literal** del
   registro, para no perder ni deformar lo que dice (p. ej., un aviso de atención inmediata).
+  Del registro se muestran solo las frases pertinentes a la consulta y los avisos (B-028).
 - Las frases sin cita solo se conservan si no pueden contener afirmaciones de salud.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from cardio_materno.application.agent_turn import DraftSentence
 from cardio_materno.domain.grounding import (
     GroundingPolicy,
     is_allowed_without_citation,
     is_supported,
+    pertinent_sentences,
 )
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
 from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
@@ -75,6 +77,7 @@ def compose_grounded_reply(
     items: Sequence[EvidenceItem],
     user_text: str,
     policy: GroundingPolicy,
+    query_text: str = "",
 ) -> GroundedReply:
     """Verifica la redacción del agente y arma la respuesta (o usa el texto literal).
 
@@ -83,6 +86,7 @@ def compose_grounded_reply(
         items: Evidencia ofrecida al agente (al menos un registro).
         user_text: Mensaje de la persona (permite nombrar su tema al decir "no puedo ayudar").
         policy: Parámetros de la verificación.
+        query_text: Consulta de búsqueda; con el mensaje, elige las frases del literal.
 
     Returns:
         La respuesta con las frases aceptadas, o el texto literal del registro principal si
@@ -93,9 +97,8 @@ def compose_grounded_reply(
     dropped = tuple(v.sentence.text for v in verdicts if not v.accepted)
     failed_citation = any(v.sentence.evidence_id for v in verdicts if not v.accepted)
     if failed_citation or not kept:
-        entry_label = main_label(draft, items)
         check = GroundingCheck(len(kept), len(draft), True, dropped)
-        return GroundedReply(literal_text(entry_of(entry_label, items)), (entry_label,), check)
+        return literal_reply(draft, items, f"{query_text} {user_text}", check, policy)
     cited = tuple(dict.fromkeys(s.evidence_id for s in kept if s.evidence_id))
     text = SENTENCE_SEPARATOR.join(s.text for s in kept)
     return GroundedReply(text, cited, GroundingCheck(len(kept), len(draft), False, dropped))
@@ -121,6 +124,20 @@ def verify_sentences(
             free_kept += int(accepted)
         verdicts.append(SentenceVerdict(sentence, accepted))
     return verdicts
+
+
+def literal_reply(
+    draft: Sequence[DraftSentence],
+    items: Sequence[EvidenceItem],
+    query_text: str,
+    check: GroundingCheck,
+    policy: GroundingPolicy,
+) -> GroundedReply:
+    """Texto literal del registro principal, solo con sus frases pertinentes (B-028)."""
+    label = main_label(draft, items)
+    shown, total = pertinent_sentences(entry_of(label, items).answer, query_text, policy)
+    full_check = replace(check, literal_shown=len(shown), literal_total=total)
+    return GroundedReply(literal_text(shown), (label,), full_check)
 
 
 def main_label(draft: Sequence[DraftSentence], items: Sequence[EvidenceItem]) -> str:
@@ -151,6 +168,6 @@ def evidence_text(entry: KnowledgeEntry) -> str:
     return f"{entry.question}\n{entry.answer}"
 
 
-def literal_text(entry: KnowledgeEntry) -> str:
-    """Texto literal del registro, presentado como información validada."""
-    return LITERAL_TEMPLATE.format(answer=entry.answer)
+def literal_text(sentences: Sequence[str]) -> str:
+    """Frases literales del registro, presentadas como información validada."""
+    return LITERAL_TEMPLATE.format(answer=SENTENCE_SEPARATOR.join(sentences))

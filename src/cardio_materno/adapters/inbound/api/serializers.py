@@ -190,13 +190,16 @@ def grounding_to_dict(check: GroundingCheck) -> dict[str, Any]:
         check: Resultado de la verificación guardado en la traza.
 
     Returns:
-        Frases mostradas, total, uso del texto literal y frases descartadas.
+        Frases mostradas, total, uso del texto literal, frases descartadas y, con texto
+        literal, cuántas frases del registro se mostraron.
     """
     return {
         "supported": check.supported,
         "total": check.total,
         "literal": check.literal,
         "dropped": list(check.dropped),
+        "literal_shown": check.literal_shown,
+        "literal_total": check.literal_total,
     }
 
 

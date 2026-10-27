@@ -22,6 +22,7 @@ from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOP
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
 from cardio_materno.domain.conversation import Domain, Role, ThreadStatus
+from cardio_materno.domain.grounding import split_sentences
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
 from tests.unit.fakes import (
     PRIORITY_MESSAGE,
@@ -624,7 +625,7 @@ def test_abstention_with_priority_alarm_shows_only_the_fixed_notice() -> None:
     assert result.reply == PRIORITY_MESSAGE and agent.responder.calls == []
 
 
-def test_unsupported_cited_sentence_shows_the_literal_entry_text() -> None:
+def test_unsupported_cited_sentence_shows_the_pertinent_literal_sentences() -> None:
     sentences = [
         {"text": "Describe si el ardor sube hacia el pecho.", "evidence_id": "E1"},
         {"text": "Come yogur, avena, almendras y nueces.", "evidence_id": "E1"},
@@ -634,10 +635,12 @@ def test_unsupported_cited_sentence_shows_the_literal_entry_text() -> None:
 
     result = make_service(agent, retriever=retriever).send("¿qué más puedo comer?")
 
-    assert result.reply == LITERAL_TEMPLATE.format(answer=HEARTBURN_ENTRY)
+    first, *_, notice = split_sentences(HEARTBURN_ENTRY)
+    assert result.reply == LITERAL_TEMPLATE.format(answer=f"{first} {notice}")
     assert result.trace is not None and result.trace.grounding is not None
     assert result.trace.grounding.literal and result.trace.cited_evidence == ("E1",)
     assert result.trace.grounding.dropped == ("Come yogur, avena, almendras y nueces.",)
+    assert (result.trace.grounding.literal_shown, result.trace.grounding.literal_total) == (2, 5)
 
 
 def test_supported_sentences_and_a_clarifying_question_are_kept() -> None:

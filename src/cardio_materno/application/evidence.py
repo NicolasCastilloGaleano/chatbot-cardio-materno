@@ -36,6 +36,8 @@ class EvidencePolicy:
         min_support: Respaldo mínimo de una frase citada (ver `GroundingPolicy`).
         max_free_sentences: Máximo de frases sin cita que se conservan.
         max_free_words: Longitud máxima, en palabras, de una frase sin cita.
+        literal_min_overlap: Raíces que una frase del texto literal comparte con la consulta
+            para mostrarse (B-028).
     """
 
     top_k: int = 3
@@ -49,11 +51,17 @@ class EvidencePolicy:
     min_support: float = 0.6
     max_free_sentences: int = 2
     max_free_words: int = 20
+    literal_min_overlap: int = 1
 
     @property
     def grounding(self) -> GroundingPolicy:
         """Parámetros de la verificación del respaldo (ADR 0010)."""
-        return GroundingPolicy(self.min_support, self.max_free_sentences, self.max_free_words)
+        return GroundingPolicy(
+            self.min_support,
+            self.max_free_sentences,
+            self.max_free_words,
+            literal_min_overlap=self.literal_min_overlap,
+        )
 
 
 def build_evidence_query(analysis: AnalysisTurn, user_text: str) -> EvidenceQuery:

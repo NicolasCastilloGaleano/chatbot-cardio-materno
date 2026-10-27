@@ -358,8 +358,9 @@ class ConversationService:
                 raise
             trace = build_trace(analysis, retrieval, (), timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
+        query_text = build_evidence_query(analysis, turn.user_text).text
         grounded = compose_grounded_reply(
-            draft, retrieval.items, turn.user_text, self._config.grounding
+            draft, retrieval.items, turn.user_text, self._config.grounding, query_text
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
         return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
