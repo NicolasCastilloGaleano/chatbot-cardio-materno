@@ -168,7 +168,7 @@ Escenario: RAG no disponible
   Entonces avisa al arrancar que el RAG no está disponible
   Y cada consulta de salud recibe un mensaje fijo que dice que en este momento no se puede consultar la información y recomienda el personal de salud, sin llamar al modelo de lenguaje (desde el 2026-10-26 es distinto del de abstención: no pide más detalles)
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019). 🔄 Cambios propuestos el 2026-10-26 (rama `fix/alcance-y-respaldo`): abstención que pide detalles, mensaje propio de RAG no disponible, búsqueda ampliada a los dos dominios, remisiones con respaldo y literal del registro más parecido; pendientes de verificación en el PC
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019). Cambios del 2026-10-26 (B-025): abstención que pide detalles, mensaje propio de RAG no disponible, búsqueda ampliada a los dos dominios, remisiones con respaldo y literal del registro más parecido; verificados en vivo sin regresiones, con guion manual parcial
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
@@ -321,7 +321,7 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). 🔄 Cambios propuestos el 2026-10-26 (rama `fix/alcance-y-respaldo`): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; pendientes de verificación en el PC
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual
 
 ### HU-08: Interfaz local de conversación y auditoría
 **Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.

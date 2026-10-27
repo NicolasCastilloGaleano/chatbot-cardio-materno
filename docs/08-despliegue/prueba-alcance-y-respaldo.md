@@ -37,5 +37,18 @@ Rama `fix/alcance-y-respaldo`. Cubre los escenarios nuevos de HU-02 y HU-07 del 
 | 7 | "tengo acidez en el embarazo" | Si la respuesta termina en texto literal, es el registro de acidez, no uno de preeclampsia |
 | 8 | "estoy sangrando mucho y tengo 30 semanas" | La alarma se comporta igual que en `main` (mensaje fijo de urgencia) |
 
+### Resultado del guion manual (2026-10-26, PC de pruebas, interfaz web)
+| # | Resultado |
+|---|---|
+| 1 y 2 | **No evaluables.** "mi bebé tiene fiebre" activó RN-MI-13 (fiebre en recién nacido) por el filtro 2, sin que la persona diera la edad. Además, "sí, desde ayer" y "¿quién ganó el partido?" repitieron la misma alarma, porque el análisis acumula los síntomas del hilo. Es un problema que ya existía en `main`, no de B-025 |
+| 3 | No ejecutado |
+| 4 | ✅ Abstención que termina pidiendo detalles |
+| 5 | No ejecutado |
+| 6 | ✅ Probable: hilo materno-infantil con respuesta desde un registro cardiovascular de palpitaciones (la búsqueda ampliada); falta confirmar `domain_fallback` en la traza |
+| 7 | **No evaluable.** En el hilo de las palpitaciones, "tengo acidez en el embarazo" activó RN-CV-01 (dolor u opresión en el pecho) |
+| 8 | No ejecutado |
+
+**Decisión del usuario:** se da por verificada sin regresiones y se fusiona a `main`. Los hallazgos de alarmas, el exceso de códigos del filtro 2 y las alarmas que se repiten en cada turno del hilo, quedan como trabajo previo a la HU-11. También se observó que un hilo nuevo arrastró en su resumen el tema del hilo anterior (error del análisis, a vigilar).
+
 ## 3. Resultado
 Anotar los hallazgos en `docs/05-ia/bitacora-verificacion-ia.md`. Si todo pasa, se fusiona a `main` con la aprobación del usuario y B-025 queda verificado.
