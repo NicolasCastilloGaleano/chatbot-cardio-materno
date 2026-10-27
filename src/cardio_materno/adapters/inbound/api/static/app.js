@@ -473,6 +473,7 @@ function traceSections(trace, thread) {
     section("Síntomas reportados", tags(trace.reported_symptoms)),
     section("Signos del catálogo", tags(trace.reported_signs)),
   ];
+  if (trace.reminded_rules?.length) sections.push(section("Alarmas ya avisadas (solo recordatorio)", tags(trace.reminded_rules, true)));
   if (trace.unstated_symptoms?.length) sections.push(section("Datos que no escribió la persona", tags(trace.unstated_symptoms, true)));
   sections.push(
     section("Consulta de búsqueda", (trace.search_query || "No se registró consulta.") + (trace.domain_fallback ? " · ampliada a los dos dominios" : "")),

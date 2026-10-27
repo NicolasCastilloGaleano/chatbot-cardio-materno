@@ -20,6 +20,7 @@ UNSTATED_DEBUG_TEMPLATE = "[⚠️ datos que la persona no escribió: {symptoms}
 SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}{widened}]"
 WIDENED_SEARCH_NOTE = " · ampliada a los dos dominios"
 SIGNS_DEBUG_TEMPLATE = "[signos marcados: {codes}]"
+REMINDED_DEBUG_TEMPLATE = "[recordatorio de alarma ya avisada: {rule_ids}]"
 NO_SYMPTOMS_TEXT = "ninguno"
 AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
 EVIDENCE_DEBUG_TEMPLATE = "[evidencia: {items} | citadas: {cited}{warning}]"
@@ -63,6 +64,9 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
     optional = [
         SIGNS_DEBUG_TEMPLATE.format(codes=", ".join(trace.reported_signs))
         if trace.reported_signs
+        else "",
+        REMINDED_DEBUG_TEMPLATE.format(rule_ids=", ".join(trace.reminded_rules))
+        if trace.reminded_rules
         else "",
         format_unstated_debug(trace),
         format_search_debug(trace),

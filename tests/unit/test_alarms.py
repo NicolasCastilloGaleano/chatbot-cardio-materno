@@ -7,8 +7,10 @@ import pytest
 from cardio_materno.application.alarm_policy import (
     ALARM_SIGNS_PLACEHOLDER,
     NO_SIGNS_TEXT,
+    REMINDER_MESSAGES,
     AlarmPolicy,
     compose_reply,
+    reminder_for,
     render_system_prompt,
 )
 from cardio_materno.bootstrap.main import ANALYSIS_PROMPT_FILE
@@ -132,3 +134,47 @@ def test_policy_evaluates_codes_with_agent_code_origin_and_exclusions() -> None:
     assert policy.evaluate_codes(["SANGRADO_VAGINAL"], exclude={"T-URG"}) is None
     assert policy.evaluate_codes([]) is None
     assert policy.codes == ("SANGRADO_VAGINAL", "PRESION_ALTA")
+
+
+# --- Alarmas ya avisadas (ADR 0018) --------------------------------------------------------
+
+
+def test_split_alerted_keeps_new_rules_and_returns_the_reminded_ones() -> None:
+    policy = make_alarm_policy()
+    found = policy.evaluate_codes(["SANGRADO_VAGINAL", "PRESION_ALTA"])
+    assert found is not None
+
+    fresh, reminded = policy.split_alerted([found], {"T-URG"})
+
+    assert [d.rule_ids for d in fresh] == [("T-PRI",)]
+    assert fresh[0].message == PRIORITY_MESSAGE and fresh[0].origin is AlertOrigin.AGENT_CODE
+    assert [rule.id for rule in reminded] == ["T-URG"]
+
+
+def test_split_alerted_drops_a_decision_whose_rules_were_all_alerted() -> None:
+    policy = make_alarm_policy()
+    found = policy.evaluate_codes(["SANGRADO_VAGINAL"])
+    assert found is not None
+
+    assert policy.split_alerted([found], {"T-URG"})[0] == ()
+
+
+def test_reminder_text_follows_the_severity_of_the_reminded_rules() -> None:
+    policy = make_alarm_policy()
+    urgent = policy.evaluate_codes(["SANGRADO_VAGINAL"])
+    priority = policy.evaluate_codes(["PRESION_ALTA"])
+    assert urgent is not None and priority is not None
+
+    assert reminder_for(urgent.rules, ()) == REMINDER_MESSAGES[Severity.IMMEDIATE]
+    assert reminder_for(priority.rules, ()) == REMINDER_MESSAGES[Severity.PRIORITY]
+    assert reminder_for((), ()) is None
+
+
+def test_no_reminder_when_a_new_alarm_as_severe_is_shown() -> None:
+    policy = make_alarm_policy()
+    urgent = policy.evaluate_codes(["SANGRADO_VAGINAL"])
+    priority = policy.evaluate_codes(["PRESION_ALTA"])
+    assert urgent is not None and priority is not None
+
+    assert reminder_for(priority.rules, [urgent]) is None
+    assert reminder_for(urgent.rules, [priority]) == REMINDER_MESSAGES[Severity.IMMEDIATE]

@@ -30,6 +30,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "unstated_symptoms": list(trace.unstated_symptoms),
         "search_query": trace.search_query,
         "domain_fallback": trace.domain_fallback,
+        "reminded_rules": list(trace.reminded_rules),
     }
 
 
@@ -52,6 +53,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         unstated_symptoms=tuple(data.get("unstated_symptoms", [])),
         search_query=data.get("search_query", ""),
         domain_fallback=bool(data.get("domain_fallback", False)),
+        reminded_rules=tuple(data.get("reminded_rules", [])),
     )
 
 

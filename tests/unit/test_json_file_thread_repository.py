@@ -107,6 +107,7 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         "unstated_symptoms": ["acidez en el embarazo de 34 semanas"],
         "search_query": "secreción vaginal rosada en el embarazo",
         "domain_fallback": False,
+        "reminded_rules": [],
     }
     assert messages[1].trace == trace
     assert messages[0].trace is None

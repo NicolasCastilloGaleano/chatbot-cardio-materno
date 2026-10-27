@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta de alarmas ya avisadas (B-027):** criterios en HU-03/HU-04 y ADR 0018 (propuesto). Una regla que el filtro 2 vuelve a encontrar en el mismo hilo se recuerda con un texto corto y el turno sigue, en lugar de repetir el mensaje fijo completo. La HU-11 se ajusta: no se indaga con una alarma **nueva**.
 - **Especificación propuesta de la indagación guiada por la evidencia (B-026):** HU-11 y ADR 0017 (propuesto). Regla determinista con las señales del RAG para responder, indagar o cerrar; preguntas del agente sin evidencia, verificadas para que no tengan afirmaciones de salud; modo `observar` antes de activar.
 - **Búsqueda ampliada a los dos dominios (B-025, HU-02, ADR 0008):** si la búsqueda en el dominio del análisis no encuentra evidencia suficiente, se repite una vez en los dos dominios con el mismo umbral. La traza lo marca (`domain_fallback`) y se ve en la auditoría web y en la depuración de la consola. `HybridRetriever` reutiliza el embedding de la misma consulta.
 - Guion de verificación `docs/08-despliegue/prueba-alcance-y-respaldo.md`.
@@ -53,6 +54,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
+- **Alarmas ya avisadas (B-027, HU-03/HU-04, ADR 0018):** si el filtro 2 vuelve a encontrar en el mismo hilo una regla con alerta ya registrada, porque el análisis acumula los síntomas del hilo, ya no se repite el mensaje fijo completo ni se registra otra alerta. Se antepone un recordatorio corto según la gravedad (`REMINDER_MESSAGES`) y el turno sigue normal. El filtro 1 y las reglas nuevas alarman completo como antes. La traza guarda `reminded_rules`, que se ven en la auditoría web y en la consola.
 - **HU-10 aceptada** tras su verificación en el PC de pruebas (2026-10-26).
 - **Alcance (B-025, HU-07, ADR 0009):** una respuesta a una pregunta del asistente ("sí, desde ayer") nunca se descarta, aunque el análisis la marque fuera de alcance, si continúa el hilo (respaldo determinista en `effective_scope`). El mensaje fijo de alcance termina invitando a seguir y sigue sin registrarse.
 - **Abstención (B-025, HU-02, ADR 0010):** el mensaje fijo termina pidiendo más detalles. El RAG no disponible tiene su propio mensaje (`UNAVAILABLE_TEXT`), que no los pide.

@@ -7,7 +7,11 @@ from typing import Any
 import pytest
 
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
-from cardio_materno.application.alarm_policy import AlarmPolicy
+from cardio_materno.application.alarm_policy import (
+    REMINDER_MESSAGES,
+    REPLY_SEPARATOR,
+    AlarmPolicy,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.grounded_reply import (
     ABSTENTION_TEXT,
@@ -267,6 +271,96 @@ def test_unknown_sign_code_is_a_model_error_and_saves_nothing() -> None:
         make_service(agent, repo, ALARMS).send("x")
 
     assert repo.threads == {}
+
+
+SEP = REPLY_SEPARATOR
+URGENT_REMINDER = REMINDER_MESSAGES[Severity.IMMEDIATE]
+PRIORITY_REMINDER = REMINDER_MESSAGES[Severity.PRIORITY]
+
+
+def coded_turn(reply: str, *codes: str, thread_action: str = "continuar") -> dict[str, Any]:
+    return signing(agent_json(reply, thread_action), *codes)
+
+
+def test_rule_already_alerted_in_the_thread_is_only_reminded() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        coded_turn("r1", "SANGRADO_VAGINAL"), coded_turn("Sigue en reposo.", "SANGRADO_VAGINAL")
+    )
+    service = make_service(agent, repo, ALARMS)
+
+    first = service.send("me sale agüita rosada")
+    second = service.send("sí, desde ayer")
+
+    assert first.reply == URGENT_MESSAGE
+    assert second.reply == f"{URGENT_REMINDER}{SEP}Sigue en reposo."
+    assert second.alerts == () and len(repo.alerts["hilo-1"]) == 1
+    assert second.trace is not None and second.trace.reminded_rules == ("T-URG",)
+    assert thread_of(second).id == "hilo-1"
+
+
+def test_person_describing_the_sign_again_gets_the_full_alarm() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(coded_turn("r1", "SANGRADO_VAGINAL"))
+    service = make_service(agent, repo, ALARMS)
+
+    service.send("me sale agüita rosada")
+    result = service.send("sigo con sangrado vaginal")
+
+    assert result.reply == URGENT_MESSAGE and len(repo.alerts["hilo-1"]) == 2
+
+
+def test_new_rule_alarms_in_full_and_keeps_the_more_severe_reminder() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        coded_turn("r1", "SANGRADO_VAGINAL"),
+        coded_turn("Controla la presión.", "SANGRADO_VAGINAL", "PRESION_ALTA"),
+    )
+    service = make_service(agent, repo, ALARMS)
+
+    service.send("me sale agüita rosada")
+    result = service.send("y además me subió la tensión")
+
+    assert result.reply == (f"{URGENT_REMINDER}{SEP}{PRIORITY_MESSAGE}{SEP}Controla la presión.")
+    assert [a.rule_ids for a in result.alerts] == [("T-PRI",)]
+
+
+def test_reminder_precedes_the_abstention() -> None:
+    agent = ScriptedAgent(coded_turn("r1", "PRESION_ALTA"), coded_turn("r2", "PRESION_ALTA"))
+    service = make_service(agent, config=ALARMS, retriever=FakeRetriever())
+
+    service.send("me subió la tensión")
+    result = service.send("¿y la insulina?")
+
+    assert result.reply == f"{PRIORITY_REMINDER}{SEP}{ABSTENTION_TEXT}"
+
+
+def test_new_thread_evaluates_the_alarms_from_scratch() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        coded_turn("r1", "SANGRADO_VAGINAL"),
+        coded_turn("r2", "SANGRADO_VAGINAL", thread_action="nuevo"),
+    )
+    service = make_service(agent, repo, ALARMS)
+
+    service.send("me sale agüita rosada")
+    result = service.send("ahora es otra cosa")
+
+    assert result.reply == URGENT_MESSAGE and thread_of(result).id == "hilo-2"
+    assert len(repo.alerts["hilo-2"]) == 1
+
+
+def test_baby_fever_alarm_is_reminded_and_the_conversation_continues() -> None:
+    policy = load_alarm_policy(Path(__file__).resolve().parents[2] / "knowledge/alarm_rules.json")
+    code = "FIEBRE_O_HIPOTERMIA_RECIEN_NACIDO"
+    agent = ScriptedAgent(coded_turn("r1", code), coded_turn("Mídele la temperatura.", code))
+    service = make_service(agent, config={"alarm_policy": policy})
+
+    first = service.send("mi bebé tiene fiebre")
+    second = service.send("sí, desde ayer")
+
+    assert [a.rule_ids for a in first.alerts] == [("RN-MI-13",)]
+    assert second.reply == f"{URGENT_REMINDER}{SEP}Mídele la temperatura." and second.alerts == ()
 
 
 def test_priority_user_message_shows_fixed_notice_then_agent_reply() -> None:

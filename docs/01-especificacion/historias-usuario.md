@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-26 (HU-11 propuesta: indagación guiada por la evidencia)*
+*Última actualización: 2026-10-26 (HU-03/HU-04: alarmas ya avisadas como recordatorio, propuesta)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -231,8 +231,37 @@ Escenario: La urgencia queda en un hilo de su dominio (regresión del 2026-10-11
   Cuando escribo un signo de alarma cardiovascular ("se me torció la boca y no puedo mover el brazo")
   Entonces se cierra ese hilo y la alerta queda en un hilo nuevo cardiovascular
   Y si la alarma es del mismo dominio del hilo activo, queda en ese hilo
+
+Escenario: Una alarma ya avisada en el hilo no se repite completa en cada turno (ADR 0018; aplica también a la HU-04)
+  Dado un hilo en el que ya se mostró el mensaje fijo de una regla (p. ej., RN-MI-13)
+  Cuando escribo un mensaje que no vuelve a describir ese signo ("sí, desde ayer", "¿y qué más hago?")
+  Y solo el filtro 2 vuelve a encontrar esa regla, porque el análisis acumula los síntomas del hilo
+  Entonces no se repite el mensaje fijo completo ni se registra una alerta nueva
+  Y la respuesta empieza con un recordatorio fijo y corto según la gravedad (urgencia: acudir a urgencias o llamar al 123; prioritaria: consultar pronto)
+  Y después el turno sigue su camino normal: alcance, evidencia y respuesta
+  Y la traza registra las reglas recordadas
+
+Escenario: Si la persona vuelve a describir el signo, la alarma se repite completa
+  Dado un hilo en el que ya se avisó una regla
+  Cuando mi mensaje nuevo vuelve a describir el signo y el filtro 1 lo detecta ("sigo sangrando mucho")
+  Entonces se muestra otra vez el mensaje fijo completo y se registra la alerta, como hoy
+
+Escenario: Una regla nueva o más grave siempre alarma completa
+  Dado un hilo en el que ya se avisó una regla
+  Cuando el filtro 1 o el filtro 2 encuentran una regla que aún no se avisó en el hilo
+  Entonces se muestra su mensaje fijo completo y se registra su alerta, como hoy
+  Y si es una urgencia inmediata, no se busca evidencia ni se llama al modelo de respuesta
+
+Escenario: El recordatorio nunca se pierde
+  Dado un hilo con una regla ya avisada que el filtro 2 vuelve a encontrar
+  Cuando el mensaje es fuera de alcance, conversacional o termina en abstención
+  Entonces el recordatorio también aparece al comienzo de la respuesta
+
+Escenario: Un hilo nuevo evalúa las alarmas desde cero
+  Cuando el análisis abre un hilo nuevo o el hilo anterior se cerró
+  Entonces las reglas avisadas en otros hilos no cuentan como ya avisadas
 ```
-Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. 🔄 Aprobada e implementada el 2026-10-26 (B-027, ADR 0018): alarmas ya avisadas como recordatorio; falta la verificación en el PC
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.
@@ -536,10 +565,11 @@ Notas técnicas (ADR 0017, propuesto): en cada turno sin alarma, el RAG busca co
 Las señales de la búsqueda son: el mejor puntaje, la ventaja del primero sobre el segundo, la coincidencia de categoría entre los mejores registros y el avance frente al turno anterior. Los umbrales son configurables (`knowledge/evidence_policy.json` y `.env`) y se calibran en el PC. Los valores que aparecen abajo son propuestas iniciales.
 
 ```gherkin
-Escenario: Las alarmas van primero y nunca se indaga con una alarma
-  Cuando un mensaje activa una alarma (filtro 1 o filtro 2), de prioridad o de urgencia
+Escenario: Las alarmas van primero y nunca se indaga con una alarma nueva
+  Cuando un mensaje activa una alarma nueva en el hilo (filtro 1 o filtro 2), de prioridad o de urgencia
   Entonces el turno se resuelve como hoy (HU-03, HU-04) y no se hace una pregunta de indagación
   Y la indagación nunca retrasa ni reemplaza el mensaje fijo de una alarma
+  Y si la alarma ya se avisó en el hilo y solo se recuerda (ADR 0018), el recordatorio va primero y el turno puede indagar o responder
 
 Escenario: Evidencia clara desde el primer mensaje
   Dado que el mejor registro supera el umbral para responder (propuesta: 0,60)
