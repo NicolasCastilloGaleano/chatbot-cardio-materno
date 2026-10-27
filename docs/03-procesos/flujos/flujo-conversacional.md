@@ -60,7 +60,7 @@ sequenceDiagram
             else suficiente
                 S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
                 L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}
-                S->>S: verificación determinista (domain/grounding.py); si una frase citada no está respaldada → texto literal del registro
+                S->>S: verificación determinista (domain/grounding.py); si una frase citada no está respaldada → texto literal del registro, solo con sus frases pertinentes y los avisos (B-028)
                 S-->>U: (mensaje fijo ⚠️ si prioritaria) + respuesta verificada
             end
         end
