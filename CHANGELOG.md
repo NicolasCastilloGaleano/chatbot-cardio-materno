@@ -6,6 +6,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación aprobada de la pertinencia de la respuesta (B-028):** criterios en HU-02 y actualización del ADR 0010. El prompt de respuesta v4 citará solo lo que aplica al caso, con un número variable de frases, y el texto literal mostrará solo las frases pertinentes del registro, siempre con los avisos de atención.
+- **Especificación aprobada de la HU-11 (B-026, ADR 0017 aceptado):** registros *Indagar* como insumo opcional, candidatos sobre el piso de indagación que nunca son evidencia, mensaje ajeno sin indagación, texto propuesto del cierre honesto y puntos decididos (umbrales a calibrar en modo `observar`, metas, orden B-028 → `observar` → `activo`).
+- **Especificación aprobada del alcance del mensaje actual (HU-07, ADR 0009):** el prompt de análisis v7 agregará `about_health`, para que los síntomas acumulados del hilo no dejen en alcance un mensaje ajeno (hallazgo del guion de B-027).
+- Backlog: B-028 (pertinencia) y B-029 (HU-12, ampliación anclada con conocimiento propio del agente; idea registrada, fuera de la HU-11).
 - **Especificación propuesta de alarmas ya avisadas (B-027):** criterios en HU-03/HU-04 y ADR 0018 (propuesto). Una regla que el filtro 2 vuelve a encontrar en el mismo hilo se recuerda con un texto corto y el turno sigue, en lugar de repetir el mensaje fijo completo. La HU-11 se ajusta: no se indaga con una alarma **nueva**.
 - **Especificación propuesta de la indagación guiada por la evidencia (B-026):** HU-11 y ADR 0017 (propuesto). Regla determinista con las señales del RAG para responder, indagar o cerrar; preguntas del agente sin evidencia, verificadas para que no tengan afirmaciones de salud; modo `observar` antes de activar.
 - **Búsqueda ampliada a los dos dominios (B-025, HU-02, ADR 0008):** si la búsqueda en el dominio del análisis no encuentra evidencia suficiente, se repite una vez en los dos dominios con el mismo umbral. La traza lo marca (`domain_fallback`) y se ve en la auditoría web y en la depuración de la consola. `HybridRetriever` reutiliza el embedding de la misma consulta.

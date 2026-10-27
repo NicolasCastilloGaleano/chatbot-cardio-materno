@@ -139,6 +139,21 @@ Escenario: El texto literal sale del registro más parecido a la consulta (2026-
   Cuando la verificación obliga a mostrar el texto literal
   Entonces se muestra el registro de mayor similitud (si empatan, el que citó el agente)
 
+Escenario: La respuesta cita solo lo que aplica al caso (B-028, 2026-10-27)
+  Dado que la evidencia ofrecida incluye registros o frases que no corresponden a lo que conté (p. ej., un registro de sangrado después de las relaciones cuando no mencioné relaciones)
+  Cuando el agente redacta la respuesta
+  Entonces solo usa los registros y las frases que responden a mi situación y a mi pregunta
+  Y el número de frases depende de lo que aporta: una sola frase es una respuesta válida, y nunca se pasa del máximo (5)
+  Y si nada de la evidencia responde mi pregunta, lo dice en una frase sin cita y ofrece lo que sí dicen los registros (como hoy)
+
+Escenario: El texto literal muestra solo las frases pertinentes del registro (B-028, 2026-10-27)
+  Dado que la verificación obliga a mostrar el texto literal de un registro
+  Cuando algunas frases del registro no comparten términos con la consulta (la consulta de búsqueda del hilo y mi mensaje)
+  Entonces se muestran solo las frases del registro que sí los comparten, en su orden original y sin modificarlas
+  Y las frases del registro con un aviso de atención (urgencias, atención inmediata, línea 123, acudir o consultar al personal de salud) se muestran siempre
+  Y si ninguna frase cumple el criterio, se muestra el registro completo, como hoy
+  Y la traza registra cuántas frases del registro se mostraron y cuántas tiene
+
 Escenario: Frases sin cita
   Cuando el agente agrega una pregunta corta de aclaración o una frase de cortesía sin cita
   Entonces se conservan (máximo 2)
@@ -168,7 +183,7 @@ Escenario: RAG no disponible
   Entonces avisa al arrancar que el RAG no está disponible
   Y cada consulta de salud recibe un mensaje fijo que dice que en este momento no se puede consultar la información y recomienda el personal de salud, sin llamar al modelo de lenguaje (desde el 2026-10-26 es distinto del de abstención: no pide más detalles)
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019). Cambios del 2026-10-26 (B-025): abstención que pide detalles, mensaje propio de RAG no disponible, búsqueda ampliada a los dos dominios, remisiones con respaldo y literal del registro más parecido; verificados en vivo sin regresiones, con guion manual parcial
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-12: `pytest -m live` 24/24, guion con respuestas verificadas, abstenciones y RAG no disponible). La base de conocimiento tiene vacíos (p. ej., alimentación con acidez, diabetes gestacional), que reciben abstención; ampliarla es decisión clínica (B-019). Cambios del 2026-10-26 (B-025): abstención que pide detalles, mensaje propio de RAG no disponible, búsqueda ampliada a los dos dominios, remisiones con respaldo y literal del registro más parecido; verificados en vivo sin regresiones, con guion manual parcial. 📝 Cambios aprobados el 2026-10-27 (B-028, ADR 0010): respuesta que cita solo lo pertinente y literal por frases; pendientes de implementar
 
 ### HU-03: Alerta por signos de alarma materno‑infantiles
 **Como** gestante o cuidador de un menor, **quiero** que el asistente reconozca si lo que describo es peligroso, **para** acudir a tiempo.
@@ -339,6 +354,14 @@ Escenario: Mensaje ajeno en medio de una consulta
   Entonces el primer mensaje recibe el mensaje fijo y no se registra
   Y el segundo continúa el mismo hilo
 
+Escenario: Los síntomas acumulados del hilo no dejan en alcance un mensaje ajeno (prompt de análisis v7, 2026-10-27)
+  Dado un hilo sobre la fiebre de mi bebé, en el que el análisis repite los síntomas ya contados
+  Cuando escribo "¿quién ganó el partido?"
+  Y el análisis marca el mensaje como "fuera_de_alcance" e indica que el mensaje actual no trata de salud ("about_health": false)
+  Entonces los síntomas acumulados no bastan: recibe el mensaje fijo de alcance y no se registra (como dice el escenario "Mensaje ajeno en medio de una consulta")
+  Y si en el hilo hay una alarma ya avisada, el recordatorio va antes del mensaje fijo (ADR 0018)
+  Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente sigue en alcance, como hoy
+
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"
   Entonces el asistente responde con amabilidad y presenta el servicio, sin buscar evidencia
@@ -350,7 +373,7 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual. 📝 Cambio aprobado el 2026-10-27 (prompt de análisis v7, ADR 0009): en el guion de B-027, "¿quién ganó el partido?" en un hilo con síntomas quedó en alcance y terminó en abstención, en contra del escenario "Mensaje ajeno en medio de una consulta"; se corrige con `about_health`. Pendiente de implementar con la HU-11
 
 ### HU-08: Interfaz local de conversación y auditoría
 **Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.
@@ -564,6 +587,8 @@ Notas técnicas (ADR 0017, propuesto): en cada turno sin alarma, el RAG busca co
 
 Las señales de la búsqueda son: el mejor puntaje, la ventaja del primero sobre el segundo, la coincidencia de categoría entre los mejores registros y el avance frente al turno anterior. Los umbrales son configurables (`knowledge/evidence_policy.json` y `.env`) y se calibran en el PC. Los valores que aparecen abajo son propuestas iniciales.
 
+Los **candidatos** de la indagación son los mejores registros sobre el piso de indagación, aunque no lleguen al umbral de evidencia: solo guían las preguntas y nunca se citan ni se muestran como evidencia. Los registros de enfoque *Indagar* son un **insumo opcional** (2026-10-27): el agente los usa si encajan con el caso y, si no, pregunta con su propio conocimiento, siempre para acercarse a un registro de la base o llegar al cierre honesto. Cuando la indagación termina en una respuesta, aplica la pertinencia de la HU-02 (B-028).
+
 ```gherkin
 Escenario: Las alarmas van primero y nunca se indaga con una alarma nueva
   Cuando un mensaje activa una alarma nueva en el hilo (filtro 1 o filtro 2), de prioridad o de urgencia
@@ -585,6 +610,19 @@ Escenario: Indagar cuando la evidencia es prometedora pero no segura
   Y no pregunta lo que ya conté en el hilo
   Y la traza registra el modo "indagar", el número de turno de indagación y las señales de la búsqueda
 
+Escenario: Los registros de indagación son un insumo opcional (2026-10-27)
+  Dado que entre los candidatos hay registros de enfoque "Indagar", que dicen qué datos importan
+  Cuando el agente redacta un turno de indagación
+  Entonces usa esos registros si encajan con lo que conté, y reformula sus preguntas con naturalidad, sin copiarlas como un formulario
+  Y si no encajan, o no hay registros "Indagar" entre los candidatos, formula sus propias preguntas con su conocimiento
+  Y en ambos casos las preguntas buscan los datos que acercan la conversación a un registro de la base, no explorar por explorar
+
+Escenario: Un mensaje ajeno no se indaga
+  Dado que el asistente está indagando
+  Cuando escribo "¿quién ganó el partido?"
+  Entonces recibe el mensaje fijo de alcance (HU-07), no una pregunta de indagación
+  Y no cuenta como turno de indagación ni cambia el estado de la indagación
+
 Escenario: Una pregunta de indagación nunca contiene afirmaciones de salud
   Cuando el agente redacta un turno de indagación
   Entonces una verificación determinista acepta solo preguntas cortas y frases de cortesía, sin números que yo no haya escrito
@@ -601,6 +639,7 @@ Escenario: Se deja de indagar si no hay avance
   Y eso ocurre en dos turnos de indagación seguidos, o se alcanza el máximo de turnos de indagación (propuesta: 3)
   Entonces, si el mejor registro está sobre el umbral de evidencia actual (0,50), el asistente responde con evidencia verificada
   Y si no lo está, cierra con un mensaje honesto: no tiene información validada sobre eso, recomienda consultar con el personal de salud y ofrece hablar de otro tema
+  Y el cierre es un texto fijo, sin llamar al modelo de lenguaje. Propuesta, pendiente de revisión clínica: "Con lo que me cuentas no encuentro información validada en la base del proyecto para orientarte sobre esto. Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud. Si tienes otra duda sobre el corazón, la presión arterial, el embarazo o tu bebé, con gusto te ayudo."
 
 Escenario: Nada cercano desde el principio
   Cuando el mejor registro está por debajo del piso de indagación
@@ -636,4 +675,4 @@ Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
 
 Las metas las decide el equipo.
 
-Estado: 📝 Propuesta (2026-10-26), pendiente de revisión del equipo. Depende de B-025 (rama `fix/alcance-y-respaldo`)
+Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. Se implementa después de B-028, primero en modo `observar` y luego `activo`. B-025 y B-027 ya están en `main`
