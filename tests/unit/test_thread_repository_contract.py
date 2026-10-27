@@ -131,6 +131,7 @@ def test_trace_round_trip_only_for_assistant_messages(repo: ThreadRepository) ->
         best_score=0.71,
         timings=(StageTiming("análisis", 1.2),),
         reported_signs=("SALIDA_LIQUIDO_VAGINAL",),
+        domain_fallback=True,
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))

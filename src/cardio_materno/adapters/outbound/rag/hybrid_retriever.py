@@ -47,6 +47,7 @@ class HybridRetriever:
         self._index = index
         self._embedder = embedder
         self._policy = policy
+        self._last_query: tuple[str, list[float]] | None = None
         self._lexical = Bm25Index(
             {
                 e.id: tokenize(f"{e.question} {e.category} {e.answer}", policy.min_token_chars)
@@ -58,7 +59,7 @@ class HybridRetriever:
         """Devuelve la evidencia que supera el umbral; UNAVAILABLE si falla el embedding."""
         text = query.text[: self._policy.max_query_chars]
         try:
-            vector = self._embedder.embed([self._policy.query_instruction + text])[0]
+            vector = self._embed(text)
         except LanguageModelError:
             return RetrievalResult(RetrievalStatus.UNAVAILABLE)
         allowed = self._allowed_ids(query)
@@ -67,6 +68,20 @@ class HybridRetriever:
         return self._build_result(
             similarities, fuse_rankings([list(similarities), lexical], self._policy.rrf_k)
         )
+
+    def _embed(self, text: str) -> list[float]:
+        """Vector de la consulta; reutiliza el anterior si el texto es el mismo.
+
+        Si no hay evidencia en el dominio del análisis, el turno repite la búsqueda en los dos
+        dominios con el mismo texto (HU-02): así el embedding se calcula una sola vez. Se lee
+        una copia local para que dos hilos no mezclen el texto de uno con el vector de otro.
+        """
+        last = self._last_query
+        if last is not None and last[0] == text:
+            return last[1]
+        vector = list(self._embedder.embed([self._policy.query_instruction + text])[0])
+        self._last_query = (text, vector)
+        return vector
 
     def _allowed_ids(self, query: EvidenceQuery) -> set[str]:
         """Registros de los dominios pedidos (todos si no se indica ninguno)."""

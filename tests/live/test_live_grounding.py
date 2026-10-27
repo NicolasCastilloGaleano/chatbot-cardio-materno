@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from cardio_materno.application.conversation_service import ConversationService, TurnResult
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, UNAVAILABLE_TEXT
 from cardio_materno.bootstrap.main import PROJECT_ROOT, build_service
 from cardio_materno.bootstrap.settings import load_conversation_settings
 
@@ -39,7 +39,9 @@ def describe(question: str, result: TurnResult) -> str:
     """Línea del reporte: cómo se resolvió la respuesta."""
     trace = result.trace
     if trace is None or trace.grounding is None:
-        kind = "abstención" if result.reply == ABSTENTION_TEXT else "sin redacción"
+        kind = {ABSTENTION_TEXT: "abstención", UNAVAILABLE_TEXT: "RAG no disponible"}.get(
+            result.reply, "sin redacción"
+        )
     else:
         check = trace.grounding
         kind = f"{check.supported}/{check.total} frases" + (" · literal" if check.literal else "")

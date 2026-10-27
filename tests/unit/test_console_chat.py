@@ -255,3 +255,17 @@ def test_debug_shows_marked_sign_codes_and_their_alert_origin() -> None:
 
     assert "[signos marcados: SANGRADO_VAGINAL]" in output
     assert any("T-URG urgencia_inmediata (agente_codigo)" in line for line in output)
+
+
+def test_debug_marks_a_search_widened_to_both_domains() -> None:
+    turn = citing(agent_json("respuesta") | {"search_query": "palpitaciones"}, "E1")
+    retriever = FakeRetriever(
+        RetrievalResult(RetrievalStatus.INSUFFICIENT),
+        evidence_result(knowledge_entry(answer="respuesta")),
+    )
+
+    output = run_console(
+        ["me palpita", "salir"], ScriptedAgent(turn), show_thread_debug=True, retriever=retriever
+    )
+
+    assert "[búsqueda: palpitaciones · ampliada a los dos dominios]" in output

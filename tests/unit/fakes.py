@@ -148,15 +148,18 @@ class ScriptedAgent:
 
 
 class FakeRetriever:
-    """Buscador falso: devuelve un resultado fijo y registra las consultas."""
+    """Buscador falso: devuelve los resultados dados en orden y registra las consultas.
 
-    def __init__(self, result: RetrievalResult | None = None) -> None:
-        self.result = result or RetrievalResult(RetrievalStatus.INSUFFICIENT)
+    Sin resultados devuelve INSUFFICIENT; cuando se acaban, repite el último.
+    """
+
+    def __init__(self, *results: RetrievalResult) -> None:
+        self.results = results or (RetrievalResult(RetrievalStatus.INSUFFICIENT),)
         self.queries: list[EvidenceQuery] = []
 
     def retrieve(self, query: EvidenceQuery) -> RetrievalResult:
         self.queries.append(query)
-        return self.result
+        return self.results[min(len(self.queries), len(self.results)) - 1]
 
 
 class BackingRetriever:

@@ -18,7 +18,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Control de alcance** por intención (HU-07) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-12) |
 | **Filtro 2 con códigos cerrados** (B-015, ADR 0012, catálogo v0.5.0) | 🟡 Implementado para la demostración; pendiente de ratificación del equipo |
 | **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
-| **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Implementada y probada automáticamente; recorrido visual en el PC de pruebas pendiente |
+| **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Hecho (HU-10 verificada en el PC de pruebas el 2026-10-26) |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |

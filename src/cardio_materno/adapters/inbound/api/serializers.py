@@ -148,6 +148,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "reported_signs": list(trace.reported_signs),
         "unstated_symptoms": list(trace.unstated_symptoms),
         "search_query": trace.search_query,
+        "domain_fallback": trace.domain_fallback,
         "scope": trace.scope,
         "scope_reason": trace.scope_reason,
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,

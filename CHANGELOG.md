@@ -6,6 +6,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta de la indagación guiada por la evidencia (B-026):** HU-11 y ADR 0017 (propuesto). Regla determinista con las señales del RAG para responder, indagar o cerrar; preguntas del agente sin evidencia, verificadas para que no tengan afirmaciones de salud; modo `observar` antes de activar.
+- **Búsqueda ampliada a los dos dominios (B-025, HU-02, ADR 0008):** si la búsqueda en el dominio del análisis no encuentra evidencia suficiente, se repite una vez en los dos dominios con el mismo umbral. La traza lo marca (`domain_fallback`) y se ve en la auditoría web y en la depuración de la consola. `HybridRetriever` reutiliza el embedding de la misma consulta.
+- Guion de verificación `docs/08-despliegue/prueba-alcance-y-respaldo.md`.
 - **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.
 - **HU-10, fase 2 (dominio, aplicación y SQLite):**
   - Canal `historico`, canales de solo lectura y regla `chat_lock` (`domain/user.py`).
@@ -50,11 +53,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
+- **HU-10 aceptada** tras su verificación en el PC de pruebas (2026-10-26).
+- **Alcance (B-025, HU-07, ADR 0009):** una respuesta a una pregunta del asistente ("sí, desde ayer") nunca se descarta, aunque el análisis la marque fuera de alcance, si continúa el hilo (respaldo determinista en `effective_scope`). El mensaje fijo de alcance termina invitando a seguir y sigue sin registrarse.
+- **Abstención (B-025, HU-02, ADR 0010):** el mensaje fijo termina pidiendo más detalles. El RAG no disponible tiene su propio mensaje (`UNAVAILABLE_TEXT`), que no los pide.
+- **Respaldo (B-025, ADR 0010):** las frases de remisión ("acude a urgencias o llama al 123") ya no se eximen de la verificación; se quitan `REFERRAL_WORDS` y `SAFE_NUMBERS`.
 - `bootstrap/main.py`: `build_conversation` arma los puertos y la configuración del agente; `build_service` la usa y la consola y la web no cambian. `load_web_settings` reutiliza la validación de host local y puerto.
 - `.env.example`: la sección "Canales y persistencia (fases siguientes)" se reemplaza por "Canal WhatsApp" y "Persistencia por usuario"; `DATABASE_URL` pasa a ser `DATABASE_PATH`.
 - **Prompt de análisis v6:** un mensaje que reporta un síntoma o malestar de origen incierto siempre está en alcance (caso real: "dolor muy fuerte en el brazo por que me asustó una gallina"); "fuera_de_alcance" queda solo para mensajes ajenos sin síntomas. La regla determinista de alcance ya no exige un dominio para respetar los síntomas reportados (ADR 0009, actualización). Casos nuevos en `tests/live/scope_cases.json`.
 
 ### Fixed
+- **Texto literal (B-025, ADR 0010):** cuando la redacción falla, el literal sale del registro de mayor similitud y no del primero que citó el agente (caso real: acidez → registro de preeclampsia).
 - Interfaz web (revisión de la rama `feat/interfaz-web-auditoria`): formato de `ruff` (la CI fallaba en los 4 commits, así que mypy y pytest no corrían); tildes dañadas por doble codificación en 5 archivos Python (p. ej., el título "demostración y auditoría" y el error "El mensaje no puede estar vacío"); `trace_to_dict` dividida según el estándar de funciones cortas; `use_utf8_streams` pasa a ser pública (antes se importaba una función privada).
 
 ### Added

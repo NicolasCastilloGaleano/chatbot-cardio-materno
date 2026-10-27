@@ -29,6 +29,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
         "unstated_symptoms": list(trace.unstated_symptoms),
         "search_query": trace.search_query,
+        "domain_fallback": trace.domain_fallback,
     }
 
 
@@ -50,6 +51,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         grounding=grounding_from_dict(data["grounding"]) if data.get("grounding") else None,
         unstated_symptoms=tuple(data.get("unstated_symptoms", [])),
         search_query=data.get("search_query", ""),
+        domain_fallback=bool(data.get("domain_fallback", False)),
     )
 
 

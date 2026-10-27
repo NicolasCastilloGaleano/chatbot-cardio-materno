@@ -17,7 +17,8 @@ THREAD_DEBUG_TEMPLATE = "[hilo {id} | {domain} | {status} | {change}{alerts}]"
 ALERT_DEBUG_TEMPLATE = " | ⚠️ {rule_ids} {severity} ({origin})"
 SYMPTOMS_DEBUG_TEMPLATE = "[síntomas reportados por el agente: {symptoms}]"
 UNSTATED_DEBUG_TEMPLATE = "[⚠️ datos que la persona no escribió: {symptoms}]"
-SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}]"
+SEARCH_DEBUG_TEMPLATE = "[búsqueda: {query}{widened}]"
+WIDENED_SEARCH_NOTE = " · ampliada a los dos dominios"
 SIGNS_DEBUG_TEMPLATE = "[signos marcados: {codes}]"
 NO_SYMPTOMS_TEXT = "ninguno"
 AGENT_NOT_CONSULTED_TEXT = "[agente no consultado: urgencia detectada en el mensaje]"
@@ -64,7 +65,7 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         if trace.reported_signs
         else "",
         format_unstated_debug(trace),
-        SEARCH_DEBUG_TEMPLATE.format(query=trace.search_query) if trace.search_query else "",
+        format_search_debug(trace),
         format_evidence_debug(trace),
         format_grounding_debug(trace),
         format_timings_debug(trace.timings) if trace.timings else "",
@@ -168,3 +169,11 @@ def format_timings_debug(timings: tuple[StageTiming, ...]) -> str:
     """Duración de cada etapa, p. ej. "[tiempos: análisis 3.1 s · RAG 0.4 s · respuesta 6.2 s]"."""
     parts = (TIMING_TEMPLATE.format(stage=t.stage, seconds=t.seconds) for t in timings)
     return TIMINGS_DEBUG_TEMPLATE.format(timings=TIMING_SEPARATOR.join(parts))
+
+
+def format_search_debug(trace: ReplyTrace) -> str:
+    """Consulta de búsqueda y si se amplió a los dos dominios ("" si no se buscó)."""
+    if not trace.search_query:
+        return ""
+    widened = WIDENED_SEARCH_NOTE if trace.domain_fallback else ""
+    return SEARCH_DEBUG_TEMPLATE.format(query=trace.search_query, widened=widened)

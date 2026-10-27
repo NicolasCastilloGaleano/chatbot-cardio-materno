@@ -18,6 +18,7 @@ from cardio_materno.domain.grounding import (
     support_ratio,
     unstated_details,
 )
+from cardio_materno.domain.knowledge import EvidenceItem
 from tests.unit.fakes import evidence_result, knowledge_entry
 
 POLICY = GroundingPolicy()
@@ -113,7 +114,7 @@ def test_only_the_first_allowed_free_sentences_are_kept() -> None:
     assert reply.check.dropped == ("¿Desde cuándo?",) and not reply.check.literal
 
 
-def test_literal_fallback_uses_the_first_cited_entry() -> None:
+def test_literal_fallback_prefers_the_cited_entry_when_scores_tie() -> None:
     items = evidence_result(knowledge_entry("k1"), knowledge_entry("k2", answer="Otra cosa.")).items
     draft = [DraftSentence("Algo inventado sobre medicamentos.", "E2")]
 
@@ -123,11 +124,15 @@ def test_literal_fallback_uses_the_first_cited_entry() -> None:
     assert reply.cited == ("E2",) and reply.check.literal
 
 
-def test_urgent_referral_words_and_line_123_do_not_count_against_support() -> None:
-    sentence = "Si hay dolor de cabeza o visión alterada, acude a urgencias o llama al 123."
-
-    assert is_supported(sentence, EVIDENCE, POLICY)
+def test_referral_without_support_in_the_cited_entry_is_rejected() -> None:
+    assert not is_supported("Acude de inmediato a urgencias o llama al 123.", EVIDENCE, POLICY)
     assert not is_supported("Llama al 123 y toma ibuprofeno con agua.", EVIDENCE, POLICY)
+
+
+def test_referral_supported_by_the_cited_entry_is_accepted() -> None:
+    evidence = EVIDENCE + " Si no puedes llegar, acude a urgencias o llama a la línea 123."
+
+    assert is_supported("Acude a urgencias o llama a la línea 123.", evidence, POLICY)
 
 
 # --- Datos que la persona no escribió (B-021, incidente del 2026-10-11) -------------------
@@ -167,3 +172,16 @@ def test_placeholders_are_removed_from_text() -> None:
     assert remove_placeholders("acidez en el embarazo de [N] semanas") == (
         "acidez en el embarazo de semanas"
     )
+
+
+def test_literal_fallback_uses_the_most_similar_entry_not_the_cited_one() -> None:
+    items = (
+        EvidenceItem("E1", knowledge_entry("pre", answer="Atención inmediata por presión."), 0.55),
+        EvidenceItem("E2", knowledge_entry("aci", answer="Cuenta si el ardor sube."), 0.60),
+    )
+    draft = [DraftSentence("Algo inventado sobre la presión.", "E1")]
+
+    reply = compose_grounded_reply(draft, items, "tengo acidez en el embarazo", POLICY)
+
+    assert reply.text == LITERAL_TEMPLATE.format(answer="Cuenta si el ardor sube.")
+    assert reply.cited == ("E2",) and reply.check.literal

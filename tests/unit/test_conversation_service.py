@@ -9,7 +9,11 @@ import pytest
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
 from cardio_materno.application.alarm_policy import AlarmPolicy
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, LITERAL_TEMPLATE
+from cardio_materno.application.grounded_reply import (
+    ABSTENTION_TEXT,
+    LITERAL_TEMPLATE,
+    UNAVAILABLE_TEXT,
+)
 from cardio_materno.application.scope import CONVERSATIONAL_CONTEXT, OUT_OF_SCOPE_MESSAGE
 from cardio_materno.application.turn_context import NO_THREAD_CONTEXT
 from cardio_materno.domain.alarms import AlarmRule, AlertOrigin, Severity, compile_pattern
@@ -412,7 +416,50 @@ def test_domain_none_searches_all_domains() -> None:
 
     make_service(ScriptedAgent(agent_json(domain="ninguno")), retriever=retriever).send("hola")
 
-    assert retriever.queries[0].domains == ()
+    assert [q.domains for q in retriever.queries] == [()]
+
+
+def test_evidence_in_the_analysis_domain_does_not_repeat_the_search() -> None:
+    retriever = FakeRetriever(evidence_result(knowledge_entry()))
+
+    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("acidez")
+
+    assert [q.domains for q in retriever.queries] == [(Domain.MATERNAL_CHILD,)]
+    assert result.trace is not None and not result.trace.domain_fallback
+
+
+def test_without_evidence_in_the_analysis_domain_the_search_covers_both_domains() -> None:
+    entry = knowledge_entry("cv1", Domain.CARDIOVASCULAR, answer="respuesta")
+    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT), evidence_result(entry))
+    agent = ScriptedAgent(citing(agent_json("respuesta"), "E1"))
+
+    result = make_service(agent, retriever=retriever).send(
+        "me palpita el corazón y estoy embarazada"
+    )
+
+    assert [q.domains for q in retriever.queries] == [(Domain.MATERNAL_CHILD,), ()]
+    assert retriever.queries[0].text == retriever.queries[1].text
+    assert result.reply == "respuesta"
+    assert result.trace is not None and result.trace.domain_fallback
+    assert [ref.entry_id for ref in result.trace.evidence] == ["cv1"]
+
+
+def test_without_evidence_in_both_domains_abstains_without_flagging_the_search() -> None:
+    agent = ScriptedAgent(agent_json("r"))
+    retriever = FakeRetriever()
+
+    result = make_service(agent, retriever=retriever).send("¿cuánta insulina me pongo?")
+
+    assert len(retriever.queries) == 2 and result.reply == ABSTENTION_TEXT
+    assert result.trace is not None and not result.trace.domain_fallback
+
+
+def test_unavailable_retriever_does_not_repeat_the_search() -> None:
+    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.UNAVAILABLE))
+
+    result = make_service(ScriptedAgent(agent_json("r")), retriever=retriever).send("acidez")
+
+    assert len(retriever.queries) == 1 and result.reply == UNAVAILABLE_TEXT
 
 
 def test_reply_schema_limits_citations_to_offered_labels_and_trace_records_them() -> None:
@@ -447,19 +494,30 @@ def test_citing_unoffered_label_is_an_error_and_saves_nothing() -> None:
     assert repo.threads == {}
 
 
-@pytest.mark.parametrize("status", [RetrievalStatus.INSUFFICIENT, RetrievalStatus.UNAVAILABLE])
+@pytest.mark.parametrize(
+    ("status", "text"),
+    [
+        (RetrievalStatus.INSUFFICIENT, ABSTENTION_TEXT),
+        (RetrievalStatus.UNAVAILABLE, UNAVAILABLE_TEXT),
+    ],
+)
 def test_without_sufficient_evidence_abstains_without_calling_the_reply_model(
-    status: RetrievalStatus,
+    status: RetrievalStatus, text: str
 ) -> None:
     agent = ScriptedAgent(agent_json("el jengibre ayuda"))
     retriever = FakeRetriever(RetrievalResult(status, best_score=0.44))
 
     result = make_service(agent, retriever=retriever).send("¿qué como si tengo acidez?")
 
-    assert result.reply == ABSTENTION_TEXT and agent.responder.calls == []
+    assert result.reply == text and agent.responder.calls == []
     assert result.trace is not None and result.trace.retrieval_status is status
     assert result.trace.grounding is None
     assert [t.stage for t in result.trace.timings] == ["análisis", "RAG"]
+
+
+def test_abstention_asks_for_more_details_and_unavailable_does_not() -> None:
+    assert ABSTENTION_TEXT.rstrip().endswith("?")
+    assert "?" not in UNAVAILABLE_TEXT
 
 
 def test_abstention_with_priority_alarm_shows_only_the_fixed_notice() -> None:
@@ -583,6 +641,22 @@ def test_out_of_scope_in_the_middle_of_a_thread_keeps_it_active() -> None:
         "¿y qué más puedo comer?",
         "r3",
     ]
+
+
+def test_answer_to_the_assistant_question_is_answered_in_the_same_thread() -> None:
+    repo = InMemoryThreadRepository()
+    agent = ScriptedAgent(
+        agent_json("¿Desde cuándo tiene fiebre?", summary="fiebre del bebé"),
+        scoped(agent_json("Gracias, sigue midiendo."), "fuera_de_alcance", "sin salud"),
+    )
+    service = make_service(agent, repo)
+
+    service.send("mi bebé tiene fiebre")
+    result = service.send("sí, desde ayer")
+
+    assert result.reply == "Gracias, sigue midiendo." and not result.out_of_scope
+    assert thread_of(result).id == "hilo-1" and len(repo.messages["hilo-1"]) == 4
+    assert result.trace is not None and result.trace.scope == "en_alcance"
 
 
 def test_priority_alarm_is_never_discarded_as_out_of_scope() -> None:
