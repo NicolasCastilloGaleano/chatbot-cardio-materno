@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-26 (HU-02 y HU-07: correcciones de alcance y respaldo)*
+*Última actualización: 2026-10-26 (HU-11 propuesta)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -26,6 +26,12 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-10 | Carga por partes, alertas por turno y mensajes en proceso (lectura) | `sqlite_chat_audit.py` | `test_sqlite_chat_audit.py` | ✅ (automática y visual) |
 | HU-10 | Importación del histórico (idempotente) | `application/import_history.py`, `run_import_history.py` | `test_import_history.py` | ✅ (automática); ⏳ con hilos reales |
 | HU-10 | Interfaz: lista y filtros, colores y separadores por hilo, scroll hacia arriba, composer según el bloqueo, "Liberar", actualización automática con "procesando…" y "mensajes nuevos" | `api/static/{index.html,app.js,styles.css}` | `test_web_app.py::test_client_implements_the_multichannel_view` + recorrido visual con datos sintéticos (2026-10-18) | ✅ (automática y visual); ⏳ en el PC de pruebas |
+| HU-11 | Regla determinista de modo (responder, indagar o cerrar) con las señales del RAG (ADR 0017, propuesto) | `application/inquiry_policy.py` | ⏳ | ⏳ |
+| HU-11 | Nunca se indaga con una alarma | `conversation_service.py::_route` | ⏳ | ⏳ |
+| HU-11 | Turno de indagación solo con preguntas y cortesía verificadas; pregunta fija si no queda ninguna | `domain/grounding.py`, `inquiry_prompt_v1.md` | ⏳ | ⏳ |
+| HU-11 | Fin garantizado: máximo de turnos, sin avance o pedido directo → responder o cerrar | `inquiry_policy.py`, `analysis_prompt_v7.md` (`wants_guidance`) | ⏳ | ⏳ |
+| HU-11 | Modo `observar`/`activo`/`apagado` y modo y señales en la traza y la auditoría | `bootstrap/settings.py`, `domain/trace.py`, `app.js`, `debug_lines.py` | ⏳ | ⏳ |
+| HU-11 | Métricas de utilidad de la indagación | `tests/live/` | ⏳ | ⏳ |
 | HU-09 | Dos personas no comparten contexto (el agente recibe solo el hilo de quien escribe) | `sqlite_thread_repository.py` (acotado por usuario), `sqlite_user_thread_store.py`, `ConversationService(active_thread_id)` | `test_conversation_per_user.py::test_interleaved_users_never_share_context`, `test_sqlite_persistence.py::test_a_user_never_sees_threads_or_messages_of_another`, `test_a_user_cannot_write_into_another_users_thread` | ✅ (automática; fase 2) |
 | HU-09 | El chat continuo retoma el hilo abierto con el mismo contexto que la consola | `UserThreadStore.open_thread`, `ConversationService(active_thread_id)` | `test_resumed_thread_gets_the_same_context_as_a_console_session`, `test_new_topic_closes_the_users_thread_and_keeps_one_open`, `test_only_one_open_thread_per_user` | ✅ (automática; fase 2) |
 | HU-09 | Base para el cierre por inactividad y la deduplicación | `domain/user.py::is_idle`, `last_activity_at`, `sqlite_channel_log.py` | `test_user.py`, `test_last_activity_follows_messages_even_without_thread_update`, `test_inbound_messages_are_deduplicated` | ✅ (automática) |

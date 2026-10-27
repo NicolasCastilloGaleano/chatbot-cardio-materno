@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta de la indagación guiada por la evidencia (B-026):** HU-11 y ADR 0017 (propuesto). Regla determinista con las señales del RAG para responder, indagar o cerrar; preguntas del agente sin evidencia, verificadas para que no tengan afirmaciones de salud; modo `observar` antes de activar.
 - **Búsqueda ampliada a los dos dominios (B-025, HU-02, ADR 0008):** si la búsqueda en el dominio del análisis no encuentra evidencia suficiente, se repite una vez en los dos dominios con el mismo umbral. La traza lo marca (`domain_fallback`) y se ve en la auditoría web y en la depuración de la consola. `HybridRetriever` reutiliza el embedding de la misma consulta.
 - Guion de verificación `docs/08-despliegue/prueba-alcance-y-respaldo.md`.
 - **Especificación propuesta de la auditoría multicanal (B-024):** HU-10 (chats por persona de todos los canales, carga por partes, colores por hilo, solo lectura para WhatsApp y Telegram, consola y web continuables en la interfaz) y ADR 0016. Aprobados el 2026-10-18.

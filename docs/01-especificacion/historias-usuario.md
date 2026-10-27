@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-26 (HU-02 y HU-07: correcciones de alcance y respaldo propuestas)*
+*Última actualización: 2026-10-26 (HU-11 propuesta: indagación guiada por la evidencia)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -524,3 +524,86 @@ Escenario: Mensajes fuera de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
 ```
 Estado: 🔄 Aprobada (2026-10-18); en implementación. Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
+
+### HU-11: Indagación guiada por la evidencia
+**Como** gestante, cuidador o persona con un problema del corazón o la presión, **quiero** que el asistente me haga preguntas para entender bien mi situación antes de orientarme, **para** recibir una orientación que corresponda a lo que me pasa, sin conversaciones largas que terminen sin respuesta.
+
+Notas técnicas (ADR 0017, propuesto): en cada turno sin alarma, el RAG busca con lo que la persona ha contado en el hilo y una **regla determinista** (no el LLM) elige el modo del turno:
+- **responder** con evidencia verificada (ADR 0010);
+- **indagar** con preguntas que redacta el agente con su propio conocimiento, orientadas por los registros candidatos y verificadas para que no contengan afirmaciones de salud;
+- **cerrar** con un mensaje honesto cuando la indagación no se acerca a nada de la base.
+
+Las señales de la búsqueda son: el mejor puntaje, la ventaja del primero sobre el segundo, la coincidencia de categoría entre los mejores registros y el avance frente al turno anterior. Los umbrales son configurables (`knowledge/evidence_policy.json` y `.env`) y se calibran en el PC. Los valores que aparecen abajo son propuestas iniciales.
+
+```gherkin
+Escenario: Las alarmas van primero y nunca se indaga con una alarma
+  Cuando un mensaje activa una alarma (filtro 1 o filtro 2), de prioridad o de urgencia
+  Entonces el turno se resuelve como hoy (HU-03, HU-04) y no se hace una pregunta de indagación
+  Y la indagación nunca retrasa ni reemplaza el mensaje fijo de una alarma
+
+Escenario: Evidencia clara desde el primer mensaje
+  Dado que el mejor registro supera el umbral para responder (propuesta: 0,60)
+  Y los mejores registros coinciden en la categoría o el primero aventaja claramente al segundo
+  Cuando escribo "¿por qué es importante controlar la presión si no me duele nada?"
+  Entonces el asistente responde con evidencia verificada, sin indagar
+
+Escenario: Indagar cuando la evidencia es prometedora pero no segura
+  Dado que el mejor registro está entre el piso de indagación (propuesta: 0,40) y el umbral para responder
+  Cuando escribo "tengo un ardor raro"
+  Entonces el asistente hace 1 o 2 preguntas para caracterizar la situación, sin afirmaciones de salud
+  Y las preguntas buscan los datos que diferencian a los registros candidatos (p. ej., dónde arde, desde cuándo, si está embarazada)
+  Y no pregunta lo que ya conté en el hilo
+  Y la traza registra el modo "indagar", el número de turno de indagación y las señales de la búsqueda
+
+Escenario: Una pregunta de indagación nunca contiene afirmaciones de salud
+  Cuando el agente redacta un turno de indagación
+  Entonces una verificación determinista acepta solo preguntas cortas y frases de cortesía, sin números que yo no haya escrito
+  Y si alguna frase no cumple, se descarta; si no queda ninguna pregunta, se usa una pregunta fija ("¿Me puedes contar qué sientes, desde cuándo y a quién le pasa?")
+
+Escenario: Se responde cuando la indagación da seguridad
+  Dado que el asistente me preguntó y yo respondí con más detalles
+  Cuando el mejor registro llega al umbral para responder
+  Entonces el asistente responde con evidencia verificada en ese turno
+
+Escenario: Se deja de indagar si no hay avance
+  Dado que en el turno anterior se indagó
+  Cuando mi respuesta no hace subir el mejor puntaje ni mantiene la misma categoría entre los candidatos
+  Y eso ocurre en dos turnos de indagación seguidos, o se alcanza el máximo de turnos de indagación (propuesta: 3)
+  Entonces, si el mejor registro está sobre el umbral de evidencia actual (0,50), el asistente responde con evidencia verificada
+  Y si no lo está, cierra con un mensaje honesto: no tiene información validada sobre eso, recomienda consultar con el personal de salud y ofrece hablar de otro tema
+
+Escenario: Nada cercano desde el principio
+  Cuando el mejor registro está por debajo del piso de indagación
+  Entonces el asistente no indaga: muestra la abstención que pide más detalles (HU-02)
+  Y si mi siguiente mensaje tampoco se acerca a nada, cierra con el mensaje honesto, sin más preguntas
+
+Escenario: La persona pide orientación directamente
+  Dado que el asistente está indagando
+  Cuando escribo "¿qué hago?" o "dígame qué hago ya"
+  Entonces, si el mejor registro supera el umbral de evidencia actual, el asistente responde con evidencia verificada sin más preguntas
+  Y si no lo supera, cierra con el mensaje honesto
+
+Escenario: Un tema nuevo reinicia la indagación
+  Cuando el análisis decide que mi mensaje abre un hilo nuevo
+  Entonces el conteo de turnos de indagación empieza de cero en ese hilo
+
+Escenario: Modo de observación antes de activar
+  Dado que INQUIRY_MODE es "observar"
+  Cuando el asistente atiende un turno
+  Entonces se comporta exactamente como antes de esta historia
+  Y la traza registra qué modo habría elegido la regla y con qué señales, para calibrar los umbrales
+  Y con INQUIRY_MODE "activo" la regla decide el turno; con "apagado" no se calcula
+
+Escenario: Auditoría de la indagación
+  Cuando reviso un chat en la interfaz de auditoría
+  Entonces cada respuesta muestra su modo (responder, indagar o cerrar), el turno de indagación y las señales de la búsqueda
+```
+Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
+- porcentaje de indagaciones que terminan en una respuesta con evidencia (meta propuesta: ≥ 70 %);
+- turnos de indagación promedio antes de responder (meta propuesta: ≤ 2);
+- indagaciones perdidas, es decir, las que preguntaron y terminaron en el cierre honesto (meta propuesta: ≤ 20 %);
+- cero afirmaciones de salud en los turnos de indagación.
+
+Las metas las decide el equipo.
+
+Estado: 📝 Propuesta (2026-10-26), pendiente de revisión del equipo. Depende de B-025 (rama `fix/alcance-y-respaldo`)
