@@ -12,12 +12,15 @@ Rama `fix/alcance-y-respaldo`. Cubre los escenarios nuevos de HU-02 y HU-07 del 
    - `abstención`.
 3. **En la rama.** Ejecutar `git checkout fix/alcance-y-respaldo` y luego `pytest -m live -s`, y anotar los mismos conteos.
 
-| Resultado | `main` | Rama |
+| Resultado (2026-10-26, PC de pruebas) | `main` | Rama |
 |---|---|---|
-| Frases verificadas | | |
-| Texto literal | | |
-| Abstención | | |
-| `pytest -m live` (aprobadas/total) | | |
+| Frases verificadas | 2 de 4 (4/4 y 3/3) | 2 de 4 (4/4 y 3/3) |
+| Texto literal | 1 de 4 (qué comer con acidez) | 1 de 4 (la misma) |
+| Abstención | 1 de 4 (insulina) | 1 de 4, ahora termina pidiendo detalles |
+| Sonda de recuperación | top-3 16/16 · top-1 13 · útil con 0,50 15/16 | igual |
+| `pytest -m live` (aprobadas/total) | 26/26 (15:05) | 26/26 (14:52) |
+
+**Lectura:** quitar la excepción de remisión (corrección 5) no aumentó los textos literales en la sonda, y los resultados de alcance, análisis y alarmas no cambiaron. La muestra de respaldo es pequeña (4 preguntas), así que el guion manual sigue siendo necesario.
 
 **Criterio:** si el texto literal sube mucho (lo decide el equipo), se revierte solo el commit de la corrección 5 ("las frases de remisión ya no se eximen…").
 

@@ -53,6 +53,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
+- **HU-10 aceptada** tras su verificación en el PC de pruebas (2026-10-26).
 - **Alcance (B-025, HU-07, ADR 0009):** una respuesta a una pregunta del asistente ("sí, desde ayer") nunca se descarta, aunque el análisis la marque fuera de alcance, si continúa el hilo (respaldo determinista en `effective_scope`). El mensaje fijo de alcance termina invitando a seguir y sigue sin registrarse.
 - **Abstención (B-025, HU-02, ADR 0010):** el mensaje fijo termina pidiendo más detalles. El RAG no disponible tiene su propio mensaje (`UNAVAILABLE_TEXT`), que no los pide.
 - **Respaldo (B-025, ADR 0010):** las frases de remisión ("acude a urgencias o llama al 123") ya no se eximen de la verificación; se quitan `REFERRAL_WORDS` y `SAFE_NUMBERS`.

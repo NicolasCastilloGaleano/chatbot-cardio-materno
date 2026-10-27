@@ -523,7 +523,7 @@ Escenario: Mensajes fuera de alcance
   Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
 ```
-Estado: 🔄 Aprobada (2026-10-18); en implementación. Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-26 con Ollama, la consola y WhatsApp reales). Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
 
 ### HU-11: Indagación guiada por la evidencia
 **Como** gestante, cuidador o persona con un problema del corazón o la presión, **quiero** que el asistente me haga preguntas para entender bien mi situación antes de orientarme, **para** recibir una orientación que corresponda a lo que me pasa, sin conversaciones largas que terminen sin respuesta.
