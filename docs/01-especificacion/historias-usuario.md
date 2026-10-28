@@ -364,6 +364,7 @@ Escenario: Los síntomas acumulados del hilo no dejan en alcance un mensaje ajen
   Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente ("about_health": true) sigue en alcance, como hoy
   Y un saludo en un hilo con síntomas se trata como conversacional
   Y si el análisis se contradice (dice que el mensaje no trata de salud pero lo deja "en_alcance"), el mensaje se trata como conversacional: respuesta amable sin hablar del tema ajeno, sin buscar evidencia, sin indagar y sin cambiar el resumen del hilo (2026-10-28)
+  Y un mensaje que abre un tema nuevo con su propio síntoma (el mixto "¿quién ganó el partido? ah, y tengo la presión alta") queda en alcance aunque el análisis diga que no trata de salud
 
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"

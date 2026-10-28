@@ -115,3 +115,16 @@ def test_contradictory_analysis_is_treated_as_conversational() -> None:
     )
 
     assert effective_scope(message, ASKED) is Scope.CONVERSATIONAL
+
+
+def test_new_topic_with_its_own_symptoms_stays_in_scope_even_if_marked_not_health() -> None:
+    """En vivo (2026-10-28): el mensaje mixto salió about_health falso con su signo."""
+    mixed = replace(
+        analysis(Scope.IN_SCOPE, Domain.CARDIOVASCULAR, ("presión alta",)),
+        about_health=False,
+        reported_signs=("PRESION_ALTA_SIN_SINTOMAS",),
+    )
+
+    assert mixed.thread_action is ThreadAction.NEW
+    assert effective_scope(mixed) is Scope.IN_SCOPE
+    assert effective_scope(replace(mixed, scope=Scope.OUT_OF_SCOPE)) is Scope.IN_SCOPE

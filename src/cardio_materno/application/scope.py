@@ -39,22 +39,35 @@ def effective_scope(analysis: AnalysisTurn, recent: Sequence[ChatMessage] = ()) 
     Desde el 2026-10-27 (prompt de análisis v7), si el análisis dice que el mensaje nuevo no
     trata de salud (`about_health` falso), los síntomas que repite del hilo no bastan
     ("¿quién ganó el partido?" en medio de una consulta por fiebre): se respeta su alcance si
-    es conversacional o fuera de alcance. Si se contradice y lo deja "en_alcance", el mensaje
-    se trata como conversacional: respuesta amable, sin RAG ni indagación y sin cambiar el
-    resumen del hilo. Las alarmas nuevas se evalúan antes y siempre tienen prioridad.
+    es conversacional o fuera de alcance, y si se contradice y lo deja "en_alcance", el
+    mensaje se trata como conversacional. Las alarmas nuevas se evalúan antes.
+
+    Excepción (2026-10-28): en un tema nuevo, los síntomas salen solo del mensaje nuevo, así
+    que un mensaje que los reporta queda en alcance aunque `about_health` sea falso ("¿quién
+    ganó el partido? ah, y tengo la presión alta").
 
     Returns:
-        Si el mensaje nuevo no trata de salud, el alcance del análisis (o conversacional si
-        dijo "en_alcance"); si no, `en_alcance` si hay signos del catálogo marcados, síntomas
-        reportados o una respuesta a una pregunta pendiente; si no, el alcance del análisis.
+        Si el mensaje no trata de salud y no reporta síntomas propios, el alcance del análisis
+        (o conversacional si dijo "en_alcance"); si no, `en_alcance` si hay signos del
+        catálogo, síntomas o una respuesta a una pregunta pendiente; si no, el del análisis.
     """
-    if not analysis.about_health:
+    if not analysis.about_health and not reports_new_symptoms(analysis):
         return Scope.CONVERSATIONAL if analysis.scope is Scope.IN_SCOPE else analysis.scope
     if analysis.reported_signs or analysis.reported_symptoms:
         return Scope.IN_SCOPE
     if analysis.scope is Scope.OUT_OF_SCOPE and answers_pending_question(analysis, recent):
         return Scope.IN_SCOPE
     return analysis.scope
+
+
+def reports_new_symptoms(analysis: AnalysisTurn) -> bool:
+    """True si el mensaje abre un tema nuevo y reporta síntomas o signos.
+
+    Con "nuevo", el análisis toma los síntomas solo del mensaje nuevo (prompt v3 y
+    siguientes), así que no son los repetidos de un hilo anterior.
+    """
+    has_symptoms = bool(analysis.reported_signs or analysis.reported_symptoms)
+    return analysis.thread_action is ThreadAction.NEW and has_symptoms
 
 
 def answers_pending_question(analysis: AnalysisTurn, recent: Sequence[ChatMessage]) -> bool:
