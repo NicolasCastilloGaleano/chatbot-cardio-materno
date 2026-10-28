@@ -6,6 +6,7 @@ from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
     InquiryTrace,
+    ModelUsage,
     ReplyTrace,
     RetrievalStatus,
     StageTiming,
@@ -35,6 +36,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "reminded_rules": list(trace.reminded_rules),
         "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
         "about_health": trace.about_health,
+        "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
     }
 
 
@@ -60,6 +62,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         reminded_rules=tuple(data.get("reminded_rules", [])),
         inquiry=inquiry_from_dict(data["inquiry"]) if data.get("inquiry") else None,
         about_health=bool(data.get("about_health", True)),
+        model_usage=tuple(usage_from_dict(item) for item in data.get("model_usage", [])),
     )
 
 
@@ -92,6 +95,28 @@ def inquiry_from_dict(data: dict[str, Any]) -> InquiryTrace:
         progress=data.get("progress"),
         wants_guidance=bool(data.get("wants_guidance", False)),
         applied=bool(data.get("applied", False)),
+    )
+
+
+def usage_to_dict(usage: ModelUsage) -> dict[str, Any]:
+    """Serializa el uso del modelo de una etapa."""
+    return {
+        "stage": usage.stage,
+        "prompt_tokens": usage.prompt_tokens,
+        "prompt_seconds": usage.prompt_seconds,
+        "output_tokens": usage.output_tokens,
+        "output_seconds": usage.output_seconds,
+    }
+
+
+def usage_from_dict(data: dict[str, Any]) -> ModelUsage:
+    """Reconstruye el uso del modelo de una etapa."""
+    return ModelUsage(
+        data.get("stage", ""),
+        int(data.get("prompt_tokens", 0)),
+        float(data.get("prompt_seconds", 0.0)),
+        int(data.get("output_tokens", 0)),
+        float(data.get("output_seconds", 0.0)),
     )
 
 

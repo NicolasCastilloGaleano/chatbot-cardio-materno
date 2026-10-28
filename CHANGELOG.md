@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Uso del modelo por etapa en la traza:** cada llamada a Ollama guarda los tokens y los segundos de lectura del prompt y de generación (`trace.model_usage`). Se ven en la auditoría web ("Uso del modelo"), en la consola (`[uso del modelo: …]`) y en la exportación de trazas, para saber si la lentitud del análisis viene de leer el prompt o de generar. El puerto `LanguageModel` agrega `last_usage()`.
 - La exportación de trazas (`scripts/export_traces.py`) incluye los tiempos por etapa y si el mensaje trata de salud.
 - **Registro de la causa de los fallos del modelo:** `StageTimer` marca el `LanguageModelError` con la etapa (análisis, RAG o respuesta). La web (antes de responder 502) y el canal WhatsApp escriben en la terminal la etapa y la causa técnica, sin el texto de la persona. Se agregó a `operacion.md` una guía para diagnosticar el 502.
 - **`scripts/export_traces.py`:** exporta a Markdown los hilos guardados en SQLite con la traza de cada respuesta (alcance, búsqueda, evidencia, respaldo, recordatorios, alertas e indagación), para revisar guiones y calibrar sin copiar y pegar desde la auditoría. Abre la base en solo lectura; filtros `--since`, `--last` y `--thread`.

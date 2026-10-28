@@ -11,7 +11,13 @@ from cardio_materno.application.ports.chat_audit import ChatEntry, ChatSummary
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread
 from cardio_materno.domain.knowledge import KnowledgeEntry
-from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, InquiryTrace, ReplyTrace
+from cardio_materno.domain.trace import (
+    EvidenceRef,
+    GroundingCheck,
+    InquiryTrace,
+    ModelUsage,
+    ReplyTrace,
+)
 from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
 MISSING_ENTRY_TEXT = "Registro no disponible"
@@ -161,6 +167,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
         "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
         "about_health": trace.about_health,
+        "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
     }
 
 
@@ -198,6 +205,17 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "progress": inquiry.progress,
         "wants_guidance": inquiry.wants_guidance,
         "applied": inquiry.applied,
+    }
+
+
+def usage_to_dict(usage: ModelUsage) -> dict[str, Any]:
+    """Serializa el uso del modelo de una etapa."""
+    return {
+        "stage": usage.stage,
+        "prompt_tokens": usage.prompt_tokens,
+        "prompt_seconds": usage.prompt_seconds,
+        "output_tokens": usage.output_tokens,
+        "output_seconds": usage.output_seconds,
     }
 
 

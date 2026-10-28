@@ -7,6 +7,7 @@ from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
     InquiryTrace,
+    ModelUsage,
     ReplyTrace,
     RetrievalStatus,
     StageTiming,
@@ -47,6 +48,11 @@ INQUIRY_OBSERVED_TEXT = " observada"
 INQUIRY_GUIDANCE_TEXT = " · pide orientación"
 INQUIRY_PROGRESS_TEXT = {True: "sí", False: "no", None: "—"}
 TIMING_TEMPLATE = "{stage} {seconds:.1f} s"
+USAGE_DEBUG_TEMPLATE = "[uso del modelo: {usages}]"
+USAGE_TEMPLATE = (
+    "{stage} lee {prompt_tokens} tok en {prompt_seconds:.1f} s"
+    " y genera {output_tokens} tok en {output_seconds:.1f} s"
+)
 NONE_TEXT = "ninguna"
 LIST_SEPARATOR = "; "
 ITEM_SEPARATOR = " | "
@@ -82,6 +88,7 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         format_grounding_debug(trace),
         format_inquiry_debug(trace.inquiry) if trace.inquiry else "",
         format_timings_debug(trace.timings) if trace.timings else "",
+        format_usage_debug(trace.model_usage) if trace.model_usage else "",
     ]
     return [line for line in optional if line]
 
@@ -99,6 +106,12 @@ def format_inquiry_debug(inquiry: InquiryTrace) -> str:
         progress=INQUIRY_PROGRESS_TEXT[inquiry.progress],
         guidance=INQUIRY_GUIDANCE_TEXT if inquiry.wants_guidance else "",
     )
+
+
+def format_usage_debug(usages: tuple[ModelUsage, ...]) -> str:
+    """Tokens y segundos de lectura del prompt y de generación de cada llamada al modelo."""
+    parts = [USAGE_TEMPLATE.format(**usage.__dict__) for usage in usages]
+    return USAGE_DEBUG_TEMPLATE.format(usages=TIMING_SEPARATOR.join(parts))
 
 
 def format_unstated_debug(trace: ReplyTrace) -> str:

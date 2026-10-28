@@ -18,6 +18,7 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
+from cardio_materno.domain.trace import ModelUsage
 
 SETTINGS = OllamaSettings(
     base_url="http://ollama.test:11434",
@@ -205,3 +206,18 @@ def test_response_cut_by_the_context_or_token_limit_has_a_clear_error() -> None:
 
     with pytest.raises(LanguageModelError, match="límite de contexto o de tokens"):
         extract_content(cut)
+
+
+def test_ollama_usage_is_reported_in_seconds() -> None:
+    body = chat_body('{"reply": "Hola"}') | {
+        "prompt_eval_count": 3700,
+        "prompt_eval_duration": 40_123_000_000,
+        "eval_count": 210,
+        "eval_duration": 12_500_000_000,
+    }
+    model = make_model(FakeOpener(body))
+
+    model.complete_json(USER_MESSAGE, SCHEMA)
+
+    assert model.last_usage() == ModelUsage("", 3700, 40.12, 210, 12.5)
+    assert make_model(FakeOpener(chat_body("{}"))).last_usage() is None

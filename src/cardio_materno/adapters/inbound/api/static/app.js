@@ -498,6 +498,7 @@ function traceSections(trace, thread) {
   );
   if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
+  if (trace.model_usage?.length) sections.push(section("Uso del modelo (lee el prompt · genera)", metricGrid(trace.model_usage.map((u) => [u.stage, `${u.prompt_tokens} tok en ${u.prompt_seconds.toFixed(1)} s · ${u.output_tokens} tok en ${u.output_seconds.toFixed(1)} s`]))));
   return sections;
 }
 

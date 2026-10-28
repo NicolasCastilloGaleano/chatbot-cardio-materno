@@ -11,7 +11,7 @@ from cardio_materno.adapters.inbound.console.debug_lines import format_inquiry_d
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.inquiry_policy import InquiryActivation
 from cardio_materno.domain.knowledge import EvidenceItem, RetrievalResult, RetrievalStatus
-from cardio_materno.domain.trace import InquiryTrace, TurnMode
+from cardio_materno.domain.trace import InquiryTrace, ModelUsage, TurnMode
 from tests.unit.fakes import (
     FakeRetriever,
     ScriptedAgent,
@@ -127,6 +127,21 @@ def test_contradictory_unrelated_message_in_a_thread_is_answered_as_conversation
     assert result.trace is not None and result.trace.scope == "conversacional"
     assert result.trace.inquiry is None and len(retriever.queries) == 1
     assert result.thread is not None and result.thread.summary == "resumen"
+
+
+def test_model_usage_of_each_stage_reaches_the_trace() -> None:
+    agent = ScriptedAgent(agent_json("respuesta"))
+    agent.analyzer.usage = ModelUsage("", 3700, 40.0, 210, 12.5)
+    agent.responder.usage = ModelUsage("", 900, 3.0, 80, 5.0)
+    service = make_service(agent, retriever=FakeRetriever(promising()))
+
+    result = service.send("me duele el brazo")
+
+    assert result.trace is not None
+    assert result.trace.model_usage == (
+        ModelUsage("análisis", 3700, 40.0, 210, 12.5),
+        ModelUsage("respuesta", 900, 3.0, 80, 5.0),
+    )
 
 
 def test_console_debug_line_shows_the_observed_mode() -> None:

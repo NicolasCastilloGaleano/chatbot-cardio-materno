@@ -74,6 +74,27 @@ class EvidenceRef:
 
 
 @dataclass(frozen=True)
+class ModelUsage:
+    """Cómo se repartió el tiempo de una llamada al modelo (lo informa Ollama).
+
+    Sirve para saber si la lentitud viene de leer el prompt o de generar la respuesta.
+
+    Attributes:
+        stage: Etapa del turno (análisis o respuesta); "" mientras no se asigna.
+        prompt_tokens: Tokens del prompt que el modelo procesó (sin los que ya tenía en caché).
+        prompt_seconds: Segundos que tardó en procesarlos.
+        output_tokens: Tokens que generó.
+        output_seconds: Segundos que tardó en generarlos.
+    """
+
+    stage: str
+    prompt_tokens: int
+    prompt_seconds: float
+    output_tokens: int
+    output_seconds: float
+
+
+@dataclass(frozen=True)
 class StageTiming:
     """Duración de una etapa del turno.
 
@@ -130,6 +151,7 @@ class ReplyTrace:
         inquiry: Decisión de la regla de indagación (HU-11); None si no se evaluó.
         about_health: Si el análisis dijo que el mensaje nuevo, por sí mismo, trata de salud
             (prompt v7, ADR 0009). True en trazas anteriores.
+        model_usage: Lectura del prompt y generación de cada llamada al modelo, por etapa.
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -148,6 +170,7 @@ class ReplyTrace:
     reminded_rules: tuple[str, ...] = ()
     inquiry: InquiryTrace | None = None
     about_health: bool = True
+    model_usage: tuple[ModelUsage, ...] = ()
 
     @property
     def uncited(self) -> bool:

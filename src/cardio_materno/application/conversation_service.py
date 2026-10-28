@@ -83,6 +83,7 @@ from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
     InquiryTrace,
+    ModelUsage,
     ReplyTrace,
     StageTiming,
 )
@@ -270,6 +271,7 @@ class ConversationService:
         timer = StageTimer(self._config.timer)
         try:
             analysis = timer.measure(STAGE_ANALYSIS, lambda: self._analyze(current, turn))
+            timer.record_usage(STAGE_ANALYSIS, self._ports.analyzer.last_usage())
         except LanguageModelError:
             if pre is None:
                 raise
@@ -280,7 +282,8 @@ class ConversationService:
         )
         decisions = (pre, *post) if pre is not None else post
         outcome = self._route(analysis, turn, decisions, timer)
-        return with_unstated_details(with_reminder(outcome, reminded), turn)
+        outcome = with_model_usage(with_reminder(outcome, reminded), timer.usages)
+        return with_unstated_details(outcome, turn)
 
     def _alerted_rules(
         self, current: ConversationThread | None, analysis: AnalysisTurn
@@ -319,6 +322,7 @@ class ConversationService:
     def _converse(self, analysis: AnalysisTurn, turn: TurnInput, timer: StageTimer) -> TurnOutcome:
         """Saludo, agradecimiento o despedida: llamada de respuesta sin buscar evidencia."""
         reply = timer.measure(STAGE_REPLY, lambda: self._conversational_reply(analysis, turn))
+        timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
         trace = analysis_trace(analysis, Scope.CONVERSATIONAL, timer.timings)
         return TurnOutcome(reply.reply, (), trace, analysis, conversational=True)
 
@@ -397,6 +401,7 @@ class ConversationService:
         """Pide la redacción con evidencia y la verifica; con alarma, si falla, el mensaje fijo."""
         try:
             draft = timer.measure(STAGE_REPLY, lambda: self._draft(analysis, turn, retrieval))
+            timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
         except LanguageModelError:
             if not decisions:
                 raise
@@ -591,6 +596,13 @@ def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> Turn
     if trace is not None:
         trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
     return replace(outcome, reply=f"{reminder}{REPLY_SEPARATOR}{outcome.reply}", trace=trace)
+
+
+def with_model_usage(outcome: TurnOutcome, usages: tuple[ModelUsage, ...]) -> TurnOutcome:
+    """Agrega a la traza la lectura del prompt y la generación de cada llamada al modelo."""
+    if not usages or outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, model_usage=usages))
 
 
 def with_inquiry(outcome: TurnOutcome, inquiry: InquiryTrace | None) -> TurnOutcome:

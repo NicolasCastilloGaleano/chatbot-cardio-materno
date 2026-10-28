@@ -5,6 +5,7 @@ traducción de errores viven en `ollama_http.py`.
 """
 
 import logging
+import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -19,12 +20,15 @@ from cardio_materno.adapters.outbound.llm.ollama_http import (
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
+from cardio_materno.domain.trace import ModelUsage
 
 logger = logging.getLogger(__name__)
 CHAT_ENDPOINT = "/api/chat"
 # Una respuesta vacía o un JSON inválido suelen ser fallos intermitentes: se reintenta una vez.
 # No se reintenta un tiempo de espera agotado (duplicaría la espera) ni un corte por límite.
 INVALID_RESPONSE_RETRIES = 1
+NANOSECONDS_PER_SECOND = 1_000_000_000
+USAGE_DECIMALS = 2
 MSG_RETRY_LOG = "Ollama (%s) devolvió una respuesta vacía o inválida; se reintenta (%d/%d)."
 DONE_REASON_LENGTH = "length"
 MSG_CUT_BY_LIMIT = (
@@ -74,6 +78,8 @@ class OllamaLanguageModel:
         """
         self._settings = settings
         self._http = OllamaHttpClient(settings.base_url, settings.timeout_seconds, opener)
+        # Por hilo de ejecución: la web y WhatsApp atienden varios turnos a la vez.
+        self._last = threading.local()
 
     @property
     def model(self) -> str:
@@ -110,9 +116,16 @@ class OllamaLanguageModel:
         return self._complete_once(payload)
 
     def _complete_once(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Una solicitud a `/api/chat` y su objeto JSON."""
+        """Una solicitud a `/api/chat` y su objeto JSON; guarda el uso que informa Ollama."""
         response = self._http.post(CHAT_ENDPOINT, payload)
-        return parse_json_body(extract_content(response).encode("utf-8"))
+        data = parse_json_body(extract_content(response).encode("utf-8"))
+        self._last.usage = usage_from(response)
+        return data
+
+    def last_usage(self) -> ModelUsage | None:
+        """Tokens y tiempos de la última llamada exitosa en este hilo de ejecución."""
+        usage: ModelUsage | None = getattr(self._last, "usage", None)
+        return usage
 
     def warm_up(self) -> None:
         """Carga el modelo en memoria sin generar nada, para que el primer turno no espere.
@@ -177,6 +190,27 @@ def build_warm_up_payload(settings: OllamaSettings) -> dict[str, Any]:
         "keep_alive": settings.keep_alive,
         "options": build_options(settings),
     }
+
+
+def usage_from(response: dict[str, Any]) -> ModelUsage | None:
+    """Tokens y tiempos de lectura del prompt y de generación que informa `/api/chat`.
+
+    Returns:
+        El uso, o None si la respuesta no trae los contadores.
+    """
+    fields = ("prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")
+    values = [response.get(name) for name in fields]
+    numbers = [value for value in values if isinstance(value, int)]
+    if len(numbers) != len(fields):
+        return None
+    prompt_tokens, prompt_ns, output_tokens, output_ns = numbers
+    return ModelUsage(
+        "",
+        prompt_tokens,
+        round(prompt_ns / NANOSECONDS_PER_SECOND, USAGE_DECIMALS),
+        output_tokens,
+        round(output_ns / NANOSECONDS_PER_SECOND, USAGE_DECIMALS),
+    )
 
 
 def extract_content(response: dict[str, Any]) -> str:

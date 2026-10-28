@@ -34,6 +34,7 @@ from cardio_materno.domain.conversation import ChatMessage, Role  # noqa: E402
 from cardio_materno.domain.trace import (  # noqa: E402
     GroundingCheck,
     InquiryTrace,
+    ModelUsage,
     ReplyTrace,
 )
 
@@ -156,7 +157,17 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         lines.append(
             "tiempos: " + " · ".join(f"{t.stage} {t.seconds:.1f} s" for t in trace.timings)
         )
+    if trace.model_usage:
+        lines.append("uso del modelo: " + " · ".join(usage_text(u) for u in trace.model_usage))
     return lines
+
+
+def usage_text(usage: ModelUsage) -> str:
+    """Lectura del prompt y generación de una llamada al modelo."""
+    return (
+        f"{usage.stage} lee {usage.prompt_tokens} tok en {usage.prompt_seconds:.1f} s"
+        f" y genera {usage.output_tokens} tok en {usage.output_seconds:.1f} s"
+    )
 
 
 def search_lines(trace: ReplyTrace) -> list[str]:

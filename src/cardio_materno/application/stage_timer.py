@@ -2,9 +2,10 @@
 
 import time
 from collections.abc import Callable
+from dataclasses import replace
 
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.domain.trace import StageTiming
+from cardio_materno.domain.trace import ModelUsage, StageTiming
 
 Timer = Callable[[], float]
 SECONDS_DECIMALS = 2
@@ -21,6 +22,7 @@ class StageTimer:
         """
         self._timer = timer
         self._timings: list[StageTiming] = []
+        self._usages: list[ModelUsage] = []
 
     def measure[T](self, stage: str, action: Callable[[], T]) -> T:
         """Ejecuta `action`, registra su duración (aunque falle) y devuelve su resultado.
@@ -37,7 +39,17 @@ class StageTimer:
             elapsed = round(self._timer() - start, SECONDS_DECIMALS)
             self._timings.append(StageTiming(stage, elapsed))
 
+    def record_usage(self, stage: str, usage: ModelUsage | None) -> None:
+        """Registra cómo se repartió el tiempo de la llamada al modelo de una etapa."""
+        if usage is not None:
+            self._usages.append(replace(usage, stage=stage))
+
     @property
     def timings(self) -> tuple[StageTiming, ...]:
         """Duraciones registradas hasta ahora."""
         return tuple(self._timings)
+
+    @property
+    def usages(self) -> tuple[ModelUsage, ...]:
+        """Uso del modelo registrado por etapa."""
+        return tuple(self._usages)

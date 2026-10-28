@@ -46,6 +46,12 @@ En WhatsApp la línea es `Fallo del modelo (etapa: …): …`. La línea nunca i
 
 El turno que falla no se guarda: se puede reenviar el mismo mensaje.
 
+## Por qué tarda el análisis
+La traza de cada respuesta trae el uso del modelo por etapa: tokens y segundos de **lectura del prompt** y de **generación**. Se ven en la auditoría web ("Uso del modelo"), en la consola y en la exportación (`uso del modelo: análisis lee N tok en X s y genera M tok en Y s`).
+- Si pesa la **lectura del prompt**, conviene achicar el prompt del análisis (sobre todo el catálogo de signos con ejemplos), midiendo que el filtro 2 no pierda detecciones.
+- Si pesa la **generación**, conviene acortar el JSON que se pide o probar un modelo de análisis más pequeño (comparación del ADR 0011).
+- Si la lectura del prompt marca pocos tokens, Ollama reutilizó lo que tenía en caché del turno anterior.
+
 ## Exportar las conversaciones con su traza
 Para revisar un guion o calibrar sin copiar desde la auditoría web, `scripts/export_traces.py` genera un informe Markdown con los hilos guardados en SQLite. Por cada hilo trae el resumen, las alertas y los mensajes, y por cada respuesta: alcance, síntomas y signos, recordatorios, búsqueda con la evidencia y sus puntajes, citas, respaldo (con el literal N/M y las frases descartadas) y la decisión de la indagación (HU-11).
 ```bash

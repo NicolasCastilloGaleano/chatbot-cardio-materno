@@ -29,6 +29,7 @@ from cardio_materno.domain.knowledge import (
     RetrievalResult,
     RetrievalStatus,
 )
+from cardio_materno.domain.trace import ModelUsage
 
 ANALYSIS_KEYS = (
     "thread_action",
@@ -92,6 +93,11 @@ class ScriptedStage:
         self._kind = kind
         self.calls: list[list[ChatMessage]] = []
         self.schemas: list[dict[str, Any]] = []
+        self.usage: ModelUsage | None = None
+
+    def last_usage(self) -> ModelUsage | None:
+        """Uso que se configuró en la prueba (None por defecto)."""
+        return self.usage
 
     def complete_json(
         self, messages: Sequence[ChatMessage], schema: dict[str, Any]
