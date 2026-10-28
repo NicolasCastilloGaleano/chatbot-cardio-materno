@@ -121,12 +121,12 @@ Alternativas que se descartaron con estos datos:
 - La decisión quedó en `.env.example` (`OLLAMA_ANALYSIS_MODEL`, `OLLAMA_REPLY_MODEL`, `OLLAMA_REPLY_THINK=false`). Todos los parámetros de cada etapa (modelo, temperatura, contexto, tiempo de espera, razonamiento y límite de tokens) se configuran en `.env`. Falta repetir `pytest -m live` con la combinación elegida.
 - ⚠️ Un modelo más pequeño puede reportar peor los síntomas. Por eso el criterio 1 es obligatorio y las reglas del filtro 1 siguen revisando el texto original.
 
-## Actualización 2026-10-27: contexto del análisis en 8192
+## Actualización 2026-10-27: contexto del análisis en 6144
 En el guion de la HU-11, la llamada de análisis llenó el contexto de 4096 tokens (`n_tokens = 4095, truncated = 1` en el log de Ollama) y el JSON llegó cortado: la web respondió 502. Con el v6 las llamadas ya rondaban 3900-4000 tokens (catálogo de signos con ejemplos, hilo y JSON); el prompt v7 las pasó del límite en los hilos largos. Se decide:
-- el análisis usa un contexto de **8192** si `OLLAMA_ANALYSIS_NUM_CTX` está vacía (antes heredaba `OLLAMA_NUM_CTX` = 4096); la respuesta sigue en 4096;
+- el análisis usa un contexto de **6144** si `OLLAMA_ANALYSIS_NUM_CTX` está vacía (primero se probó 8192) (antes heredaba `OLLAMA_NUM_CTX` = 4096); la respuesta sigue en 4096;
 - cuando Ollama corta por límite (`done_reason` "length"), el error lo dice ("límite de contexto o de tokens") y el log de la web y de WhatsApp registra la etapa.
 
 **Medición inicial (2026-10-27):** con 8192, `ollama ps` mostró mistral-small3.1 67 % en CPU / 33 % en GPU; el análisis tardó 52,6 s y el RAG 7,8 s (el embedder en CPU compite con el modelo). 8192 es demasiado para este equipo: se medirá 6144 y, si sigue lento, se propondrá reducir el prompt del análisis (el catálogo con ejemplos es lo más pesado). En el mismo guion, las respuestas vacías o cortadas venían de un fallo intermitente de llama.cpp con la salida JSON (`Unexpected empty grammar stack`), no del contexto: se agregó un reintento.
 
-Pendiente: medir en el PC el tiempo del análisis con 6144 (más memoria para el caché del modelo de 24B, que no cabe entero en la GPU) frente a los 13-28 s medidos con 4096.
+**Medición con 6144 (2026-10-28):** `ollama ps` muestra el mismo reparto (67 % CPU / 33 % GPU, 15 GB) y el análisis sigue en 50-61 s. El contexto no es la causa de la lentitud: el modelo de 24B no cabe en la GPU de este equipo. Se fija 6144, que da margen sobre los ~3900 tokens del análisis con menos memoria que 8192. La lentitud se estudia aparte: separar el tiempo de lectura del prompt del de generación, comparar con `main` (v6) y evaluar reducir el prompt del análisis o un modelo de análisis más pequeño.
 

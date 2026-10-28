@@ -47,7 +47,8 @@ NUM_CTX_FIELD = "NUM_CTX"
 # Contexto por defecto de una etapa si su variable está vacía (antes que OLLAMA_NUM_CTX). El
 # análisis lleva el catálogo de signos, el hilo y su JSON: con 4096 tokens Ollama lo cortaba
 # en los hilos largos (guion de la HU-11, 2026-10-27: n_tokens = 4095, truncated = 1).
-STAGE_NUM_CTX_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "8192"}
+# 6144 deja margen sobre los ~3900 tokens del análisis; 8192 no cambiaba el reparto CPU/GPU.
+STAGE_NUM_CTX_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "6144"}
 MIN_FRACTION = 0.0
 MAX_FRACTION = 1.0
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
@@ -226,7 +227,7 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     razonamiento (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`); si una variable de la etapa está
     vacía, se usa la general (`OLLAMA_*`). El límite de tokens es propio de cada etapa
     (`OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT`; "auto" = sin límite). El
-    análisis usa un contexto de 8192 si `OLLAMA_ANALYSIS_NUM_CTX` está vacía.
+    análisis usa un contexto de 6144 si `OLLAMA_ANALYSIS_NUM_CTX` está vacía.
 
     Args:
         env: Variables de entorno.
