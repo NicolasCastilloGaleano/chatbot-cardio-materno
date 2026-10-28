@@ -296,8 +296,14 @@ function bubbleRow(entry, color) {
   return row;
 }
 
+// Turnos que no se guardan (HU-07): fuera de alcance, o conversacionales sin hilo activo.
+const UNSAVED_LABELS = {
+  out_of_scope: "Fuera de alcance: no se guarda en el hilo",
+  conversational: "Mensaje conversacional sin hilo: no se guarda",
+};
+
 function bubbleMeta(entry) {
-  if (entry.ephemeral) return "Fuera de alcance: no se guarda en el hilo";
+  if (entry.ephemeral) return UNSAVED_LABELS[entry.unsaved] || UNSAVED_LABELS.out_of_scope;
   const time = formatDate(entry.created_at);
   if (entry.alerts?.length) return `${time} · ⚠️ ${entry.alerts.map((a) => a.rule_ids.join(", ")).join(" · ")}`;
   return entry.role === "assistant" ? `${time} · Selecciona para ver la traza` : time;
@@ -310,14 +316,23 @@ function renderMessages() {
   const children = [];
   if (state.nextBefore === null && state.entries.length) children.push(textNode("div", "Inicio del chat", "history-edge"));
   if (state.nextBefore !== null) children.push(textNode("div", "Sube para cargar mensajes anteriores", "history-edge"));
+  // Los turnos sin guardar van donde ocurrieron: después del último mensaje guardado que
+  // existía al enviarlos (afterSeq), no siempre al final.
+  let unsavedIndex = 0;
+  const addUnsavedBefore = (seq) => {
+    while (unsavedIndex < state.ephemeral.length && state.ephemeral[unsavedIndex].afterSeq < seq) {
+      children.push(bubbleRow(state.ephemeral[unsavedIndex++], null));
+    }
+  };
   let previous = null;
   for (const entry of state.entries) {
+    addUnsavedBefore(entry.seq);
     const color = colors.get(entry.thread.id);
     if (entry.thread.id !== previous) children.push(threadSeparator(entry.thread, color));
     previous = entry.thread.id;
     children.push(bubbleRow(entry, color));
   }
-  state.ephemeral.forEach((entry) => children.push(bubbleRow(entry, null)));
+  addUnsavedBefore(Infinity);
   if (!children.length) children.push(textNode("div", "Este chat aún no tiene mensajes guardados.", "history-edge"));
   if (state.pending > 0) children.push(pendingRow());
   box.replaceChildren(...children);
@@ -554,15 +569,23 @@ function applySendResult(result, text) {
   mergeNew(result.messages);
   state.chat = result.chat;
   const turn = result.turn;
-  if (turn.out_of_scope) {
-    state.ephemeral.push({ role: "user", content: text, ephemeral: true }, { role: "assistant", content: turn.reply, ephemeral: true, trace: turn.trace, alerts: turn.alerts });
+  const unsaved = unsavedKind(turn);
+  if (unsaved) {
+    const anchor = { ephemeral: true, unsaved, afterSeq: lastSeq() };
+    state.ephemeral.push({ ...anchor, role: "user", content: text }, { ...anchor, role: "assistant", content: turn.reply, trace: turn.trace, alerts: turn.alerts });
   }
   renderMessages();
   scrollToBottom();
   const last = state.entries[state.entries.length - 1];
-  if (turn.out_of_scope) showAudit(turn.trace, true, null, turn.alerts);
+  if (unsaved) showAudit(turn.trace, turn.out_of_scope, null, turn.alerts);
   else if (last) showAudit(last.trace, false, last.thread, last.alerts, threadColors(state.entries).get(last.thread.id));
   loadChats();
+}
+
+// Un turno sin hilo no se guarda: fuera de alcance o conversacional sin hilo activo.
+function unsavedKind(turn) {
+  if (turn.out_of_scope) return "out_of_scope";
+  return turn.thread ? null : "conversational";
 }
 
 // --- Actualización automática -----------------------------------------------------------------

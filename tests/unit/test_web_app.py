@@ -119,6 +119,7 @@ def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> No
     assert "Estoy procesando tu mensaje" in script and "setInterval(poll" in script
     assert "textContent" in script and "innerHTML" not in script
     assert "--thread-5" in styles and ".thread-separator" in styles
+    assert "afterSeq" in script and "Mensaje conversacional sin hilo: no se guarda" in script
 
 
 # --- Chats --------------------------------------------------------------------------------
@@ -234,6 +235,17 @@ def test_out_of_scope_reply_is_returned_but_not_persisted(database: SqliteDataba
 
     assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is None
     assert body["messages"] == []
+
+
+def test_greeting_without_thread_is_returned_but_not_persisted(database: SqliteDatabase) -> None:
+    """El cliente muestra este turno como no guardado (antes desaparecía sin aviso)."""
+    harness = build(database, scoped(agent_json("¡Hola!", domain="ninguno"), "conversacional"))
+    chat_id = new_web_chat(harness)
+
+    body = send(harness, chat_id, "hola").json()
+
+    assert body["turn"]["reply"] == "¡Hola!" and body["turn"]["thread"] is None
+    assert body["turn"]["out_of_scope"] is False and body["messages"] == []
 
 
 def test_immediate_alarm_is_stored_with_its_alert(database: SqliteDatabase) -> None:
