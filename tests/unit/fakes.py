@@ -39,6 +39,8 @@ ANALYSIS_KEYS = (
     "search_query",
     "scope",
     "scope_reason",
+    "about_health",
+    "wants_guidance",
 )
 
 
@@ -121,7 +123,7 @@ class ScriptedAgent:
         if isinstance(turn, Exception):
             raise turn
         self.current = turn
-        return {key: turn[key] for key in ANALYSIS_KEYS}
+        return {key: turn[key] for key in ANALYSIS_KEYS if key in turn}
 
     @property
     def reply_text(self) -> str:

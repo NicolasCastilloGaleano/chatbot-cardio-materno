@@ -11,7 +11,7 @@ from cardio_materno.application.ports.chat_audit import ChatEntry, ChatSummary
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread
 from cardio_materno.domain.knowledge import KnowledgeEntry
-from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace
+from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, InquiryTrace, ReplyTrace
 from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
 MISSING_ENTRY_TEXT = "Registro no disponible"
@@ -159,6 +159,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "uncited": trace.uncited,
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
         "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
+        "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
     }
 
 
@@ -180,6 +181,22 @@ def evidence_to_dict(ref: EvidenceRef, entries: Entries) -> dict[str, Any]:
         "category": ref.category,
         "question": entry.question if entry else MISSING_ENTRY_TEXT,
         "answer": entry.answer if entry else "",
+    }
+
+
+def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
+    """Serializa la decisión de la regla de indagación (HU-11)."""
+    return {
+        "mode": str(inquiry.mode),
+        "turn": inquiry.turn,
+        "stalled": inquiry.stalled,
+        "best_score": inquiry.best_score,
+        "margin": inquiry.margin,
+        "agreement": inquiry.agreement,
+        "top_category": inquiry.top_category,
+        "progress": inquiry.progress,
+        "wants_guidance": inquiry.wants_guidance,
+        "applied": inquiry.applied,
     }
 
 

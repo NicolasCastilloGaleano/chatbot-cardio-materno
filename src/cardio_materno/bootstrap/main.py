@@ -28,6 +28,7 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
 )
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.inquiry_policy import InquiryActivation
 from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.bootstrap.rag_setup import RagSetup, setup_rag
 from cardio_materno.bootstrap.settings import (
@@ -46,6 +47,9 @@ ENV_FILE = PROJECT_ROOT / ".env"
 PROMPTS_DIR = PACKAGE_DIR / "prompts"
 ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v7.md"
 REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v4.md"
+INQUIRY_ACTIVE_PENDING_NOTICE = (
+    "Aviso: INQUIRY_MODE=activo aún no está implementado (HU-11, fase 3); se usa 'observar'."
+)
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
@@ -104,8 +108,18 @@ def build_conversation(
         alarm_policy=alarm_policy,
         evidence_item_chars=rag.policy.item_max_chars,
         grounding=rag.policy.grounding,
+        inquiry=rag.policy.inquiry,
+        inquiry_activation=_inquiry_activation(settings),
     )
     return ports, config
+
+
+def _inquiry_activation(settings: ConversationSettings) -> InquiryActivation:
+    """Modo de la indagación; `activo` aún no está implementado (fase 3) y se observa."""
+    if settings.inquiry_activation is InquiryActivation.ACTIVE:
+        print(INQUIRY_ACTIVE_PENDING_NOTICE)
+        return InquiryActivation.OBSERVE
+    return settings.inquiry_activation
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:

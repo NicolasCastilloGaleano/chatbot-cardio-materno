@@ -6,6 +6,7 @@ from cardio_materno.domain.conversation import ConversationThread
 from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
+    InquiryTrace,
     ReplyTrace,
     RetrievalStatus,
     StageTiming,
@@ -38,6 +39,13 @@ GROUNDING_DEBUG_TEMPLATE = "[respaldo: {supported}/{total} frases{literal}]"
 GROUNDING_LITERAL_TEXT = " · texto literal del registro ({shown}/{total} frases)"
 ABSTENTION_DEBUG_TEXT = "[respaldo: abstención sin LLM (sin evidencia suficiente)]"
 TIMINGS_DEBUG_TEMPLATE = "[tiempos: {timings}]"
+INQUIRY_DEBUG_TEMPLATE = (
+    "[indagación{observed}: {mode} · turno {turn} · s1 {best:.2f} · margen {margin:.2f}"
+    " · coincidencia {agreement} ({category}) · avance {progress}{guidance}]"
+)
+INQUIRY_OBSERVED_TEXT = " observada"
+INQUIRY_GUIDANCE_TEXT = " · pide orientación"
+INQUIRY_PROGRESS_TEXT = {True: "sí", False: "no", None: "—"}
 TIMING_TEMPLATE = "{stage} {seconds:.1f} s"
 NONE_TEXT = "ninguna"
 LIST_SEPARATOR = "; "
@@ -72,9 +80,25 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         format_search_debug(trace),
         format_evidence_debug(trace),
         format_grounding_debug(trace),
+        format_inquiry_debug(trace.inquiry) if trace.inquiry else "",
         format_timings_debug(trace.timings) if trace.timings else "",
     ]
     return [line for line in optional if line]
+
+
+def format_inquiry_debug(inquiry: InquiryTrace) -> str:
+    """Modo que eligió la regla de indagación y sus señales (HU-11)."""
+    return INQUIRY_DEBUG_TEMPLATE.format(
+        observed="" if inquiry.applied else INQUIRY_OBSERVED_TEXT,
+        mode=inquiry.mode,
+        turn=inquiry.turn,
+        best=inquiry.best_score,
+        margin=inquiry.margin,
+        agreement=inquiry.agreement,
+        category=inquiry.top_category or NONE_TEXT,
+        progress=INQUIRY_PROGRESS_TEXT[inquiry.progress],
+        guidance=INQUIRY_GUIDANCE_TEXT if inquiry.wants_guidance else "",
+    )
 
 
 def format_unstated_debug(trace: ReplyTrace) -> str:

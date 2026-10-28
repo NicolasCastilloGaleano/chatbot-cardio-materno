@@ -50,6 +50,13 @@ from cardio_materno.application.alarm_policy import (
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
 from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
+from cardio_materno.application.inquiry_policy import (
+    InquiryActivation,
+    InquiryPolicy,
+    evaluate_inquiry,
+    previous_state,
+    search_signals,
+)
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -72,7 +79,13 @@ from cardio_materno.domain.conversation import (
 )
 from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
 from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
-from cardio_materno.domain.trace import EvidenceRef, GroundingCheck, ReplyTrace, StageTiming
+from cardio_materno.domain.trace import (
+    EvidenceRef,
+    GroundingCheck,
+    InquiryTrace,
+    ReplyTrace,
+    StageTiming,
+)
 
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
 DEFAULT_CONTEXT_MESSAGES = 6
@@ -137,6 +150,9 @@ class ConversationConfig:
         alarm_policy: Reglas de alarma y mensajes fijos.
         evidence_item_chars: Longitud máxima de cada respuesta de evidencia mostrada.
         grounding: Parámetros de la verificación del respaldo (ADR 0010).
+        inquiry: Umbrales de la regla de indagación (HU-11, ADR 0017).
+        inquiry_activation: Cómo participa la regla de indagación; en la fase 2 solo se
+            observa: el modo se registra en la traza y el turno se resuelve como antes.
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -148,6 +164,8 @@ class ConversationConfig:
     alarm_policy: AlarmPolicy = field(default_factory=no_alarm_policy)
     evidence_item_chars: int = DEFAULT_EVIDENCE_ITEM_CHARS
     grounding: GroundingPolicy = field(default_factory=GroundingPolicy)
+    inquiry: InquiryPolicy = field(default_factory=InquiryPolicy)
+    inquiry_activation: InquiryActivation = InquiryActivation.OFF
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -314,15 +332,39 @@ class ConversationService:
         """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
         query = build_evidence_query(analysis, turn.user_text)
         retrieval, widened = timer.measure(STAGE_RAG, lambda: self._search(query))
+        inquiry = self._observe_inquiry(analysis, turn, decisions, retrieval)
         if retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             reply = (
                 compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
             )
             outcome = TurnOutcome(reply, decisions, trace, analysis)
-            return with_search_query(outcome, query.text, widened)
-        outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
-        return with_search_query(outcome, query.text, widened)
+        else:
+            outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
+        return with_search_query(with_inquiry(outcome, inquiry), query.text, widened)
+
+    def _observe_inquiry(
+        self,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        decisions: tuple[AlarmDecision, ...],
+        retrieval: RetrievalResult,
+    ) -> InquiryTrace | None:
+        """Modo que elige la regla de indagación (HU-11); None si no se evalúa.
+
+        No se evalúa con la regla apagada, con una alarma nueva ni sin buscador. El estado
+        anterior solo cuenta si el mensaje continúa el hilo. En la fase 2 la decisión solo se
+        registra (`applied` falso): el turno se resuelve como antes.
+        """
+        off = self._config.inquiry_activation is InquiryActivation.OFF
+        if off or decisions or retrieval.status is RetrievalStatus.UNAVAILABLE:
+            return None
+        continues = analysis.thread_action is ThreadAction.CONTINUE
+        state = previous_state(turn.recent if continues else ())
+        signals = search_signals(retrieval.candidates, retrieval.best_score)
+        return evaluate_inquiry(
+            signals, state, analysis.wants_guidance, self._config.inquiry, applied=False
+        )
 
     def _search(self, query: EvidenceQuery) -> tuple[RetrievalResult, bool]:
         """Busca en el dominio del análisis y, si no hay evidencia suficiente, en los dos.
@@ -545,6 +587,13 @@ def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> Turn
     if trace is not None:
         trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
     return replace(outcome, reply=f"{reminder}{REPLY_SEPARATOR}{outcome.reply}", trace=trace)
+
+
+def with_inquiry(outcome: TurnOutcome, inquiry: InquiryTrace | None) -> TurnOutcome:
+    """Agrega a la traza la decisión de la regla de indagación (HU-11), si se evaluó."""
+    if inquiry is None or outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, inquiry=inquiry))
 
 
 def with_search_query(outcome: TurnOutcome, query_text: str, widened: bool = False) -> TurnOutcome:

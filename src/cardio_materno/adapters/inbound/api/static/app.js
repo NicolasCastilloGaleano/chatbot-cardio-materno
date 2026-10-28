@@ -481,8 +481,26 @@ function traceSections(trace, thread) {
     section("Registros recuperados", evidenceList(trace)),
     ...groundingSections(trace.grounding),
   );
+  if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
   return sections;
+}
+
+const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", abstenerse: "Abstenerse (pedir detalles)", cerrar: "Cerrar" };
+
+function inquirySection(inquiry) {
+  const progress = inquiry.progress == null ? "—" : inquiry.progress ? "Sí" : "No";
+  const title = inquiry.applied ? "Indagación (HU-11)" : "Indagación (HU-11, observada: no cambió la respuesta)";
+  return section(title, metricGrid([
+    ["Modo de la regla", INQUIRY_MODES[inquiry.mode] || inquiry.mode],
+    ["Turno de indagación", String(inquiry.turn)],
+    ["Mejor puntaje (s1)", Number(inquiry.best_score).toFixed(2)],
+    ["Margen", Number(inquiry.margin).toFixed(2)],
+    ["Coincidencia", `${inquiry.agreement} · ${inquiry.top_category || "—"}`],
+    ["Avance", progress],
+    ["Sin avance seguidos", String(inquiry.stalled)],
+    ["Pide orientación", inquiry.wants_guidance ? "Sí" : "No"],
+  ]));
 }
 
 function groundingSections(check) {
