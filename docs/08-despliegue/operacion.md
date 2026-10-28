@@ -33,6 +33,16 @@ Cada turno en alcance hace hasta **tres solicitudes a Ollama**: análisis (LLM),
 
 **Ya aplicado (ADR 0011):** embedder en CPU por defecto, precalentamiento de los modelos al arrancar, límite de tokens por etapa, respuesta de ~90 palabras y abstención sin llamar al LLM.
 
+## Exportar las conversaciones con su traza
+Para revisar un guion o calibrar sin copiar desde la auditoría web, `scripts/export_traces.py` genera un informe Markdown con los hilos guardados en SQLite. Por cada hilo trae el resumen, las alertas y los mensajes, y por cada respuesta: alcance, síntomas y signos, recordatorios, búsqueda con la evidencia y sus puntajes, citas, respaldo (con el literal N/M y las frases descartadas) y la decisión de la indagación (HU-11).
+```bash
+.venv/bin/python scripts/export_traces.py --since "2026-10-27 18:00" > trazas.md
+```
+- `--since` filtra por hora local de creación del hilo; `--last N` trae los últimos N hilos (5 por defecto); `--thread` busca por el inicio del identificador (p. ej., `--thread 65c3d012`).
+- La base se abre en solo lectura (`DATABASE_PATH` o `--db`), así que se puede usar con la web o WhatsApp en marcha.
+- Los mensajes fuera de alcance no se guardan y no aparecen. No hay datos personales (los usuarios solo existen como hash), pero el informe no se versiona.
+- Con `xclip` se puede copiar directo: `… | xclip -selection clipboard`.
+
 ## Comparación de modelos (B-022, ADR 0011)
 Para decidir qué modelo usa cada etapa:
 

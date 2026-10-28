@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **`scripts/export_traces.py`:** exporta a Markdown los hilos guardados en SQLite con la traza de cada respuesta (alcance, búsqueda, evidencia, respaldo, recordatorios, alertas e indagación), para revisar guiones y calibrar sin copiar y pegar desde la auditoría. Abre la base en solo lectura; filtros `--since`, `--last` y `--thread`.
 - **Indagación guiada en modo observar (HU-11, fase 2, ADR 0017):** `application/inquiry_policy.py` aplica la regla determinista (responder, indagar, abstenerse o cerrar) con las señales de la búsqueda (s1, margen, coincidencia de categoría, avance) y el estado de la última respuesta del hilo. En modo `observar` (por defecto) la decisión se guarda en `trace.inquiry` y se muestra en la auditoría web y en la consola, sin cambiar la respuesta. `activo` llega en la fase 3; mientras tanto se observa, con un aviso al arrancar. El buscador devuelve `candidates` sobre el piso de indagación, que nunca son evidencia. Hay umbrales nuevos en `evidence_policy.json` v1.4.0 y en `.env` (`INQUIRY_MODE`, `INQUIRY_*`).
 - Guion `docs/08-despliegue/prueba-indagacion-observar.md`.
 - Guion de verificación `docs/08-despliegue/prueba-pertinencia-respuesta.md` (B-028).

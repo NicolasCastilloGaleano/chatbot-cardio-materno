@@ -45,4 +45,6 @@ Con las trazas del punto 3, revisar:
 
 Si un umbral no corresponde, se ajusta en `.env` (`INQUIRY_*`), y el valor nuevo se pasa a `knowledge/evidence_policy.json` cuando el equipo lo apruebe.
 
+Para pasar los resultados sin copiar desde la auditoría: `python scripts/export_traces.py --since "AAAA-MM-DD HH:MM" > trazas.md` (hora local de inicio del guion) y compartir ese archivo. Ver `docs/08-despliegue/operacion.md`.
+
 Anotar los resultados en `docs/05-ia/bitacora-verificacion-ia.md`.
