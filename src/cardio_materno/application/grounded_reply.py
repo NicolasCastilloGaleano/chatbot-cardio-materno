@@ -33,6 +33,13 @@ UNAVAILABLE_TEXT = (
     "En este momento no puedo consultar la información para orientarte. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
 )
+# Cierre honesto de la indagación (HU-11, ADR 0017): sin LLM. Pendiente de revisión clínica.
+CLOSING_TEXT = (
+    "Con lo que me cuentas no encuentro información validada en la base del proyecto para "
+    "orientarte sobre esto. Te recomiendo consultarlo con el personal de salud de tu EPS o "
+    "centro de salud. Si tienes otra duda sobre el corazón, la presión arterial, el embarazo o "
+    "tu bebé, con gusto te ayudo."
+)
 LITERAL_TEMPLATE = "Según la información validada del proyecto: {answer}"
 SENTENCE_SEPARATOR = " "
 
