@@ -124,6 +124,7 @@ class PolicyOverrides:
         inquiry_progress_delta: `INQUIRY_PROGRESS_DELTA`, subida del mejor puntaje que es avance.
         inquiry_max_turns: `INQUIRY_MAX_TURNS`, máximo de turnos de indagación seguidos.
         inquiry_max_stalled: `INQUIRY_MAX_STALLED`, turnos de indagación seguidos sin avance.
+        inquiry_max_sentences: `INQUIRY_MAX_SENTENCES`, frases de un turno de indagación.
     """
 
     min_similarity: float | None = None
@@ -140,6 +141,7 @@ class PolicyOverrides:
     inquiry_progress_delta: float | None = None
     inquiry_max_turns: int | None = None
     inquiry_max_stalled: int | None = None
+    inquiry_max_sentences: int | None = None
 
 
 @dataclass(frozen=True)
@@ -217,6 +219,7 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         inquiry_progress_delta=_get_optional_fraction(env, "INQUIRY_PROGRESS_DELTA"),
         inquiry_max_turns=_get_optional_positive_int(env, "INQUIRY_MAX_TURNS"),
         inquiry_max_stalled=_get_optional_positive_int(env, "INQUIRY_MAX_STALLED"),
+        inquiry_max_sentences=_get_optional_positive_int(env, "INQUIRY_MAX_SENTENCES"),
     )
 
 

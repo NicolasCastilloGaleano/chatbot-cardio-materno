@@ -229,6 +229,35 @@ def parse_grounded_reply(data: dict[str, Any], labels: Sequence[str]) -> tuple[D
     return sentences
 
 
+def inquiry_schema(max_sentences: int) -> dict[str, Any]:
+    """JSON Schema del turno de indagación: frases sin citas (preguntas y cortesía).
+
+    Args:
+        max_sentences: Máximo de frases del turno.
+    """
+    sentences = {"type": "array", "minItems": 1, "maxItems": max_sentences}
+    return {
+        "type": "object",
+        "properties": {"sentences": sentences | {"items": {"type": "string"}}},
+        "required": ["sentences"],
+    }
+
+
+def parse_inquiry(data: dict[str, Any]) -> tuple[str, ...]:
+    """Valida el turno de indagación; descarta las frases vacías.
+
+    Raises:
+        LanguageModelError: Si "sentences" no es una lista de textos o queda vacía.
+    """
+    raw = data.get("sentences")
+    if not isinstance(raw, list):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' debe ser una lista"))
+    sentences = tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
+    if not sentences:
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' vacío"))
+    return sentences
+
+
 def _parse_sentence(item: Any, labels: Sequence[str]) -> DraftSentence:
     """Valida una frase de la respuesta con evidencia."""
     if not isinstance(item, dict):

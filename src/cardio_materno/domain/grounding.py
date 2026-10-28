@@ -83,6 +83,7 @@ class GroundingPolicy:
         stem_chars: Letras iniciales que se comparan (raíz simple: "embarazada" ≈ "embarazo").
         literal_min_overlap: Raíces que una frase del texto literal debe compartir con la
             consulta para mostrarse (B-028).
+        max_inquiry_sentences: Máximo de frases de un turno de indagación (HU-11).
     """
 
     min_support: float = 0.6
@@ -91,6 +92,7 @@ class GroundingPolicy:
     min_word_chars: int = 4
     stem_chars: int = 5
     literal_min_overlap: int = 1
+    max_inquiry_sentences: int = 3
 
 
 def content_stems(text: str, policy: GroundingPolicy) -> frozenset[str]:
@@ -147,6 +149,51 @@ def is_allowed_without_citation(sentence: str, user_text: str, policy: Grounding
         return True
     is_refusal = REFUSAL_PATTERN.search(normalize_text(sentence)) is not None
     return is_refusal and stems <= allowed | content_stems(user_text, policy)
+
+
+def is_allowed_inquiry_sentence(
+    sentence: str, said_numbers: frozenset[str], policy: GroundingPolicy
+) -> bool:
+    """True si la frase puede ir en un turno de indagación (HU-11, ADR 0017).
+
+    Se acepta una pregunta corta cuyos números ya dijo la persona, o una frase corta que solo
+    use palabras de cortesía. Así el turno nunca afirma nada de salud.
+    """
+    if len(sentence.split()) > policy.max_free_words:
+        return False
+    if not numbers_in(sentence) <= said_numbers:
+        return False
+    if sentence.rstrip().endswith(QUESTION_MARK):
+        return True
+    return content_stems(sentence, policy) <= _stems_of(CONVERSATIONAL_WORDS, policy)
+
+
+def verify_inquiry(
+    sentences: Iterable[str], user_texts: Iterable[str], policy: GroundingPolicy
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Separa, en orden, las frases de indagación que se muestran y las que se descartan.
+
+    Args:
+        sentences: Frases que redactó el agente.
+        user_texts: Mensajes de la persona en el hilo (sus números se aceptan).
+        policy: Parámetros de la verificación (incluye el máximo de frases).
+
+    Returns:
+        Las frases aceptadas (hasta el máximo) y las descartadas.
+    """
+    said: frozenset[str] = frozenset().union(*(stated_numbers(text) for text in user_texts))
+    kept: list[str] = []
+    dropped: list[str] = []
+    for sentence in sentences:
+        room = len(kept) < policy.max_inquiry_sentences
+        allowed = room and is_allowed_inquiry_sentence(sentence, said, policy)
+        (kept if allowed else dropped).append(sentence)
+    return tuple(kept), tuple(dropped)
+
+
+def has_question(sentences: Iterable[str]) -> bool:
+    """True si alguna frase es una pregunta."""
+    return any(sentence.rstrip().endswith(QUESTION_MARK) for sentence in sentences)
 
 
 def split_sentences(text: str) -> tuple[str, ...]:

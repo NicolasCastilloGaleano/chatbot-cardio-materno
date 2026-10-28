@@ -220,6 +220,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `INQUIRY_PROGRESS_DELTA` | (archivo: `0.02`) | Subida mínima del mejor puntaje que cuenta como avance |
 | `INQUIRY_MAX_TURNS` | (archivo: `3`) | Máximo de turnos de indagación seguidos |
 | `INQUIRY_MAX_STALLED` | (archivo: `2`) | Turnos de indagación seguidos sin avance que detienen la indagación |
+| `INQUIRY_MAX_SENTENCES` | (archivo: `3`) | Máximo de frases de un turno de indagación (preguntas y cortesía) |
 
 **5. Interfaz web local (ADR 0013)**
 | Variable | Por defecto | Para qué |
