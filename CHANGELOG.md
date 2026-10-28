@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- La exportación de trazas (`scripts/export_traces.py`) incluye los tiempos por etapa y si el mensaje trata de salud.
 - **Registro de la causa de los fallos del modelo:** `StageTimer` marca el `LanguageModelError` con la etapa (análisis, RAG o respuesta). La web (antes de responder 502) y el canal WhatsApp escriben en la terminal la etapa y la causa técnica, sin el texto de la persona. Se agregó a `operacion.md` una guía para diagnosticar el 502.
 - **`scripts/export_traces.py`:** exporta a Markdown los hilos guardados en SQLite con la traza de cada respuesta (alcance, búsqueda, evidencia, respaldo, recordatorios, alertas e indagación), para revisar guiones y calibrar sin copiar y pegar desde la auditoría. Abre la base en solo lectura; filtros `--since`, `--last` y `--thread`.
 - **Indagación guiada en modo observar (HU-11, fase 2, ADR 0017):** `application/inquiry_policy.py` aplica la regla determinista (responder, indagar, abstenerse o cerrar) con las señales de la búsqueda (s1, margen, coincidencia de categoría, avance) y el estado de la última respuesta del hilo. En modo `observar` (por defecto) la decisión se guarda en `trace.inquiry` y se muestra en la auditoría web y en la consola, sin cambiar la respuesta. `activo` llega en la fase 3; mientras tanto se observa, con un aviso al arrancar. El buscador devuelve `candidates` sobre el piso de indagación, que nunca son evidencia. Hay umbrales nuevos en `evidence_policy.json` v1.4.0 y en `.env` (`INQUIRY_MODE`, `INQUIRY_*`).
@@ -76,6 +77,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - **Prompt de análisis v6:** un mensaje que reporta un síntoma o malestar de origen incierto siempre está en alcance (caso real: "dolor muy fuerte en el brazo por que me asustó una gallina"); "fuera_de_alcance" queda solo para mensajes ajenos sin síntomas. La regla determinista de alcance ya no exige un dominio para respetar los síntomas reportados (ADR 0009, actualización). Casos nuevos en `tests/live/scope_cases.json`.
 
 ### Fixed
+- **Web: turnos que no se guardan (HU-10):** un saludo sin hilo activo desaparecía sin aviso, y los mensajes fuera de alcance se dibujaban siempre al final del chat. Ahora los dos se muestran en gris, con su etiqueta y en el lugar donde ocurrieron.
+- **Indagación (HU-11):** la regla ya no se evalúa cuando el mensaje no trata de salud (`about_health` falso, p. ej., "gracias" en un hilo). `about_health` queda en la traza, en la auditoría web y en la exportación.
+- **Prompt de análisis v7:** dar los detalles que pidió el asistente es "continuar", aunque el hilo tuviera dominio "ninguno" ("tengo un ardor raro" → "es en el pecho, después de comer" abría un hilo nuevo y reiniciaba la indagación). Prueba en vivo nueva.
+- **Contexto del análisis:** 8192 tokens por defecto (con 4096, Ollama cortaba el JSON en los hilos largos y la web respondía 502). Si Ollama corta por límite (`done_reason` "length"), el error lo dice. ADR 0011 actualizado.
 - **Texto literal (B-025, ADR 0010):** cuando la redacción falla, el literal sale del registro de mayor similitud y no del primero que citó el agente (caso real: acidez → registro de preeclampsia).
 - Interfaz web (revisión de la rama `feat/interfaz-web-auditoria`): formato de `ruff` (la CI fallaba en los 4 commits, así que mypy y pytest no corrían); tildes dañadas por doble codificación en 5 archivos Python (p. ej., el título "demostración y auditoría" y el error "El mensaje no puede estar vacío"); `trace_to_dict` dividida según el estándar de funciones cortas; `use_utf8_streams` pasa a ser pública (antes se importaba una función privada).
 

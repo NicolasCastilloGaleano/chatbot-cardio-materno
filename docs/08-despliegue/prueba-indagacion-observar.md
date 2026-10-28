@@ -37,6 +37,16 @@ Ejecutar `pytest -m live -s` en la rama. Es obligatorio por el cambio de prompt 
 | 5 | Chat nuevo: "hola" → "tengo la presión alta" → "gracias" | Los saludos siguen siendo conversacionales; la alarma prioritaria se muestra como siempre y en ese turno no hay sección de indagación |
 | 6 | 5 a 10 conversaciones libres de temas variados, algunas vagas | Anotar, por turno, el modo de la regla, s1, el margen y la coincidencia, y si la decisión parece razonable. Sirve para calibrar |
 
+### Resultados (2026-10-27, PC de pruebas)
+- `pytest -m live`: 28/29. El partido en un hilo con fiebre quedó fuera de alcance y el pedido directo se detectó. Falló una vez el arrastre de "acidez" a un tema nuevo, pero la repetición dio 5/5: fue azar del modelo.
+- Guion: la regla eligió bien en los casos claros: responder con s1 0,73-0,74 y coincidencia 3-4; indagar con "tengo un ardor raro" (0,49); responder con el pedido directo (0,66).
+- Hallazgos corregidos el mismo día en la rama:
+  - la web escondía el saludo sin hilo y dibujaba al final el mensaje fuera de alcance;
+  - "gracias" en un hilo salía "indagar";
+  - la respuesta a la abstención abría un hilo nuevo;
+  - el análisis llenaba el contexto de 4096 y la web respondía 502.
+- Pendiente: repetir `pytest -m live` (prompt v7 ajustado y prueba nueva), comprobar en la web los turnos sin guardar, medir el análisis con 8192 y hacer más conversaciones vagas para calibrar.
+
 ## 4. Calibración
 Con las trazas del punto 3, revisar:
 - **Responder sin indagar:** ¿los turnos con evidencia clara superan 0,60 con margen o coincidencia?

@@ -576,6 +576,12 @@ Escenario: Histórico importado
 Escenario: Mensajes fuera de alcance
   Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
+
+Escenario: Turnos que no se guardan, visibles en su lugar (corrección del 2026-10-27)
+  Cuando envío desde la web un mensaje fuera de alcance o un saludo sin hilo activo
+  Entonces el mensaje y la respuesta se ven en gris, con su etiqueta ("Fuera de alcance: no se guarda en el hilo" o "Mensaje conversacional sin hilo: no se guarda")
+  Y quedan en el lugar donde ocurrieron: los mensajes que envíe después aparecen debajo
+  Y al recargar el chat ya no aparecen, porque no se guardaron
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-26 con Ollama, la consola y WhatsApp reales). Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
 
