@@ -5,8 +5,14 @@ class LanguageModelError(Exception):
     """El modelo de lenguaje no pudo generar una respuesta.
 
     El mensaje de la excepción está en español y es apto para mostrarse al usuario
-    del equipo (explica la causa y, si se conoce, cómo solucionarla).
+    del equipo (explica la causa y, si se conoce, cómo solucionarla). Nunca incluye el texto
+    de la persona, así que se puede registrar en el log.
+
+    Attributes:
+        stage: Etapa del turno en la que falló (análisis, RAG, respuesta); "" si no se sabe.
     """
+
+    stage: str = ""
 
 
 class ChatNotFoundError(Exception):

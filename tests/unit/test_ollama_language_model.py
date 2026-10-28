@@ -14,9 +14,11 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
     build_chat_payload,
+    extract_content,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
+from cardio_materno.domain.trace import ModelUsage
 
 SETTINGS = OllamaSettings(
     base_url="http://ollama.test:11434",
@@ -91,8 +93,47 @@ def test_complete_json_sends_schema_and_returns_parsed_object() -> None:
     ],
 )
 def test_complete_json_rejects_invalid_or_empty_responses(body: Any) -> None:
+    opener = FakeOpener(body)
+
     with pytest.raises(LanguageModelError, match="inesperada"):
-        make_model(FakeOpener(body)).complete_json(USER_MESSAGE, SCHEMA)
+        make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert len(opener.requests) == 2  # un reintento
+
+
+class SequenceOpener(FakeOpener):
+    """Devuelve los cuerpos dados en orden (para probar el reintento)."""
+
+    def __init__(self, *bodies: Any) -> None:
+        super().__init__()
+        self.bodies = list(bodies)
+
+    def __call__(self, request: Request, timeout: float) -> FakeResponse:
+        self.body = self.bodies.pop(0)
+        return super().__call__(request, timeout)
+
+
+def test_an_empty_or_cut_response_is_retried_once(caplog: pytest.LogCaptureFixture) -> None:
+    empty = {"message": {"content": "", "role": ""}, "done": False, "model": ""}
+    opener = SequenceOpener(empty, chat_body('{"reply": "Hola"}'))
+
+    result = make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert result == {"reply": "Hola"} and len(opener.requests) == 2
+    assert "se reintenta (1/1)" in caplog.text
+
+
+def test_timeouts_and_limit_cuts_are_not_retried() -> None:
+    cut = {"message": {"content": '{"reply": "Ho'}, "done_reason": "length"}
+    timeout_opener = FakeOpener(error=TimeoutError())
+    cut_opener = FakeOpener(cut)
+
+    with pytest.raises(LanguageModelError):
+        make_model(timeout_opener).complete_json(USER_MESSAGE, SCHEMA)
+    with pytest.raises(LanguageModelError, match="límite"):
+        make_model(cut_opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert len(timeout_opener.requests) == len(cut_opener.requests) == 1
 
 
 def test_connection_error_explains_how_to_fix() -> None:
@@ -158,3 +199,25 @@ def test_warm_up_loads_the_model_without_messages() -> None:
         "keep_alive": "30m",
         "options": {"temperature": 0.3, "num_ctx": 4096},
     }
+
+
+def test_response_cut_by_the_context_or_token_limit_has_a_clear_error() -> None:
+    cut = {"message": {"content": '{"thread_action": "contin'}, "done_reason": "length"}
+
+    with pytest.raises(LanguageModelError, match="límite de contexto o de tokens"):
+        extract_content(cut)
+
+
+def test_ollama_usage_is_reported_in_seconds() -> None:
+    body = chat_body('{"reply": "Hola"}') | {
+        "prompt_eval_count": 3700,
+        "prompt_eval_duration": 40_123_000_000,
+        "eval_count": 210,
+        "eval_duration": 12_500_000_000,
+    }
+    model = make_model(FakeOpener(body))
+
+    model.complete_json(USER_MESSAGE, SCHEMA)
+
+    assert model.last_usage() == ModelUsage("", 3700, 40.12, 210, 12.5)
+    assert make_model(FakeOpener(chat_body("{}"))).last_usage() is None

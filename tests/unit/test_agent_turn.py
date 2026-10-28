@@ -89,6 +89,8 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
         "search_query",
         "scope",
         "scope_reason",
+        "about_health",
+        "wants_guidance",
     }
     assert properties["reported_signs"]["maxItems"] == 0
 
@@ -141,6 +143,21 @@ def test_scope_and_reason_are_parsed() -> None:
 def test_invalid_scope_fields_raise_error(field: str, value: Any) -> None:
     with pytest.raises(LanguageModelError, match=field):
         parse_analysis(analysis_json(**{field: value}))
+
+
+def test_about_health_and_wants_guidance_are_parsed_with_safe_defaults() -> None:
+    turn = parse_analysis(analysis_json(about_health=False, wants_guidance=True))
+    legacy = parse_analysis(analysis_json())
+
+    assert (turn.about_health, turn.wants_guidance) == (False, True)
+    assert (legacy.about_health, legacy.wants_guidance) == (True, False)
+    assert {"about_health", "wants_guidance"} <= set(ANALYSIS_SCHEMA["required"])
+
+
+@pytest.mark.parametrize("field", ["about_health", "wants_guidance"])
+def test_non_boolean_flags_raise_error(field: str) -> None:
+    with pytest.raises(LanguageModelError, match=field):
+        parse_analysis(analysis_json(**{field: "sí"}))
 
 
 # --- Respuesta --------------------------------------------------------------------------------

@@ -27,7 +27,7 @@ El equipo decidió permitir que el agente indague con su propio conocimiento, co
 
    | Condición | Modo |
    |---|---|
-   | `s1 ≥ umbral_respuesta` (0,60) y (`margen ≥ margen_min` (0,03) o `coincidencia ≥ 2`) | responder |
+   | `s1 ≥ umbral_respuesta` (0,68; propuesta inicial 0,60) y (`margen ≥ margen_min` (0,03) o `coincidencia ≥ 2`) | responder |
    | La persona pide orientación directa (`wants_guidance`) y `s1 ≥ min_similarity` (0,50) | responder |
    | Turno de indagación ≥ `max_turnos` (3), o dos turnos seguidos sin avance | responder si `s1 ≥ min_similarity`; si no, cerrar |
    | `s1 ≥ piso_indagacion` (0,40) | indagar |
@@ -56,6 +56,17 @@ El equipo decidió permitir que el agente indague con su propio conocimiento, co
 - Los registros *Indagar* son un insumo opcional (punto 4).
 - Orden: primero B-028 (pertinencia de la respuesta y literal por frases, ADR 0010), porque mejora lo que ya existe y la indagación termina en esas respuestas. Después la HU-11 en `observar` (candidatos, v7, regla, traza) y al final en `activo` (prompt de indagación, verificación y cierre).
 - La ampliación de una respuesta con conocimiento propio del agente (HU-12, B-029) **no** es parte de este ADR: cambia la regla de oro del ADR 0010 y se tratará aparte, con su propio ADR y el aval clínico.
+
+## Implementación de la fase 2 (2026-10-27, modo observar)
+- Valores que el ADR no fijaba: `delta` de avance 0,02 y "dos turnos seguidos sin avance" como `max_stalled` = 2, ambos configurables (`INQUIRY_PROGRESS_DELTA`, `INQUIRY_MAX_STALLED`). La coincidencia cuenta los candidatos con la categoría del primero, **incluido el primero** (`coincidencia ≥ 2` = al menos otro candidato de la misma categoría).
+- El modo "abstención que pide detalles" de la tabla queda como `abstenerse` en `TurnMode`.
+- En modo observar, el estado del turno siguiente sale de la decisión **simulada** (lo que la regla habría hecho), aunque la persona recibió la respuesta de siempre. Así la calibración refleja la secuencia de la regla, con esa limitación.
+- `activo` todavía no está implementado: si se configura, se observa y se avisa al arrancar.
+
+## Calibración del modo observar (2026-10-28, Nicolas Castillo Galeano)
+- **Umbral para responder: 0,60 → 0,68.** En las trazas, "me duele el brazo" (0,66, margen 0,06) habría respondido con un registro de aorta en vez de indagar. Los casos realmente claros quedaron entre 0,68 y 0,74. Se descartó 0,65, porque no corregía ese caso. Se ajusta con `INQUIRY_ANSWER_THRESHOLD` en `.env`.
+- El umbral de evidencia del RAG (`min_similarity`, 0,50) no cambia: sigue decidiendo qué registro cuenta como evidencia. El umbral para responder solo decide si se responde de inmediato o se indaga primero.
+- Los demás valores (piso 0,40, margen 0,03, coincidencia 2, avance 0,02, máximo 3 turnos, 2 sin avance) se mantienen hasta tener más datos.
 
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |

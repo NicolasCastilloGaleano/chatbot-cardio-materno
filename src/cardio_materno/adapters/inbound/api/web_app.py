@@ -5,6 +5,7 @@ de consola y web. WhatsApp, Telegram y el histórico son de solo lectura: el ser
 los envíos a esos chats, no solo la interfaz.
 """
 
+import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,10 +34,18 @@ from cardio_materno.application.ports.chat_audit import ChatAudit, ChatPage, Cha
 from cardio_materno.domain.knowledge import KnowledgeEntry
 from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
+logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).with_name("static")
+# El navegador revalida la página y sus archivos en cada carga: tras actualizar la rama no hace
+# falta forzar la recarga (2026-10-27: un app.js viejo en caché escondía el saludo sin hilo).
+NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
 APP_TITLE = "Chat cardio-materno: auditoría multicanal"
 ERROR_MODEL_MESSAGE = "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
 CHAT_NOT_FOUND = "Chat no encontrado"
+# En la terminal del servidor: etapa y causa técnica, nunca el texto de la persona.
+MODEL_ERROR_LOG = "Fallo del modelo en el chat %s (etapa: %s): %s"
+UNKNOWN_STAGE = "desconocida"
+SHORT_CHAT_ID = 8
 CHAT_BUSY = "Ya se está procesando un mensaje en este chat. Espera la respuesta."
 NOT_LIVE = "El chat no está en uso en una consola."
 EMPTY_TEXT = "El mensaje no puede estar vacío"
@@ -116,7 +125,7 @@ def _add_page_routes(app: FastAPI) -> None:
     @app.get("/", include_in_schema=False)
     def home() -> FileResponse:
         """Entrega el cliente web."""
-        return FileResponse(STATIC_DIR / "index.html")
+        return FileResponse(STATIC_DIR / "index.html", headers=NO_CACHE_HEADERS)
 
     @app.get("/static/{asset_name}", include_in_schema=False)
     def static_asset(asset_name: str) -> FileResponse:
@@ -124,7 +133,7 @@ def _add_page_routes(app: FastAPI) -> None:
         asset = (STATIC_DIR / asset_name).resolve()
         if asset.parent != STATIC_DIR.resolve() or not asset.is_file():
             raise HTTPException(status_code=404, detail="Recurso no encontrado")
-        return FileResponse(asset)
+        return FileResponse(asset, headers=NO_CACHE_HEADERS)
 
 
 def _add_chat_routes(
@@ -229,6 +238,8 @@ def run_turn(chats: DirectChat, chat: ChatSummary, text: str) -> TurnResult:
         detail = LOCK_TEXTS[ChatLock(error.reason)].format(channel=label)
         raise HTTPException(status_code=403, detail=detail) from error
     except LanguageModelError as error:
+        stage = error.stage or UNKNOWN_STAGE
+        logger.warning(MODEL_ERROR_LOG, chat.user_id[:SHORT_CHAT_ID], stage, error)
         raise HTTPException(status_code=502, detail=ERROR_MODEL_MESSAGE) from error
 
 

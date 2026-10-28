@@ -56,6 +56,8 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "search_query": {"type": "string"},
             "scope": {"type": "string", "enum": [s.value for s in Scope]},
             "scope_reason": {"type": "string"},
+            "about_health": {"type": "boolean"},
+            "wants_guidance": {"type": "boolean"},
         },
         "required": [
             "thread_action",
@@ -66,6 +68,8 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "search_query",
             "scope",
             "scope_reason",
+            "about_health",
+            "wants_guidance",
         ],
     }
 
@@ -92,6 +96,9 @@ class AnalysisTurn:
         search_query: Consulta de salud reformulada para buscar evidencia (B-021); vacía si
             no hay consulta de salud.
         reported_signs: Códigos de signos del catálogo que la persona describe (ADR 0012).
+        about_health: Si el mensaje nuevo, por sí mismo, trata de salud o continúa la
+            conversación de salud del hilo (ADR 0009, prompt v7). True si falta.
+        wants_guidance: Si la persona pide directamente qué hacer (HU-11, ADR 0017).
     """
 
     thread_action: ThreadAction
@@ -102,6 +109,8 @@ class AnalysisTurn:
     scope_reason: str = ""
     search_query: str = ""
     reported_signs: tuple[str, ...] = ()
+    about_health: bool = True
+    wants_guidance: bool = False
 
 
 @dataclass(frozen=True)
@@ -153,6 +162,8 @@ def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> An
         scope_reason=_optional_text(data, "scope_reason"),
         search_query=remove_placeholders(_optional_text(data, "search_query")),
         reported_signs=_sign_codes(data, sign_codes),
+        about_health=_optional_flag(data, "about_health", default=True),
+        wants_guidance=_optional_flag(data, "wants_guidance", default=False),
     )
 
 
@@ -246,6 +257,18 @@ def _required_text(data: dict[str, Any], field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=f"'{field}' vacío o ausente"))
     return value.strip()
+
+
+def _optional_flag(data: dict[str, Any], field: str, default: bool) -> bool:
+    """Booleano opcional; si falta (prompts anteriores) se usa el valor por defecto.
+
+    Raises:
+        LanguageModelError: Si el valor no es booleano.
+    """
+    value = data.get(field, default)
+    if not isinstance(value, bool):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=f"{field} no es booleano"))
+    return value
 
 
 def _optional_text(data: dict[str, Any], field: str) -> str:

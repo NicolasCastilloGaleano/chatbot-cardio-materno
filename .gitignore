@@ -50,3 +50,6 @@ Thumbs.db
 
 # Informes de comparación de modelos (scripts/benchmark_models.py)
 data/benchmarks/
+
+# Informes de trazas exportados con scripts/export_traces.py (no se versionan)
+/trazas*.md

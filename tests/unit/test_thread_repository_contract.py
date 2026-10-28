@@ -31,7 +31,14 @@ from cardio_materno.domain.conversation import (
     close_thread,
     open_thread,
 )
-from cardio_materno.domain.trace import EvidenceRef, ReplyTrace, RetrievalStatus, StageTiming
+from cardio_materno.domain.trace import (
+    EvidenceRef,
+    InquiryTrace,
+    ReplyTrace,
+    RetrievalStatus,
+    StageTiming,
+    TurnMode,
+)
 from cardio_materno.domain.user import Channel, new_user
 
 NOW = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
@@ -132,6 +139,8 @@ def test_trace_round_trip_only_for_assistant_messages(repo: ThreadRepository) ->
         timings=(StageTiming("análisis", 1.2),),
         reported_signs=("SALIDA_LIQUIDO_VAGINAL",),
         domain_fallback=True,
+        inquiry=InquiryTrace(TurnMode.INQUIRE, 1, 0, 0.55, 0.02, 2, "Embarazo", None, True),
+        about_health=False,
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))

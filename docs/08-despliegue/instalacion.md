@@ -187,7 +187,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 |---|---|---|---|
 | `OLLAMA_MODEL` | `OLLAMA_ANALYSIS_MODEL` / `OLLAMA_REPLY_MODEL` | `mistral-small3.1:24b` | Modelo (nombre de `ollama list`). **Decisión del equipo (2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` |
 | `OLLAMA_TEMPERATURE` | `OLLAMA_ANALYSIS_TEMPERATURE` / `OLLAMA_REPLY_TEMPERATURE` | `0.3` | Creatividad (0 = más predecible) |
-| `OLLAMA_NUM_CTX` | `OLLAMA_ANALYSIS_NUM_CTX` / `OLLAMA_REPLY_NUM_CTX` | `4096` | Ventana de contexto en tokens |
+| `OLLAMA_NUM_CTX` | `OLLAMA_ANALYSIS_NUM_CTX` / `OLLAMA_REPLY_NUM_CTX` | `4096` (análisis: `6144`) | Ventana de contexto en tokens. El análisis usa 6144 si su variable está vacía: con 4096 se cortaba en hilos largos (2026-10-27). Si Ollama corta una respuesta, el log dice "límite de contexto o de tokens" |
 | `OLLAMA_TIMEOUT_SECONDS` | `OLLAMA_ANALYSIS_TIMEOUT_SECONDS` / `OLLAMA_REPLY_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta (s) |
 | `OLLAMA_THINK` | `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 (**obligatorio** con qwen3 en la respuesta) |
 | — | `OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT` | `600` / `500` | Máximo de tokens que genera cada etapa (`auto` = sin límite) |
@@ -212,6 +212,14 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `GROUNDING_MAX_FREE_SENTENCES` | (archivo: `2`) | Frases sin cita permitidas (preguntas de aclaración, cortesía) |
 | `GROUNDING_MAX_FREE_WORDS` | (archivo: `20`) | Palabras máximas de una frase sin cita |
 | `GROUNDING_LITERAL_MIN_OVERLAP` | (archivo: `1`) | Raíces que una frase del texto literal debe compartir con la consulta para mostrarse; los avisos de atención se muestran siempre (B-028) |
+| `INQUIRY_MODE` | `observar` | Indagación de la HU-11: `apagado` (no se calcula), `observar` (se registra en la traza qué haría la regla, sin cambiar la respuesta) o `activo` (la regla decide el turno) |
+| `INQUIRY_FLOOR` | (archivo: `0.40`) | Similitud mínima de un candidato que orienta la indagación de la HU-11; los candidatos nunca son evidencia |
+| `INQUIRY_ANSWER_THRESHOLD` | (archivo: `0.68`) | Similitud con la que la evidencia es clara para responder sin indagar. Distinto de `RAG_MIN_SIMILARITY` (0,50), que decide qué cuenta como evidencia: entre 0,50 y este valor la regla indaga primero. 0,60 → 0,68 por decisión del equipo (2026-10-28) |
+| `INQUIRY_MIN_MARGIN` | (archivo: `0.03`) | Ventaja mínima del primer candidato sobre el segundo para responder |
+| `INQUIRY_MIN_AGREEMENT` | (archivo: `2`) | Candidatos, incluido el primero, que comparten su categoría para responder |
+| `INQUIRY_PROGRESS_DELTA` | (archivo: `0.02`) | Subida mínima del mejor puntaje que cuenta como avance |
+| `INQUIRY_MAX_TURNS` | (archivo: `3`) | Máximo de turnos de indagación seguidos |
+| `INQUIRY_MAX_STALLED` | (archivo: `2`) | Turnos de indagación seguidos sin avance que detienen la indagación |
 
 **5. Interfaz web local (ADR 0013)**
 | Variable | Por defecto | Para qué |

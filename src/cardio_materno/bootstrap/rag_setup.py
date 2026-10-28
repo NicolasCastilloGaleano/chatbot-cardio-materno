@@ -80,6 +80,17 @@ def apply_policy_overrides(policy: EvidencePolicy, overrides: PolicyOverrides) -
         max_free_sentences=pick(overrides.max_free_sentences, policy.max_free_sentences),
         max_free_words=pick(overrides.max_free_words, policy.max_free_words),
         literal_min_overlap=pick(overrides.literal_min_overlap, policy.literal_min_overlap),
+        inquiry_floor=pick(overrides.inquiry_floor, policy.inquiry_floor),
+        inquiry_answer_threshold=pick(
+            overrides.inquiry_answer_threshold, policy.inquiry_answer_threshold
+        ),
+        inquiry_min_margin=pick(overrides.inquiry_min_margin, policy.inquiry_min_margin),
+        inquiry_min_agreement=pick(overrides.inquiry_min_agreement, policy.inquiry_min_agreement),
+        inquiry_progress_delta=pick(
+            overrides.inquiry_progress_delta, policy.inquiry_progress_delta
+        ),
+        inquiry_max_turns=pick(overrides.inquiry_max_turns, policy.inquiry_max_turns),
+        inquiry_max_stalled=pick(overrides.inquiry_max_stalled, policy.inquiry_max_stalled),
     )
 
 

@@ -65,11 +65,15 @@ class RetrievalResult:
         status: Si hay evidencia suficiente, insuficiente o el buscador no está disponible.
         items: Evidencia que superó el umbral (vacío si no hay).
         best_score: Mejor similitud vista, aunque no supere el umbral (para diagnóstico).
+        candidates: Mejores registros sobre el piso de indagación, de mayor a menor
+            similitud (C1, C2…). Solo orientan la indagación (HU-11, ADR 0017): nunca se
+            citan ni se muestran como evidencia.
     """
 
     status: RetrievalStatus
     items: tuple[EvidenceItem, ...] = ()
     best_score: float = 0.0
+    candidates: tuple[EvidenceItem, ...] = ()
 
     @property
     def labels(self) -> tuple[str, ...]:

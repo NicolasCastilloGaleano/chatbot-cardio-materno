@@ -16,6 +16,46 @@ class RetrievalStatus(StrEnum):
     UNAVAILABLE = "no_disponible"
 
 
+class TurnMode(StrEnum):
+    """Modo de un turno sin alarma nueva según la regla de indagación (HU-11, ADR 0017)."""
+
+    ANSWER = "responder"
+    INQUIRE = "indagar"
+    ABSTAIN = "abstenerse"
+    CLOSE = "cerrar"
+
+
+@dataclass(frozen=True)
+class InquiryTrace:
+    """Decisión de la regla de indagación en un turno (HU-11, ADR 0017).
+
+    También es el estado que lee el turno siguiente del mismo hilo.
+
+    Attributes:
+        mode: Modo elegido por la regla.
+        turn: Turnos de indagación seguidos, incluido este si es de indagación.
+        stalled: Turnos de indagación seguidos sin avance.
+        best_score: Mejor similitud de la búsqueda (`s1`).
+        margin: Ventaja del primer candidato sobre el segundo.
+        agreement: Candidatos (incluido el primero) con la categoría del primero.
+        top_category: Categoría del primer candidato ("" si no hay).
+        progress: Si hubo avance frente al turno de indagación anterior (None si no lo hubo).
+        wants_guidance: Si la persona pidió directamente qué hacer.
+        applied: True si la regla decidió el turno; False si solo se observó.
+    """
+
+    mode: TurnMode
+    turn: int = 0
+    stalled: int = 0
+    best_score: float = 0.0
+    margin: float = 0.0
+    agreement: int = 0
+    top_category: str = ""
+    progress: bool | None = None
+    wants_guidance: bool = False
+    applied: bool = False
+
+
 @dataclass(frozen=True)
 class EvidenceRef:
     """Referencia a un registro de evidencia ofrecido al agente.
@@ -31,6 +71,27 @@ class EvidenceRef:
     entry_id: str
     score: float
     category: str
+
+
+@dataclass(frozen=True)
+class ModelUsage:
+    """Cómo se repartió el tiempo de una llamada al modelo (lo informa Ollama).
+
+    Sirve para saber si la lentitud viene de leer el prompt o de generar la respuesta.
+
+    Attributes:
+        stage: Etapa del turno (análisis o respuesta); "" mientras no se asigna.
+        prompt_tokens: Tokens del prompt que el modelo procesó (sin los que ya tenía en caché).
+        prompt_seconds: Segundos que tardó en procesarlos.
+        output_tokens: Tokens que generó.
+        output_seconds: Segundos que tardó en generarlos.
+    """
+
+    stage: str
+    prompt_tokens: int
+    prompt_seconds: float
+    output_tokens: int
+    output_seconds: float
 
 
 @dataclass(frozen=True)
@@ -87,6 +148,10 @@ class ReplyTrace:
         domain_fallback: True si, sin evidencia en el dominio del análisis, la búsqueda se
             amplió a los dos dominios (HU-02, 2026-10-26).
         reminded_rules: Reglas ya avisadas en el hilo que solo se recordaron (ADR 0018).
+        inquiry: Decisión de la regla de indagación (HU-11); None si no se evaluó.
+        about_health: Si el análisis dijo que el mensaje nuevo, por sí mismo, trata de salud
+            (prompt v7, ADR 0009). True en trazas anteriores.
+        model_usage: Lectura del prompt y generación de cada llamada al modelo, por etapa.
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -103,6 +168,9 @@ class ReplyTrace:
     reported_signs: tuple[str, ...] = ()
     domain_fallback: bool = False
     reminded_rules: tuple[str, ...] = ()
+    inquiry: InquiryTrace | None = None
+    about_health: bool = True
+    model_usage: tuple[ModelUsage, ...] = ()
 
     @property
     def uncited(self) -> bool:

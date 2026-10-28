@@ -296,8 +296,14 @@ function bubbleRow(entry, color) {
   return row;
 }
 
+// Turnos que no se guardan (HU-07): fuera de alcance, o conversacionales sin hilo activo.
+const UNSAVED_LABELS = {
+  out_of_scope: "Fuera de alcance: no se guarda en el hilo",
+  conversational: "Mensaje conversacional sin hilo: no se guarda",
+};
+
 function bubbleMeta(entry) {
-  if (entry.ephemeral) return "Fuera de alcance: no se guarda en el hilo";
+  if (entry.ephemeral) return UNSAVED_LABELS[entry.unsaved] || UNSAVED_LABELS.out_of_scope;
   const time = formatDate(entry.created_at);
   if (entry.alerts?.length) return `${time} · ⚠️ ${entry.alerts.map((a) => a.rule_ids.join(", ")).join(" · ")}`;
   return entry.role === "assistant" ? `${time} · Selecciona para ver la traza` : time;
@@ -310,14 +316,23 @@ function renderMessages() {
   const children = [];
   if (state.nextBefore === null && state.entries.length) children.push(textNode("div", "Inicio del chat", "history-edge"));
   if (state.nextBefore !== null) children.push(textNode("div", "Sube para cargar mensajes anteriores", "history-edge"));
+  // Los turnos sin guardar van donde ocurrieron: después del último mensaje guardado que
+  // existía al enviarlos (afterSeq), no siempre al final.
+  let unsavedIndex = 0;
+  const addUnsavedBefore = (seq) => {
+    while (unsavedIndex < state.ephemeral.length && state.ephemeral[unsavedIndex].afterSeq < seq) {
+      children.push(bubbleRow(state.ephemeral[unsavedIndex++], null));
+    }
+  };
   let previous = null;
   for (const entry of state.entries) {
+    addUnsavedBefore(entry.seq);
     const color = colors.get(entry.thread.id);
     if (entry.thread.id !== previous) children.push(threadSeparator(entry.thread, color));
     previous = entry.thread.id;
     children.push(bubbleRow(entry, color));
   }
-  state.ephemeral.forEach((entry) => children.push(bubbleRow(entry, null)));
+  addUnsavedBefore(Infinity);
   if (!children.length) children.push(textNode("div", "Este chat aún no tiene mensajes guardados.", "history-edge"));
   if (state.pending > 0) children.push(pendingRow());
   box.replaceChildren(...children);
@@ -469,7 +484,7 @@ function showAudit(trace, outOfScope = false, thread = null, alerts = [], color 
 
 function traceSections(trace, thread) {
   const sections = [
-    section("Hilo y alcance", metricGrid([["Dominio", thread?.domain], ["Estado", thread?.status], ["Alcance", trace.scope], ["Motivo", trace.scope_reason]])),
+    section("Hilo y alcance", metricGrid([["Dominio", thread?.domain], ["Estado", thread?.status], ["Alcance", trace.scope], ["Motivo", trace.scope_reason], ["Mensaje sobre salud", trace.about_health === false ? "No" : "Sí"]])),
     section("Síntomas reportados", tags(trace.reported_symptoms)),
     section("Signos del catálogo", tags(trace.reported_signs)),
   ];
@@ -481,8 +496,27 @@ function traceSections(trace, thread) {
     section("Registros recuperados", evidenceList(trace)),
     ...groundingSections(trace.grounding),
   );
+  if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
+  if (trace.model_usage?.length) sections.push(section("Uso del modelo (lee el prompt · genera)", metricGrid(trace.model_usage.map((u) => [u.stage, `${u.prompt_tokens} tok en ${u.prompt_seconds.toFixed(1)} s · ${u.output_tokens} tok en ${u.output_seconds.toFixed(1)} s`]))));
   return sections;
+}
+
+const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", abstenerse: "Abstenerse (pedir detalles)", cerrar: "Cerrar" };
+
+function inquirySection(inquiry) {
+  const progress = inquiry.progress == null ? "—" : inquiry.progress ? "Sí" : "No";
+  const title = inquiry.applied ? "Indagación (HU-11)" : "Indagación (HU-11, observada: no cambió la respuesta)";
+  return section(title, metricGrid([
+    ["Modo de la regla", INQUIRY_MODES[inquiry.mode] || inquiry.mode],
+    ["Turno de indagación", String(inquiry.turn)],
+    ["Mejor puntaje (s1)", Number(inquiry.best_score).toFixed(2)],
+    ["Margen", Number(inquiry.margin).toFixed(2)],
+    ["Coincidencia", `${inquiry.agreement} · ${inquiry.top_category || "—"}`],
+    ["Avance", progress],
+    ["Sin avance seguidos", String(inquiry.stalled)],
+    ["Pide orientación", inquiry.wants_guidance ? "Sí" : "No"],
+  ]));
 }
 
 function groundingSections(check) {
@@ -536,15 +570,23 @@ function applySendResult(result, text) {
   mergeNew(result.messages);
   state.chat = result.chat;
   const turn = result.turn;
-  if (turn.out_of_scope) {
-    state.ephemeral.push({ role: "user", content: text, ephemeral: true }, { role: "assistant", content: turn.reply, ephemeral: true, trace: turn.trace, alerts: turn.alerts });
+  const unsaved = unsavedKind(turn);
+  if (unsaved) {
+    const anchor = { ephemeral: true, unsaved, afterSeq: lastSeq() };
+    state.ephemeral.push({ ...anchor, role: "user", content: text }, { ...anchor, role: "assistant", content: turn.reply, trace: turn.trace, alerts: turn.alerts });
   }
   renderMessages();
   scrollToBottom();
   const last = state.entries[state.entries.length - 1];
-  if (turn.out_of_scope) showAudit(turn.trace, true, null, turn.alerts);
+  if (unsaved) showAudit(turn.trace, turn.out_of_scope, null, turn.alerts);
   else if (last) showAudit(last.trace, false, last.thread, last.alerts, threadColors(state.entries).get(last.thread.id));
   loadChats();
+}
+
+// Un turno sin hilo no se guarda: fuera de alcance o conversacional sin hilo activo.
+function unsavedKind(turn) {
+  if (turn.out_of_scope) return "out_of_scope";
+  return turn.thread ? null : "conversational";
 }
 
 // --- Actualización automática -----------------------------------------------------------------

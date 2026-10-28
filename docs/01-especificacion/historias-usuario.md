@@ -360,7 +360,11 @@ Escenario: Los síntomas acumulados del hilo no dejan en alcance un mensaje ajen
   Y el análisis marca el mensaje como "fuera_de_alcance" e indica que el mensaje actual no trata de salud ("about_health": false)
   Entonces los síntomas acumulados no bastan: recibe el mensaje fijo de alcance y no se registra (como dice el escenario "Mensaje ajeno en medio de una consulta")
   Y si en el hilo hay una alarma ya avisada, el recordatorio va antes del mensaje fijo (ADR 0018)
-  Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente sigue en alcance, como hoy
+  Y aunque el último mensaje del asistente tenga una pregunta pendiente, el mensaje ajeno no queda en alcance
+  Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente ("about_health": true) sigue en alcance, como hoy
+  Y un saludo en un hilo con síntomas se trata como conversacional
+  Y si el análisis se contradice (dice que el mensaje no trata de salud pero lo deja "en_alcance"), el mensaje se trata como conversacional: respuesta amable sin hablar del tema ajeno, sin buscar evidencia, sin indagar y sin cambiar el resumen del hilo (2026-10-28)
+  Y un mensaje que abre un tema nuevo con su propio síntoma (el mixto "¿quién ganó el partido? ah, y tengo la presión alta") queda en alcance aunque el análisis diga que no trata de salud
 
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"
@@ -373,7 +377,7 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
   Cuando un mensaje activa una alarma (filtro 1 o filtro 2), aunque hable de otro tema
   Entonces se responde la alarma y el mensaje nunca se trata como fuera de alcance
 ```
-Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual. 📝 Cambio aprobado el 2026-10-27 (prompt de análisis v7, ADR 0009): en el guion de B-027, "¿quién ganó el partido?" en un hilo con síntomas quedó en alcance y terminó en abstención, en contra del escenario "Mensaje ajeno en medio de una consulta"; se corrige con `about_health`. Pendiente de implementar con la HU-11
+Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual. 📝 Cambio aprobado el 2026-10-27 (prompt de análisis v7, ADR 0009): en el guion de B-027, "¿quién ganó el partido?" en un hilo con síntomas quedó en alcance y terminó en abstención, en contra del escenario "Mensaje ajeno en medio de una consulta"; se corrige con `about_health`. ✅ Implementado y verificado en el PC el 2026-10-28 (prompt de análisis v7, `tests/live/test_live_scope.py` 14/14, con el respaldo para el análisis contradictorio y la excepción del tema nuevo)
 
 ### HU-08: Interfaz local de conversación y auditoría
 **Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.
@@ -574,6 +578,12 @@ Escenario: Histórico importado
 Escenario: Mensajes fuera de alcance
   Cuando un mensaje completamente ajeno recibe el mensaje fijo de alcance
   Entonces no se guarda en el hilo y no aparece en la auditoría (HU-07)
+
+Escenario: Turnos que no se guardan, visibles en su lugar (corrección del 2026-10-27)
+  Cuando envío desde la web un mensaje fuera de alcance o un saludo sin hilo activo
+  Entonces el mensaje y la respuesta se ven en gris, con su etiqueta ("Fuera de alcance: no se guarda en el hilo" o "Mensaje conversacional sin hilo: no se guarda")
+  Y quedan en el lugar donde ocurrieron: los mensajes que envíe después aparecen debajo
+  Y al recargar el chat ya no aparecen, porque no se guardaron
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-26 con Ollama, la consola y WhatsApp reales). Implementada (fases 2 a 5) y probada automáticamente. Recorrido visual hecho con datos sintéticos (2026-10-18): chat de solo lectura, colores y separadores por hilo, carga hacia arriba, auditoría con alertas, liberar una consola, enviar desde la web, actualización automática y pantalla angosta. Falta el recorrido en el PC de pruebas con Ollama, la consola y WhatsApp reales. Reemplaza en parte a la HU-08
 
@@ -597,7 +607,7 @@ Escenario: Las alarmas van primero y nunca se indaga con una alarma nueva
   Y si la alarma ya se avisó en el hilo y solo se recuerda (ADR 0018), el recordatorio va primero y el turno puede indagar o responder
 
 Escenario: Evidencia clara desde el primer mensaje
-  Dado que el mejor registro supera el umbral para responder (propuesta: 0,60)
+  Dado que el mejor registro supera el umbral para responder (0,68 desde el 2026-10-28; antes, propuesta de 0,60)
   Y los mejores registros coinciden en la categoría o el primero aventaja claramente al segundo
   Cuando escribo "¿por qué es importante controlar la presión si no me duele nada?"
   Entonces el asistente responde con evidencia verificada, sin indagar
@@ -675,4 +685,4 @@ Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
 
 Las metas las decide el equipo.
 
-Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. Se implementa después de B-028, primero en modo `observar` y luego `activo`. B-025 y B-027 ya están en `main`
+Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. 🔄 Fase 3 (`activo`) pendiente

@@ -4,6 +4,8 @@ Usa `/api/chat` con salida restringida por un JSON Schema. El transporte HTTP y 
 traducción de errores viven en `ollama_http.py`.
 """
 
+import logging
+import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -12,13 +14,27 @@ from urllib.request import urlopen
 from cardio_materno.adapters.outbound.llm.ollama_http import (
     MSG_INVALID_RESPONSE,
     OllamaHttpClient,
+    OllamaInvalidResponseError,
     Opener,
     parse_json_body,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
+from cardio_materno.domain.trace import ModelUsage
 
+logger = logging.getLogger(__name__)
 CHAT_ENDPOINT = "/api/chat"
+# Una respuesta vacía o un JSON inválido suelen ser fallos intermitentes: se reintenta una vez.
+# No se reintenta un tiempo de espera agotado (duplicaría la espera) ni un corte por límite.
+INVALID_RESPONSE_RETRIES = 1
+NANOSECONDS_PER_SECOND = 1_000_000_000
+USAGE_DECIMALS = 2
+MSG_RETRY_LOG = "Ollama (%s) devolvió una respuesta vacía o inválida; se reintenta (%d/%d)."
+DONE_REASON_LENGTH = "length"
+MSG_CUT_BY_LIMIT = (
+    "Ollama cortó la respuesta por el límite de contexto o de tokens. Sube "
+    "OLLAMA_<ETAPA>_NUM_CTX o OLLAMA_<ETAPA>_NUM_PREDICT (ANALYSIS o REPLY) en el .env."
+)
 DEFAULT_KEEP_ALIVE = "30m"
 
 
@@ -62,6 +78,8 @@ class OllamaLanguageModel:
         """
         self._settings = settings
         self._http = OllamaHttpClient(settings.base_url, settings.timeout_seconds, opener)
+        # Por hilo de ejecución: la web y WhatsApp atienden varios turnos a la vez.
+        self._last = threading.local()
 
     @property
     def model(self) -> str:
@@ -80,13 +98,34 @@ class OllamaLanguageModel:
         Returns:
             El objeto JSON generado por el modelo.
 
+        Si la respuesta llega vacía o no es un objeto JSON, se reintenta una vez.
+
         Raises:
-            LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON.
+            LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON
+                después del reintento.
         """
-        response = self._http.post(
-            CHAT_ENDPOINT, build_chat_payload(self._settings, messages, schema)
-        )
-        return parse_json_body(extract_content(response).encode("utf-8"))
+        payload = build_chat_payload(self._settings, messages, schema)
+        for attempt in range(1, INVALID_RESPONSE_RETRIES + 1):
+            try:
+                return self._complete_once(payload)
+            except OllamaInvalidResponseError as error:
+                logger.warning(
+                    MSG_RETRY_LOG, self._settings.model, attempt, INVALID_RESPONSE_RETRIES
+                )
+                logger.debug("Detalle del fallo: %s", error)
+        return self._complete_once(payload)
+
+    def _complete_once(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Una solicitud a `/api/chat` y su objeto JSON; guarda el uso que informa Ollama."""
+        response = self._http.post(CHAT_ENDPOINT, payload)
+        data = parse_json_body(extract_content(response).encode("utf-8"))
+        self._last.usage = usage_from(response)
+        return data
+
+    def last_usage(self) -> ModelUsage | None:
+        """Tokens y tiempos de la última llamada exitosa en este hilo de ejecución."""
+        usage: ModelUsage | None = getattr(self._last, "usage", None)
+        return usage
 
     def warm_up(self) -> None:
         """Carga el modelo en memoria sin generar nada, para que el primer turno no espere.
@@ -153,14 +192,38 @@ def build_warm_up_payload(settings: OllamaSettings) -> dict[str, Any]:
     }
 
 
+def usage_from(response: dict[str, Any]) -> ModelUsage | None:
+    """Tokens y tiempos de lectura del prompt y de generación que informa `/api/chat`.
+
+    Returns:
+        El uso, o None si la respuesta no trae los contadores.
+    """
+    fields = ("prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")
+    values = [response.get(name) for name in fields]
+    numbers = [value for value in values if isinstance(value, int)]
+    if len(numbers) != len(fields):
+        return None
+    prompt_tokens, prompt_ns, output_tokens, output_ns = numbers
+    return ModelUsage(
+        "",
+        prompt_tokens,
+        round(prompt_ns / NANOSECONDS_PER_SECOND, USAGE_DECIMALS),
+        output_tokens,
+        round(output_ns / NANOSECONDS_PER_SECOND, USAGE_DECIMALS),
+    )
+
+
 def extract_content(response: dict[str, Any]) -> str:
     """Obtiene el texto de la respuesta de `/api/chat`.
 
     Raises:
-        LanguageModelError: Si la respuesta no trae contenido.
+        LanguageModelError: Si Ollama cortó la respuesta por el límite de contexto o de tokens
+            (`done_reason` "length") o si la respuesta no trae contenido.
     """
+    if response.get("done_reason") == DONE_REASON_LENGTH:
+        raise LanguageModelError(MSG_CUT_BY_LIMIT)
     message = response.get("message")
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str) or not content.strip():
-        raise LanguageModelError(MSG_INVALID_RESPONSE)
+        raise OllamaInvalidResponseError(MSG_INVALID_RESPONSE)
     return content.strip()

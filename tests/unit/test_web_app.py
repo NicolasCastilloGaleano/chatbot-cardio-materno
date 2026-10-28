@@ -119,6 +119,14 @@ def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> No
     assert "Estoy procesando tu mensaje" in script and "setInterval(poll" in script
     assert "textContent" in script and "innerHTML" not in script
     assert "--thread-5" in styles and ".thread-separator" in styles
+    assert "afterSeq" in script and "Mensaje conversacional sin hilo: no se guarda" in script
+
+
+def test_page_and_assets_are_revalidated_on_every_load(database: SqliteDatabase) -> None:
+    harness = build(database)
+
+    for path in ("/", "/static/app.js", "/static/styles.css"):
+        assert harness.client.get(path).headers["cache-control"] == "no-cache"
 
 
 # --- Chats --------------------------------------------------------------------------------
@@ -203,7 +211,9 @@ def test_console_chat_is_locked_until_released(database: SqliteDatabase) -> None
     assert harness.client.post(f"/api/chats/{chat_id}/release").status_code == 409
 
 
-def test_model_failure_is_a_clear_gateway_error(database: SqliteDatabase) -> None:
+def test_model_failure_is_a_clear_gateway_error(
+    database: SqliteDatabase, caplog: pytest.LogCaptureFixture
+) -> None:
     harness = build(database, LanguageModelError("detalle interno"))
     chat_id = new_web_chat(harness)
 
@@ -213,6 +223,8 @@ def test_model_failure_is_a_clear_gateway_error(database: SqliteDatabase) -> Non
     assert (
         response.json()["detail"] == "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
     )
+    assert "(etapa: análisis): detalle interno" in caplog.text
+    assert "Tengo una consulta" not in caplog.text
 
 
 def test_empty_text_is_rejected(database: SqliteDatabase) -> None:
@@ -230,6 +242,17 @@ def test_out_of_scope_reply_is_returned_but_not_persisted(database: SqliteDataba
 
     assert body["turn"]["out_of_scope"] is True and body["turn"]["thread"] is None
     assert body["messages"] == []
+
+
+def test_greeting_without_thread_is_returned_but_not_persisted(database: SqliteDatabase) -> None:
+    """El cliente muestra este turno como no guardado (antes desaparecía sin aviso)."""
+    harness = build(database, scoped(agent_json("¡Hola!", domain="ninguno"), "conversacional"))
+    chat_id = new_web_chat(harness)
+
+    body = send(harness, chat_id, "hola").json()
+
+    assert body["turn"]["reply"] == "¡Hola!" and body["turn"]["thread"] is None
+    assert body["turn"]["out_of_scope"] is False and body["messages"] == []
 
 
 def test_immediate_alarm_is_stored_with_its_alert(database: SqliteDatabase) -> None:

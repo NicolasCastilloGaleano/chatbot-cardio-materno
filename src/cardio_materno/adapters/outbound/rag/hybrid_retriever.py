@@ -5,6 +5,8 @@
 3. Fusiona ambos rankings con Reciprocal Rank Fusion (RRF).
 4. Solo la similitud vectorial certifica relevancia: un registro encontrado únicamente por
    términos puede ordenar, pero nunca califica como evidencia.
+5. Aparte, devuelve los candidatos con similitud sobre el piso de indagación (HU-11), que
+   solo orientan las preguntas y nunca se usan como evidencia.
 """
 
 from collections import defaultdict
@@ -25,6 +27,7 @@ from cardio_materno.domain.knowledge import (
 )
 
 LABEL_TEMPLATE = "E{number}"
+CANDIDATE_LABEL_TEMPLATE = "C{number}"
 
 
 class HybridRetriever:
@@ -112,7 +115,17 @@ class HybridRetriever:
             for n, i in enumerate(supported[: self._policy.top_k], start=1)
         )
         status = RetrievalStatus.SUFFICIENT if items else RetrievalStatus.INSUFFICIENT
-        return RetrievalResult(status, items, round(max(similarities.values(), default=0.0), 4))
+        best = round(max(similarities.values(), default=0.0), 4)
+        return RetrievalResult(status, items, best, self._candidates(similarities))
+
+    def _candidates(self, similarities: dict[str, float]) -> tuple[EvidenceItem, ...]:
+        """Mejores registros sobre el piso de indagación, de mayor a menor similitud."""
+        ranked = sorted(similarities.items(), key=lambda pair: pair[1], reverse=True)
+        above = [(i, s) for i, s in ranked if s >= self._policy.inquiry_floor]
+        return tuple(
+            EvidenceItem(CANDIDATE_LABEL_TEMPLATE.format(number=n), self._entries[i], round(s, 4))
+            for n, (i, s) in enumerate(above[: self._policy.top_k], start=1)
+        )
 
 
 def fuse_rankings(rankings: Iterable[Sequence[str]], rrf_k: float) -> list[str]:

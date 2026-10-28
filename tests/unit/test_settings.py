@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy
+from cardio_materno.application.inquiry_policy import InquiryActivation, InquiryPolicy
 from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
 from cardio_materno.bootstrap.rag_setup import apply_policy_overrides
@@ -138,6 +140,18 @@ def test_stage_timer_records_duration_even_when_action_fails() -> None:
     assert [(t.stage, t.seconds) for t in timer.timings] == [("análisis", 1.25), ("respuesta", 0.5)]
 
 
+def test_stage_timer_marks_model_errors_with_their_stage() -> None:
+    timer = StageTimer(lambda: 0.0)
+
+    def fail() -> str:
+        raise LanguageModelError("respuesta vacía")
+
+    with pytest.raises(LanguageModelError) as caught:
+        timer.measure("respuesta", fail)
+
+    assert caught.value.stage == "respuesta"
+
+
 def test_latency_settings_defaults_and_overrides(tmp_path: Path) -> None:
     defaults = load_rag_settings({}, tmp_path)
     custom = load_rag_settings(
@@ -195,7 +209,7 @@ def test_each_stage_can_set_model_temperature_context_and_timeout() -> None:
     assert (analysis.model, analysis.temperature, analysis.num_ctx) == (
         "mistral-small3.1:24b",
         0.1,
-        4096,
+        6144,
     )
     assert (reply.model, reply.temperature, reply.num_ctx, reply.timeout_seconds) == (
         "qwen3:8b",
@@ -222,6 +236,48 @@ def test_literal_min_overlap_from_env_reaches_the_grounding_policy(tmp_path: Pat
     assert policy.literal_min_overlap == 2
     assert policy.grounding.literal_min_overlap == 2
     assert EvidencePolicy().grounding.literal_min_overlap == 1
+
+
+def test_inquiry_floor_from_env_overrides_the_policy_file(tmp_path: Path) -> None:
+    overrides = load_rag_settings({"INQUIRY_FLOOR": "0.45"}, tmp_path).policy_overrides
+
+    assert apply_policy_overrides(EvidencePolicy(), overrides).inquiry_floor == 0.45
+    assert EvidencePolicy().inquiry_floor == 0.40
+
+
+def test_inquiry_thresholds_from_env_reach_the_inquiry_policy(tmp_path: Path) -> None:
+    env = {
+        "INQUIRY_ANSWER_THRESHOLD": "0.62",
+        "INQUIRY_MAX_TURNS": "2",
+        "RAG_MIN_SIMILARITY": "0.5",
+    }
+
+    overrides = load_rag_settings(env, tmp_path).policy_overrides
+    inquiry = apply_policy_overrides(EvidencePolicy(), overrides).inquiry
+
+    assert (inquiry.answer_threshold, inquiry.max_turns, inquiry.min_similarity) == (0.62, 2, 0.5)
+    assert EvidencePolicy(min_similarity=0.5).inquiry == InquiryPolicy()
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("", InquiryActivation.OBSERVE),
+        ("ACTIVO", InquiryActivation.ACTIVE),
+        ("apagado", InquiryActivation.OFF),
+    ],
+)
+def test_inquiry_mode_defaults_to_observe(
+    tmp_path: Path, raw: str, expected: InquiryActivation
+) -> None:
+    env = {"INQUIRY_MODE": raw} if raw else {}
+
+    assert load_conversation_settings(env, tmp_path).inquiry_activation is expected
+
+
+def test_invalid_inquiry_mode_raises_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="INQUIRY_MODE"):
+        load_conversation_settings({"INQUIRY_MODE": "siempre"}, tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -294,3 +350,15 @@ def test_web_page_size_and_poll_interval() -> None:
         load_web_settings({"WEB_PAGE_SIZE": "0"})
     with pytest.raises(ConfigurationError, match="WEB_POLL_SECONDS"):
         load_web_settings({"WEB_POLL_SECONDS": "0"})
+
+
+def test_analysis_context_defaults_to_6144_unless_its_variable_is_set() -> None:
+    general = {"OLLAMA_NUM_CTX": "4096"}
+
+    analysis = load_stage_settings(general, "OLLAMA_ANALYSIS_MODEL")
+    explicit = load_stage_settings(
+        general | {"OLLAMA_ANALYSIS_NUM_CTX": "8192"}, "OLLAMA_ANALYSIS_MODEL"
+    )
+    reply = load_stage_settings(general, "OLLAMA_REPLY_MODEL")
+
+    assert (analysis.num_ctx, explicit.num_ctx, reply.num_ctx) == (6144, 8192, 4096)

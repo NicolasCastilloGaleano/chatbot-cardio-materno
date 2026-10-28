@@ -90,3 +90,33 @@ def test_follow_up_inside_a_thread_is_in_scope(analyzer: OllamaLanguageModel, pr
 
     print(f"seguimiento → {analysis.scope} ({analysis.scope_reason})")
     assert effective_scope(analysis) is Scope.IN_SCOPE
+
+
+FEVER_THREAD = (
+    ChatMessage(Role.USER, "mi bebé tiene fiebre"),
+    ChatMessage(Role.ASSISTANT, "¿Desde cuándo tiene fiebre y cuánto le ha marcado el termómetro?"),
+)
+
+
+def test_unrelated_message_inside_a_thread_with_symptoms_is_out_of_scope(
+    analyzer: OllamaLanguageModel, prompt: str
+) -> None:
+    """Guion de B-027 (2026-10-27): el partido no queda en alcance por la fiebre del hilo."""
+    turn = TurnInput("¿quién ganó el partido?", FEVER_THREAD)
+
+    analysis = analyze(analyzer, prompt, turn, thread_summary="Bebé con fiebre.")
+
+    print(
+        f"partido en un hilo con fiebre → {analysis.scope} · about_health={analysis.about_health}"
+    )
+    # Fuera de alcance o, si el análisis se contradice, conversacional; nunca en alcance.
+    assert effective_scope(analysis, turn.recent) is not Scope.IN_SCOPE
+
+
+def test_direct_request_for_guidance_is_marked(analyzer: OllamaLanguageModel, prompt: str) -> None:
+    turn = TurnInput("ya no quiero más preguntas, ¿qué hago?", FEVER_THREAD)
+
+    analysis = analyze(analyzer, prompt, turn, thread_summary="Bebé con fiebre.")
+
+    print(f"pedido directo → wants_guidance={analysis.wants_guidance}")
+    assert analysis.wants_guidance and effective_scope(analysis, turn.recent) is Scope.IN_SCOPE

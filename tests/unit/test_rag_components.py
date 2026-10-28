@@ -353,3 +353,23 @@ def test_retriever_reuses_the_query_embedding_for_the_same_text() -> None:
     retriever.retrieve(EvidenceQuery("presion"))
 
     assert len(embedder.texts) == 2
+
+
+def test_retriever_returns_candidates_above_the_inquiry_floor_even_without_evidence() -> None:
+    policy = EvidencePolicy(top_k=2, min_similarity=0.8, inquiry_floor=0.6)
+
+    result = make_retriever(policy).retrieve(EvidenceQuery("acidez y presión"))
+
+    assert result.status is RetrievalStatus.INSUFFICIENT and result.items == ()
+    assert [c.label for c in result.candidates] == ["C1", "C2"]
+    assert {c.entry.id for c in result.candidates} == {"a", "c"}  # empatados en similitud
+    assert all(0.6 <= c.score < 0.8 for c in result.candidates)
+
+
+def test_candidates_are_sorted_by_similarity_and_limited_to_top_k() -> None:
+    policy = EvidencePolicy(top_k=1, min_similarity=0.5, inquiry_floor=0.05)
+
+    result = make_retriever(policy).retrieve(EvidenceQuery("acidez"))
+
+    assert [c.entry.id for c in result.candidates] == ["a"]
+    assert result.items[0].entry.id == "a"

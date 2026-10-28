@@ -33,6 +33,35 @@ Cada turno en alcance hace hasta **tres solicitudes a Ollama**: análisis (LLM),
 
 **Ya aplicado (ADR 0011):** embedder en CPU por defecto, precalentamiento de los modelos al arrancar, límite de tokens por etapa, respuesta de ~90 palabras y abstención sin llamar al LLM.
 
+## Error del modelo (502 en la web)
+Si la web responde `502 Bad Gateway` ("No se pudo generar la respuesta"), o WhatsApp no contesta, falló una llamada al modelo. En la terminal del servidor queda una línea como esta:
+
+`Fallo del modelo en el chat 0201d1ed (etapa: análisis): <causa>`
+
+En WhatsApp la línea es `Fallo del modelo (etapa: …): …`. La línea nunca incluye el texto de la persona. Causas frecuentes:
+- **Tiempo de espera agotado o Ollama no responde:** revisar `ollama ps` y `journalctl -u ollama`, y que no haya pruebas en vivo usando la GPU al mismo tiempo.
+- **Respuesta vacía o cortada:** si en `journalctl -u ollama` aparece `Unexpected empty grammar stack after accepting piece`, es un fallo intermitente de llama.cpp con la salida JSON de mistral-small3.1. El adaptador ya reintenta una vez (queda la línea "se reintenta (1/1)"); si falla dos veces seguidas, reenviar el mensaje. Revisar también si hay una versión nueva de Ollama (`ollama --version`).
+- **Análisis lento:** `ollama ps` muestra cuánto del modelo corre en CPU. En el PC de pruebas, mistral-small3.1 queda 67 % en CPU tanto con 8192 como con 6144 (2026-10-27): el reparto lo decide el tamaño del modelo frente a la memoria de la GPU, no el contexto. El análisis tardó 50-61 s.
+- **"El modelo no devolvió la estructura esperada (…)":** el JSON no cumple el contrato; el detalle dice qué campo falló.
+
+El turno que falla no se guarda: se puede reenviar el mismo mensaje.
+
+## Por qué tarda el análisis
+La traza de cada respuesta trae el uso del modelo por etapa: tokens y segundos de **lectura del prompt** y de **generación**. Se ven en la auditoría web ("Uso del modelo"), en la consola y en la exportación (`uso del modelo: análisis lee N tok en X s y genera M tok en Y s`).
+- Si pesa la **lectura del prompt**, conviene achicar el prompt del análisis (sobre todo el catálogo de signos con ejemplos), midiendo que el filtro 2 no pierda detecciones.
+- Si pesa la **generación**, conviene acortar el JSON que se pide o probar un modelo de análisis más pequeño (comparación del ADR 0011).
+- Si la lectura del prompt marca pocos tokens, Ollama reutilizó lo que tenía en caché del turno anterior.
+
+## Exportar las conversaciones con su traza
+Para revisar un guion o calibrar sin copiar desde la auditoría web, `scripts/export_traces.py` genera un informe Markdown con los hilos guardados en SQLite. Por cada hilo trae el resumen, las alertas y los mensajes, y por cada respuesta: alcance, síntomas y signos, recordatorios, búsqueda con la evidencia y sus puntajes, citas, respaldo (con el literal N/M y las frases descartadas) y la decisión de la indagación (HU-11).
+```bash
+.venv/bin/python scripts/export_traces.py --since "2026-10-27 18:00" > trazas.md
+```
+- `--since` filtra por hora local de creación del hilo; `--last N` trae los últimos N hilos (5 por defecto); `--thread` busca por el inicio del identificador (p. ej., `--thread 65c3d012`).
+- La base se abre en solo lectura (`DATABASE_PATH` o `--db`), así que se puede usar con la web o WhatsApp en marcha.
+- Los mensajes fuera de alcance no se guardan y no aparecen. No hay datos personales (los usuarios solo existen como hash), pero el informe no se versiona.
+- Con `xclip` se puede copiar directo: `… | xclip -selection clipboard`.
+
 ## Comparación de modelos (B-022, ADR 0011)
 Para decidir qué modelo usa cada etapa:
 

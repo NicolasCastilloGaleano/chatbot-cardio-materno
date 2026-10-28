@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from cardio_materno.application.agent_turn import AnalysisTurn
+from cardio_materno.application.inquiry_policy import InquiryPolicy
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.grounding import GroundingPolicy
@@ -38,6 +39,14 @@ class EvidencePolicy:
         max_free_words: Longitud máxima, en palabras, de una frase sin cita.
         literal_min_overlap: Raíces que una frase del texto literal comparte con la consulta
             para mostrarse (B-028).
+        inquiry_floor: Similitud mínima de un candidato para orientar la indagación (HU-11,
+            ADR 0017). Los candidatos nunca son evidencia.
+        inquiry_answer_threshold: Similitud con la que la evidencia es clara para responder.
+        inquiry_min_margin: Ventaja mínima del primer candidato sobre el segundo.
+        inquiry_min_agreement: Candidatos (con el primero) que comparten su categoría.
+        inquiry_progress_delta: Subida mínima del mejor puntaje que cuenta como avance.
+        inquiry_max_turns: Máximo de turnos de indagación seguidos.
+        inquiry_max_stalled: Turnos de indagación seguidos sin avance que la detienen.
     """
 
     top_k: int = 3
@@ -52,6 +61,13 @@ class EvidencePolicy:
     max_free_sentences: int = 2
     max_free_words: int = 20
     literal_min_overlap: int = 1
+    inquiry_floor: float = 0.40
+    inquiry_answer_threshold: float = 0.68
+    inquiry_min_margin: float = 0.03
+    inquiry_min_agreement: int = 2
+    inquiry_progress_delta: float = 0.02
+    inquiry_max_turns: int = 3
+    inquiry_max_stalled: int = 2
 
     @property
     def grounding(self) -> GroundingPolicy:
@@ -61,6 +77,20 @@ class EvidencePolicy:
             self.max_free_sentences,
             self.max_free_words,
             literal_min_overlap=self.literal_min_overlap,
+        )
+
+    @property
+    def inquiry(self) -> InquiryPolicy:
+        """Umbrales de la regla de indagación (HU-11, ADR 0017)."""
+        return InquiryPolicy(
+            min_similarity=self.min_similarity,
+            inquiry_floor=self.inquiry_floor,
+            answer_threshold=self.inquiry_answer_threshold,
+            min_margin=self.inquiry_min_margin,
+            min_agreement=self.inquiry_min_agreement,
+            progress_delta=self.inquiry_progress_delta,
+            max_turns=self.inquiry_max_turns,
+            max_stalled=self.inquiry_max_stalled,
         )
 
 

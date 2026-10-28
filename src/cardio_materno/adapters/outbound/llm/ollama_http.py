@@ -33,6 +33,14 @@ class OllamaTimeoutError(LanguageModelError):
     """Ollama no respondió dentro del tiempo configurado."""
 
 
+class OllamaInvalidResponseError(LanguageModelError):
+    """Ollama respondió, pero vacío o con un cuerpo que no es un objeto JSON.
+
+    Suele ser un fallo intermitente de la generación: p. ej., llama.cpp aborta la salida
+    restringida por el JSON Schema ("Unexpected empty grammar stack", 2026-10-27).
+    """
+
+
 class HttpResponse(Protocol):
     """Respuesta HTTP mínima que usa el cliente (la cumple la de `urlopen`)."""
 
@@ -115,14 +123,14 @@ def parse_json_body(raw: bytes) -> dict[str, Any]:
     """Decodifica el cuerpo JSON de una respuesta.
 
     Raises:
-        LanguageModelError: Si el cuerpo no es un objeto JSON válido.
+        OllamaInvalidResponseError: Si el cuerpo no es un objeto JSON válido.
     """
     try:
         data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise LanguageModelError(MSG_INVALID_RESPONSE) from error
+        raise OllamaInvalidResponseError(MSG_INVALID_RESPONSE) from error
     if not isinstance(data, dict):
-        raise LanguageModelError(MSG_INVALID_RESPONSE)
+        raise OllamaInvalidResponseError(MSG_INVALID_RESPONSE)
     return data
 
 

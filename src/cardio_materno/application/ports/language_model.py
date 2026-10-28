@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Any, Protocol
 
 from cardio_materno.domain.conversation import ChatMessage
+from cardio_materno.domain.trace import ModelUsage
 
 
 class LanguageModel(Protocol):
@@ -23,5 +24,13 @@ class LanguageModel(Protocol):
 
         Raises:
             LanguageModelError: Si el modelo no está disponible, falla o no devuelve JSON.
+        """
+        ...
+
+    def last_usage(self) -> ModelUsage | None:
+        """Tokens y tiempos de la última llamada exitosa en este hilo de ejecución.
+
+        Returns:
+            El uso informado por el modelo, o None si no lo informa.
         """
         ...
