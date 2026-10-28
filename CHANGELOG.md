@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación de la fase 3 de la HU-11 (modo activo) y de B-030 (acompañamiento de una urgencia ya avisada):** escenarios en la HU-11 y la HU-03, actualizaciones del ADR 0017 y del ADR 0018, y backlog y trazabilidad.
 - **Uso del modelo por etapa en la traza:** cada llamada a Ollama guarda los tokens y los segundos de lectura del prompt y de generación (`trace.model_usage`). Se ven en la auditoría web ("Uso del modelo"), en la consola (`[uso del modelo: …]`) y en la exportación de trazas, para saber si la lentitud del análisis viene de leer el prompt o de generar. El puerto `LanguageModel` agrega `last_usage()`.
 - La exportación de trazas (`scripts/export_traces.py`) incluye los tiempos por etapa y si el mensaje trata de salud.
 - **Registro de la causa de los fallos del modelo:** `StageTimer` marca el `LanguageModelError` con la etapa (análisis, RAG o respuesta). La web (antes de responder 502) y el canal WhatsApp escriben en la terminal la etapa y la causa técnica, sin el texto de la persona. Se agregó a `operacion.md` una guía para diagnosticar el 502.

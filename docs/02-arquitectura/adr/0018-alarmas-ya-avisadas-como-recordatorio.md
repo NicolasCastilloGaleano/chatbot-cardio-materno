@@ -53,3 +53,20 @@ Se observó un segundo problema, que este ADR **no** resuelve: el filtro 2 asign
 - ⚠️ Si la persona vuelve a describir el signo con palabras que el filtro 1 no reconoce, solo verá el recordatorio y no el mensaje completo. El recordatorio mantiene la indicación de urgencia, así que se acepta.
 - ⚠️ No corrige los códigos que el filtro 2 asigna de más. Ese queda como siguiente trabajo (grupo C, puerta P3).
 - Pruebas previstas: unitarias en `test_conversation_service.py` y `test_alarm_policy` (o el archivo equivalente), y frases en `tests/conversational/` con el caso del bebé con fiebre seguido de "sí, desde ayer".
+
+## Actualización 2026-10-28: acompañamiento de una urgencia recordada (B-030, especificación)
+**Contexto.** Con el recordatorio (B-027), la persona ya no queda sola después de una urgencia. Pero en el guion de la HU-11 (2026-10-27), "¿voy directamente a urgencias?" después de RN-CV-01 recibió el recordatorio y luego un texto literal con preguntas sobre el esfuerzo. Esas preguntas estorban cuando lo indicado es salir ya. Nicolas Castillo Galeano decidió que el acompañamiento se mantiene y se afina: lo que sigue al recordatorio debe ser lo más útil para la urgencia.
+
+**Decisión.** Reemplaza, **solo para las reglas de urgencia inmediata**, el punto decidido "después de recordar una urgencia se permite indagar":
+1. Con una regla de urgencia inmediata solo recordada, el turno no indaga (la regla de la HU-11 no se aplica).
+2. La llamada de respuesta recibe un contexto fijo de **URGENCIA EN CURSO**: priorizar, con la evidencia, qué hacer mientras la persona llega, qué llevar o decir al llegar y qué evitar; sin preguntas de caracterización ni diagnósticos.
+3. Determinista: en ese turno se quitan las frases con pregunta, tanto de la redacción como del texto literal (B-028). Lo que se muestra sigue verificado (ADR 0010).
+4. Sin evidencia pertinente, la respuesta es solo el recordatorio, sin la abstención que pide detalles.
+5. Las reglas prioritarias recordadas siguen como en el punto decidido original: el turno puede indagar o responder.
+6. La traza marca el acompañamiento de la urgencia, que se ve en la auditoría y en la exportación.
+
+**Consecuencias.**
+- ✅ Después de una urgencia, la conversación sigue y se orienta a la acción.
+- ⚠️ La base tiene pocos registros sobre qué hacer mientras se llega (p. ej., el sangrado en el embarazo, guion de B-028). En esos casos sale solo el recordatorio, hasta que el equipo clínico amplíe la base (B-019).
+- ⚠️ El contexto URGENCIA EN CURSO es un texto nuevo que debe revisar el equipo clínico.
+
