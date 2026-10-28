@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.application.inquiry_policy import InquiryActivation, InquiryPolicy
 from cardio_materno.application.stage_timer import StageTimer
@@ -137,6 +138,18 @@ def test_stage_timer_records_duration_even_when_action_fails() -> None:
         timer.measure("respuesta", lambda: (_ for _ in ()).throw(ValueError()))
 
     assert [(t.stage, t.seconds) for t in timer.timings] == [("análisis", 1.25), ("respuesta", 0.5)]
+
+
+def test_stage_timer_marks_model_errors_with_their_stage() -> None:
+    timer = StageTimer(lambda: 0.0)
+
+    def fail() -> str:
+        raise LanguageModelError("respuesta vacía")
+
+    with pytest.raises(LanguageModelError) as caught:
+        timer.measure("respuesta", fail)
+
+    assert caught.value.stage == "respuesta"
 
 
 def test_latency_settings_defaults_and_overrides(tmp_path: Path) -> None:

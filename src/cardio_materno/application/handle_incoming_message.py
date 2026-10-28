@@ -42,6 +42,9 @@ ERROR_MODEL = "modelo"
 ERROR_DELIVERY = "envio"
 
 logger = logging.getLogger(__name__)
+# Etapa y causa técnica del fallo del modelo; nunca el texto ni la identidad de la persona.
+MODEL_FAILURE_LOG = "Fallo del modelo (etapa: %s): %s"
+UNKNOWN_STAGE = "desconocida"
 
 
 @dataclass(frozen=True)
@@ -135,7 +138,8 @@ class HandleIncomingMessage:
         )
         try:
             return service.send(message.text)
-        except LanguageModelError:
+        except LanguageModelError as error:
+            logger.warning(MODEL_FAILURE_LOG, error.stage or UNKNOWN_STAGE, error)
             return None
         finally:
             cancel()

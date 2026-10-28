@@ -203,7 +203,9 @@ def test_console_chat_is_locked_until_released(database: SqliteDatabase) -> None
     assert harness.client.post(f"/api/chats/{chat_id}/release").status_code == 409
 
 
-def test_model_failure_is_a_clear_gateway_error(database: SqliteDatabase) -> None:
+def test_model_failure_is_a_clear_gateway_error(
+    database: SqliteDatabase, caplog: pytest.LogCaptureFixture
+) -> None:
     harness = build(database, LanguageModelError("detalle interno"))
     chat_id = new_web_chat(harness)
 
@@ -213,6 +215,8 @@ def test_model_failure_is_a_clear_gateway_error(database: SqliteDatabase) -> Non
     assert (
         response.json()["detail"] == "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
     )
+    assert "(etapa: análisis): detalle interno" in caplog.text
+    assert "Tengo una consulta" not in caplog.text
 
 
 def test_empty_text_is_rejected(database: SqliteDatabase) -> None:

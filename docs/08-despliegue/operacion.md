@@ -33,6 +33,18 @@ Cada turno en alcance hace hasta **tres solicitudes a Ollama**: análisis (LLM),
 
 **Ya aplicado (ADR 0011):** embedder en CPU por defecto, precalentamiento de los modelos al arrancar, límite de tokens por etapa, respuesta de ~90 palabras y abstención sin llamar al LLM.
 
+## Error del modelo (502 en la web)
+Si la web responde `502 Bad Gateway` ("No se pudo generar la respuesta"), o WhatsApp no contesta, falló una llamada al modelo. En la terminal del servidor queda una línea como esta:
+
+`Fallo del modelo en el chat 0201d1ed (etapa: análisis): <causa>`
+
+En WhatsApp la línea es `Fallo del modelo (etapa: …): …`. La línea nunca incluye el texto de la persona. Causas frecuentes:
+- **Tiempo de espera agotado o Ollama no responde:** revisar `ollama ps` y `journalctl -u ollama`, y que no haya pruebas en vivo usando la GPU al mismo tiempo.
+- **Respuesta vacía o cortada:** suele ser la GPU ocupada; reiniciar Ollama si se repite.
+- **"El modelo no devolvió la estructura esperada (…)":** el JSON no cumple el contrato; el detalle dice qué campo falló.
+
+El turno que falla no se guarda: se puede reenviar el mismo mensaje.
+
 ## Exportar las conversaciones con su traza
 Para revisar un guion o calibrar sin copiar desde la auditoría web, `scripts/export_traces.py` genera un informe Markdown con los hilos guardados en SQLite. Por cada hilo trae el resumen, las alertas y los mensajes, y por cada respuesta: alcance, síntomas y signos, recordatorios, búsqueda con la evidencia y sus puntajes, citas, respaldo (con el literal N/M y las frases descartadas) y la decisión de la indagación (HU-11).
 ```bash
