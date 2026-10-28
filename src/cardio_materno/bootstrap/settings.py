@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
+from cardio_materno.application.inquiry_policy import InquiryActivation
 
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "mistral-small3.1:24b"
@@ -15,6 +16,8 @@ DEFAULT_THREAD_CONTEXT_MESSAGES = "6"
 DEFAULT_SHOW_THREAD_DEBUG = "true"
 DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
+INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
+DEFAULT_INQUIRY_MODE = "observar"
 DEFAULT_RAG_ENABLED = "true"
 DEFAULT_KEEP_ALIVE = "30m"
 DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
@@ -85,12 +88,14 @@ class ConversationSettings:
         show_thread_debug: Si se muestra en consola la línea con el estado del hilo.
         threads_dir: Carpeta de los archivos JSON de los hilos.
         alarm_rules_file: Catálogo de reglas de alarma (ADR 0007).
+        inquiry_activation: `INQUIRY_MODE`, cómo participa la regla de indagación (HU-11).
     """
 
     context_messages: int
     show_thread_debug: bool
     threads_dir: Path
     alarm_rules_file: Path
+    inquiry_activation: InquiryActivation = InquiryActivation.OBSERVE
 
 
 @dataclass(frozen=True)
@@ -107,6 +112,12 @@ class PolicyOverrides:
         literal_min_overlap: `GROUNDING_LITERAL_MIN_OVERLAP`, raíces compartidas con la
             consulta para mostrar una frase del texto literal.
         inquiry_floor: `INQUIRY_FLOOR`, similitud mínima de un candidato de indagación.
+        inquiry_answer_threshold: `INQUIRY_ANSWER_THRESHOLD`, similitud de evidencia clara.
+        inquiry_min_margin: `INQUIRY_MIN_MARGIN`, ventaja mínima del primer candidato.
+        inquiry_min_agreement: `INQUIRY_MIN_AGREEMENT`, candidatos con la categoría del primero.
+        inquiry_progress_delta: `INQUIRY_PROGRESS_DELTA`, subida del mejor puntaje que es avance.
+        inquiry_max_turns: `INQUIRY_MAX_TURNS`, máximo de turnos de indagación seguidos.
+        inquiry_max_stalled: `INQUIRY_MAX_STALLED`, turnos de indagación seguidos sin avance.
     """
 
     min_similarity: float | None = None
@@ -117,6 +128,12 @@ class PolicyOverrides:
     max_free_words: int | None = None
     literal_min_overlap: int | None = None
     inquiry_floor: float | None = None
+    inquiry_answer_threshold: float | None = None
+    inquiry_min_margin: float | None = None
+    inquiry_min_agreement: int | None = None
+    inquiry_progress_delta: float | None = None
+    inquiry_max_turns: int | None = None
+    inquiry_max_stalled: int | None = None
 
 
 @dataclass(frozen=True)
@@ -188,6 +205,12 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         max_free_words=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_WORDS"),
         literal_min_overlap=_get_optional_positive_int(env, "GROUNDING_LITERAL_MIN_OVERLAP"),
         inquiry_floor=_get_optional_fraction(env, "INQUIRY_FLOOR"),
+        inquiry_answer_threshold=_get_optional_fraction(env, "INQUIRY_ANSWER_THRESHOLD"),
+        inquiry_min_margin=_get_optional_fraction(env, "INQUIRY_MIN_MARGIN"),
+        inquiry_min_agreement=_get_optional_positive_int(env, "INQUIRY_MIN_AGREEMENT"),
+        inquiry_progress_delta=_get_optional_fraction(env, "INQUIRY_PROGRESS_DELTA"),
+        inquiry_max_turns=_get_optional_positive_int(env, "INQUIRY_MAX_TURNS"),
+        inquiry_max_stalled=_get_optional_positive_int(env, "INQUIRY_MAX_STALLED"),
     )
 
 
@@ -395,7 +418,24 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
         in TRUE_VALUES,
         threads_dir=threads_dir,
         alarm_rules_file=alarm_rules_file,
+        inquiry_activation=_get_inquiry_activation(env),
     )
+
+
+def _get_inquiry_activation(env: Mapping[str, str]) -> InquiryActivation:
+    """Lee `INQUIRY_MODE` (apagado, observar o activo).
+
+    Raises:
+        ConfigurationError: Si el valor no es uno de los permitidos.
+    """
+    raw = _get(env, INQUIRY_MODE_VARIABLE, DEFAULT_INQUIRY_MODE).strip().lower()
+    try:
+        return InquiryActivation(raw)
+    except ValueError as error:
+        allowed = ", ".join(mode.value for mode in InquiryActivation)
+        raise ConfigurationError(
+            f"{INQUIRY_MODE_VARIABLE} debe ser uno de: {allowed}; se recibió '{raw}'."
+        ) from error
 
 
 def load_ollama_settings(env: Mapping[str, str]) -> OllamaSettings:
