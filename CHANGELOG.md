@@ -6,6 +6,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Indagación en modo activo (HU-11, fase 3, ADR 0017):** con `INQUIRY_MODE=activo`, la regla decide el turno:
+  - responder con evidencia;
+  - indagar con 1 o 2 preguntas del agente (`inquiry_prompt_v1.md`), orientadas por los candidatos, que no son evidencia, y verificadas por `verify_inquiry`: solo preguntas cortas con los números que dijo la persona y cortesía, como máximo `INQUIRY_MAX_SENTENCES` (3), y una pregunta fija si no queda ninguna;
+  - abstenerse;
+  - cerrar con el mensaje honesto (`CLOSING_TEXT`, sin LLM).
+- **Acompañamiento de una urgencia ya avisada (B-030, ADR 0018):** tras recordar una urgencia inmediata no se indaga. La respuesta recibe el contexto URGENCIA EN CURSO, se quitan las preguntas (también del texto literal) y, sin evidencia, va solo el recordatorio. Queda en `trace.urgent_accompaniment` y se ve en la auditoría, la consola y la exportación.
+- Prueba en vivo `tests/live/test_live_inquiry.py` (métricas de la HU-11 y urgencia sin preguntas) y guion `docs/08-despliegue/prueba-indagacion-activo.md`.
 - **Especificación de la fase 3 de la HU-11 (modo activo) y de B-030 (acompañamiento de una urgencia ya avisada):** escenarios en la HU-11 y la HU-03, actualizaciones del ADR 0017 y del ADR 0018, y backlog y trazabilidad.
 - **Uso del modelo por etapa en la traza:** cada llamada a Ollama guarda los tokens y los segundos de lectura del prompt y de generación (`trace.model_usage`). Se ven en la auditoría web ("Uso del modelo"), en la consola (`[uso del modelo: …]`) y en la exportación de trazas, para saber si la lentitud del análisis viene de leer el prompt o de generar. El puerto `LanguageModel` agrega `last_usage()`.
 - La exportación de trazas (`scripts/export_traces.py`) incluye los tiempos por etapa y si el mensaje trata de salud.
