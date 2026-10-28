@@ -92,8 +92,47 @@ def test_complete_json_sends_schema_and_returns_parsed_object() -> None:
     ],
 )
 def test_complete_json_rejects_invalid_or_empty_responses(body: Any) -> None:
+    opener = FakeOpener(body)
+
     with pytest.raises(LanguageModelError, match="inesperada"):
-        make_model(FakeOpener(body)).complete_json(USER_MESSAGE, SCHEMA)
+        make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert len(opener.requests) == 2  # un reintento
+
+
+class SequenceOpener(FakeOpener):
+    """Devuelve los cuerpos dados en orden (para probar el reintento)."""
+
+    def __init__(self, *bodies: Any) -> None:
+        super().__init__()
+        self.bodies = list(bodies)
+
+    def __call__(self, request: Request, timeout: float) -> FakeResponse:
+        self.body = self.bodies.pop(0)
+        return super().__call__(request, timeout)
+
+
+def test_an_empty_or_cut_response_is_retried_once(caplog: pytest.LogCaptureFixture) -> None:
+    empty = {"message": {"content": "", "role": ""}, "done": False, "model": ""}
+    opener = SequenceOpener(empty, chat_body('{"reply": "Hola"}'))
+
+    result = make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert result == {"reply": "Hola"} and len(opener.requests) == 2
+    assert "se reintenta (1/1)" in caplog.text
+
+
+def test_timeouts_and_limit_cuts_are_not_retried() -> None:
+    cut = {"message": {"content": '{"reply": "Ho'}, "done_reason": "length"}
+    timeout_opener = FakeOpener(error=TimeoutError())
+    cut_opener = FakeOpener(cut)
+
+    with pytest.raises(LanguageModelError):
+        make_model(timeout_opener).complete_json(USER_MESSAGE, SCHEMA)
+    with pytest.raises(LanguageModelError, match="límite"):
+        make_model(cut_opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert len(timeout_opener.requests) == len(cut_opener.requests) == 1
 
 
 def test_connection_error_explains_how_to_fix() -> None:

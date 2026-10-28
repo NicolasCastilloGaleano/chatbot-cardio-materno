@@ -4,6 +4,7 @@ Usa `/api/chat` con salida restringida por un JSON Schema. El transporte HTTP y 
 traducción de errores viven en `ollama_http.py`.
 """
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -12,13 +13,19 @@ from urllib.request import urlopen
 from cardio_materno.adapters.outbound.llm.ollama_http import (
     MSG_INVALID_RESPONSE,
     OllamaHttpClient,
+    OllamaInvalidResponseError,
     Opener,
     parse_json_body,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
 
+logger = logging.getLogger(__name__)
 CHAT_ENDPOINT = "/api/chat"
+# Una respuesta vacía o un JSON inválido suelen ser fallos intermitentes: se reintenta una vez.
+# No se reintenta un tiempo de espera agotado (duplicaría la espera) ni un corte por límite.
+INVALID_RESPONSE_RETRIES = 1
+MSG_RETRY_LOG = "Ollama (%s) devolvió una respuesta vacía o inválida; se reintenta (%d/%d)."
 DONE_REASON_LENGTH = "length"
 MSG_CUT_BY_LIMIT = (
     "Ollama cortó la respuesta por el límite de contexto o de tokens. Sube "
@@ -85,12 +92,26 @@ class OllamaLanguageModel:
         Returns:
             El objeto JSON generado por el modelo.
 
+        Si la respuesta llega vacía o no es un objeto JSON, se reintenta una vez.
+
         Raises:
-            LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON.
+            LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON
+                después del reintento.
         """
-        response = self._http.post(
-            CHAT_ENDPOINT, build_chat_payload(self._settings, messages, schema)
-        )
+        payload = build_chat_payload(self._settings, messages, schema)
+        for attempt in range(1, INVALID_RESPONSE_RETRIES + 1):
+            try:
+                return self._complete_once(payload)
+            except OllamaInvalidResponseError as error:
+                logger.warning(
+                    MSG_RETRY_LOG, self._settings.model, attempt, INVALID_RESPONSE_RETRIES
+                )
+                logger.debug("Detalle del fallo: %s", error)
+        return self._complete_once(payload)
+
+    def _complete_once(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Una solicitud a `/api/chat` y su objeto JSON."""
+        response = self._http.post(CHAT_ENDPOINT, payload)
         return parse_json_body(extract_content(response).encode("utf-8"))
 
     def warm_up(self) -> None:
@@ -170,5 +191,5 @@ def extract_content(response: dict[str, Any]) -> str:
     message = response.get("message")
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str) or not content.strip():
-        raise LanguageModelError(MSG_INVALID_RESPONSE)
+        raise OllamaInvalidResponseError(MSG_INVALID_RESPONSE)
     return content.strip()
