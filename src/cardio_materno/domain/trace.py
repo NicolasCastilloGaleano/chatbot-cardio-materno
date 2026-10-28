@@ -128,6 +128,8 @@ class ReplyTrace:
             amplió a los dos dominios (HU-02, 2026-10-26).
         reminded_rules: Reglas ya avisadas en el hilo que solo se recordaron (ADR 0018).
         inquiry: Decisión de la regla de indagación (HU-11); None si no se evaluó.
+        about_health: Si el análisis dijo que el mensaje nuevo, por sí mismo, trata de salud
+            (prompt v7, ADR 0009). True en trazas anteriores.
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -145,6 +147,7 @@ class ReplyTrace:
     domain_fallback: bool = False
     reminded_rules: tuple[str, ...] = ()
     inquiry: InquiryTrace | None = None
+    about_health: bool = True
 
     @property
     def uncited(self) -> bool:

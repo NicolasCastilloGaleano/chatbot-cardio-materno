@@ -352,12 +352,14 @@ class ConversationService:
     ) -> InquiryTrace | None:
         """Modo que elige la regla de indagación (HU-11); None si no se evalúa.
 
-        No se evalúa con la regla apagada, con una alarma nueva ni sin buscador. El estado
-        anterior solo cuenta si el mensaje continúa el hilo. En la fase 2 la decisión solo se
-        registra (`applied` falso): el turno se resuelve como antes.
+        No se evalúa con la regla apagada, con una alarma nueva, sin buscador ni cuando el
+        mensaje nuevo no trata de salud (`about_health` falso: "gracias" en un hilo de la
+        presión, guion del 2026-10-27). El estado anterior solo cuenta si el mensaje continúa
+        el hilo. En la fase 2 la decisión solo se registra (`applied` falso).
         """
         off = self._config.inquiry_activation is InquiryActivation.OFF
-        if off or decisions or retrieval.status is RetrievalStatus.UNAVAILABLE:
+        unavailable = retrieval.status is RetrievalStatus.UNAVAILABLE
+        if off or decisions or unavailable or not analysis.about_health:
             return None
         continues = analysis.thread_action is ThreadAction.CONTINUE
         state = previous_state(turn.recent if continues else ())
@@ -559,6 +561,7 @@ def build_trace(
         scope=str(Scope.IN_SCOPE),
         scope_reason=analysis.scope_reason,
         grounding=grounding,
+        about_health=analysis.about_health,
     )
 
 
@@ -572,6 +575,7 @@ def analysis_trace(
         timings=timings,
         scope=str(scope),
         scope_reason=analysis.scope_reason,
+        about_health=analysis.about_health,
     )
 
 

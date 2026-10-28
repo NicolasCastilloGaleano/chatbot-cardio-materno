@@ -139,7 +139,8 @@ def render_message(message: ChatMessage) -> list[str]:
 def trace_lines(trace: ReplyTrace) -> list[str]:
     """Datos de la traza que importan para revisar un turno."""
     lines = [
-        f"alcance: {trace.scope or '—'} ({trace.scope_reason or 'sin motivo'})",
+        f"alcance: {trace.scope or '—'} ({trace.scope_reason or 'sin motivo'})"
+        f" · sobre salud: {'sí' if trace.about_health else 'no'}",
         f"síntomas: {'; '.join(trace.reported_symptoms) or 'ninguno'}"
         f" · signos: {', '.join(trace.reported_signs) or 'ninguno'}",
     ]

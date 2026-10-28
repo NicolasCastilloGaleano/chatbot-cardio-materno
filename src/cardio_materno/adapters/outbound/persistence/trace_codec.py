@@ -34,6 +34,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "domain_fallback": trace.domain_fallback,
         "reminded_rules": list(trace.reminded_rules),
         "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
+        "about_health": trace.about_health,
     }
 
 
@@ -58,6 +59,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         domain_fallback=bool(data.get("domain_fallback", False)),
         reminded_rules=tuple(data.get("reminded_rules", [])),
         inquiry=inquiry_from_dict(data["inquiry"]) if data.get("inquiry") else None,
+        about_health=bool(data.get("about_health", True)),
     )
 
 

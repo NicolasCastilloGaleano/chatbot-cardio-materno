@@ -102,6 +102,16 @@ def test_inquiry_is_not_evaluated_with_a_new_alarm_or_without_the_retriever() ->
     assert without_rag.trace is not None and without_rag.trace.inquiry is None
 
 
+def test_inquiry_is_not_evaluated_when_the_message_is_not_about_health() -> None:
+    """Guion del 2026-10-27: "gracias" en el hilo de la presión salía "indagar"."""
+    thanks = agent_json("Gracias por escribirme.") | {"about_health": False}
+
+    (result,) = send_all(OBSERVE, FakeRetriever(promising()), thanks)
+
+    assert result.trace is not None and result.trace.inquiry is None
+    assert result.trace.about_health is False
+
+
 def test_console_debug_line_shows_the_observed_mode() -> None:
     inquiry = InquiryTrace(TurnMode.INQUIRE, 1, 0, 0.55, 0.03, 2, "Acidez", None, True)
 

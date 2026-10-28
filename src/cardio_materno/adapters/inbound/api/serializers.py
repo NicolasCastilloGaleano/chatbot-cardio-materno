@@ -160,6 +160,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
         "timings": [{"stage": t.stage, "seconds": t.seconds} for t in trace.timings],
         "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
+        "about_health": trace.about_health,
     }
 
 

@@ -484,7 +484,7 @@ function showAudit(trace, outOfScope = false, thread = null, alerts = [], color 
 
 function traceSections(trace, thread) {
   const sections = [
-    section("Hilo y alcance", metricGrid([["Dominio", thread?.domain], ["Estado", thread?.status], ["Alcance", trace.scope], ["Motivo", trace.scope_reason]])),
+    section("Hilo y alcance", metricGrid([["Dominio", thread?.domain], ["Estado", thread?.status], ["Alcance", trace.scope], ["Motivo", trace.scope_reason], ["Mensaje sobre salud", trace.about_health === false ? "No" : "Sí"]])),
     section("Síntomas reportados", tags(trace.reported_symptoms)),
     section("Signos del catálogo", tags(trace.reported_signs)),
   ];
