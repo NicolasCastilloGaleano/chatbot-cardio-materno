@@ -3,6 +3,10 @@
 from dataclasses import replace
 from typing import Any
 
+from cardio_materno.adapters.inbound.console.debug_lines import (
+    URGENT_ACCOMPANIMENT_DEBUG_TEXT,
+    trace_lines,
+)
 from cardio_materno.application.alarm_policy import (
     REMINDER_MESSAGES,
     REPLY_SEPARATOR,
@@ -99,3 +103,11 @@ def test_a_priority_reminder_can_still_be_inquired() -> None:
 
     assert result.reply == f"{PRIORITY}{REPLY_SEPARATOR}¿Qué comes a diario?"
     assert not trace_of(result).urgent_accompaniment
+
+
+def test_console_shows_the_urgent_accompaniment() -> None:
+    nothing = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT, best_score=0.3))
+
+    result, _ = bleeding_then(agent_json("x"), nothing)
+
+    assert URGENT_ACCOMPANIMENT_DEBUG_TEXT in trace_lines(trace_of(result))

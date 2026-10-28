@@ -497,6 +497,7 @@ function traceSections(trace, thread) {
     ...groundingSections(trace.grounding),
   );
   if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
+  if (trace.urgent_accompaniment) sections.push(section("Acompañamiento de la urgencia (B-030)", "Se recordó una urgencia ya avisada: el turno no indagó y se quitaron las preguntas de la respuesta."));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
   if (trace.model_usage?.length) sections.push(section("Uso del modelo (lee el prompt · genera)", metricGrid(trace.model_usage.map((u) => [u.stage, `${u.prompt_tokens} tok en ${u.prompt_seconds.toFixed(1)} s · ${u.output_tokens} tok en ${u.output_seconds.toFixed(1)} s`]))));
   return sections;
@@ -506,7 +507,7 @@ const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", abstenerse: 
 
 function inquirySection(inquiry) {
   const progress = inquiry.progress == null ? "—" : inquiry.progress ? "Sí" : "No";
-  const title = inquiry.applied ? "Indagación (HU-11)" : "Indagación (HU-11, observada: no cambió la respuesta)";
+  const title = inquiry.applied ? "Indagación (HU-11, aplicada: la regla decidió el turno)" : "Indagación (HU-11, observada: no cambió la respuesta)";
   return section(title, metricGrid([
     ["Modo de la regla", INQUIRY_MODES[inquiry.mode] || inquiry.mode],
     ["Turno de indagación", String(inquiry.turn)],

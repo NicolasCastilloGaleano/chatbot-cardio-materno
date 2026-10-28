@@ -34,6 +34,7 @@ TRACE = ReplyTrace(
     grounding=GroundingCheck(0, 2, True, ("Dale acetaminofén.",), 2, 4),
     search_query="fiebre en el bebé",
     reminded_rules=("RN-MI-13",),
+    urgent_accompaniment=True,
     inquiry=InquiryTrace(TurnMode.INQUIRE, 1, 0, 0.55, 0.03, 2, "Fiebre", None, True),
     timings=(StageTiming("análisis", 21.04), StageTiming("respuesta", 18.5)),
     model_usage=(ModelUsage("análisis", 3700, 40.0, 210, 12.5),),
@@ -65,6 +66,7 @@ def test_export_shows_messages_trace_alerts_and_inquiry(
     assert "evidencia: E1 0.68 Infantil — fiebre · citas: E1" in report
     assert "literal (2/4 frases del registro) · descartadas: Dale acetaminofén." in report
     assert "recordatorio de: RN-MI-13" in report
+    assert "acompañamiento de la urgencia: sin indagar ni preguntas" in report
     assert "indagación observada: indagar · turno 1 · s1 0.55" in report
     assert "tiempos: análisis 21.0 s · respuesta 18.5 s" in report
     assert "uso del modelo: análisis lee 3700 tok en 40.0 s y genera 210 tok en 12.5 s" in report
