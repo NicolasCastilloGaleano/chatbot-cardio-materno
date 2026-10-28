@@ -62,7 +62,7 @@ class EvidencePolicy:
     max_free_words: int = 20
     literal_min_overlap: int = 1
     inquiry_floor: float = 0.40
-    inquiry_answer_threshold: float = 0.60
+    inquiry_answer_threshold: float = 0.68
     inquiry_min_margin: float = 0.03
     inquiry_min_agreement: int = 2
     inquiry_progress_delta: float = 0.02

@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "description": "Política de recuperación de evidencia (ADR 0008), portada del piloto (evidence_policy.json v1.2.0). min_similarity es un piso de similitud coseno calibrado en el piloto con qwen3-embedding:8b y esta query_instruction; se recalibra con la sonda en vivo (pytest -m live). La similitud no es confianza clínica. min_support, max_free_sentences y max_free_words controlan la verificación determinista del respaldo de cada frase (ADR 0010). v1.2.0 (2026-10-12): min_similarity baja de 0.55 a 0.50 por decisión del equipo (registros útiles quedaban justo por debajo). Los umbrales se pueden fijar en .env (RAG_MIN_SIMILARITY, RAG_TOP_K, RAG_CANDIDATE_K, GROUNDING_*), que tienen prioridad sobre este archivo. v1.3.0 (2026-10-27, B-028): literal_min_overlap es cuántas raíces de contenido debe compartir una frase del texto literal con la consulta para mostrarse (GROUNDING_LITERAL_MIN_OVERLAP en .env). v1.4.0 (2026-10-27, HU-11, ADR 0017): inquiry_floor es la similitud mínima de un candidato que orienta la indagación (INQUIRY_FLOOR en .env); los candidatos nunca son evidencia. Los demás inquiry_* son los umbrales de la regla de indagación del ADR 0017 (INQUIRY_* en .env). Propuestas iniciales que se calibran en modo observar.",
+  "version": "1.5.0",
+  "description": "Política de recuperación de evidencia (ADR 0008), portada del piloto (evidence_policy.json v1.2.0). min_similarity es un piso de similitud coseno calibrado en el piloto con qwen3-embedding:8b y esta query_instruction; se recalibra con la sonda en vivo (pytest -m live). La similitud no es confianza clínica. min_support, max_free_sentences y max_free_words controlan la verificación determinista del respaldo de cada frase (ADR 0010). v1.2.0 (2026-10-12): min_similarity baja de 0.55 a 0.50 por decisión del equipo (registros útiles quedaban justo por debajo). Los umbrales se pueden fijar en .env (RAG_MIN_SIMILARITY, RAG_TOP_K, RAG_CANDIDATE_K, GROUNDING_*), que tienen prioridad sobre este archivo. v1.3.0 (2026-10-27, B-028): literal_min_overlap es cuántas raíces de contenido debe compartir una frase del texto literal con la consulta para mostrarse (GROUNDING_LITERAL_MIN_OVERLAP en .env). v1.4.0 (2026-10-27, HU-11, ADR 0017): inquiry_floor es la similitud mínima de un candidato que orienta la indagación (INQUIRY_FLOOR en .env); los candidatos nunca son evidencia. Los demás inquiry_* son los umbrales de la regla de indagación del ADR 0017 (INQUIRY_* en .env). Propuestas iniciales que se calibran en modo observar. v1.5.0 (2026-10-28): inquiry_answer_threshold sube de 0.60 a 0.68 por decisión de Nicolas Castillo Galeano (\"me duele el brazo\" con 0.66 respondía con un registro de aorta en vez de indagar); se ajusta con INQUIRY_ANSWER_THRESHOLD en .env. No cambia min_similarity (0.50), que sigue decidiendo qué cuenta como evidencia.",
   "top_k": 3,
   "candidate_k": 12,
   "min_similarity": 0.5,
@@ -14,7 +14,7 @@
   "max_free_words": 20,
   "literal_min_overlap": 1,
   "inquiry_floor": 0.4,
-  "inquiry_answer_threshold": 0.6,
+  "inquiry_answer_threshold": 0.68,
   "inquiry_min_margin": 0.03,
   "inquiry_min_agreement": 2,
   "inquiry_progress_delta": 0.02,

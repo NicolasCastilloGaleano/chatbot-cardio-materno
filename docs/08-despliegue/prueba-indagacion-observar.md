@@ -47,6 +47,11 @@ Ejecutar `pytest -m live -s` en la rama. Es obligatorio por el cambio de prompt 
   - el análisis llenaba el contexto de 4096 y la web respondía 502.
 - Pendiente: repetir `pytest -m live` (prompt v7 ajustado y prueba nueva), comprobar en la web los turnos sin guardar, medir el análisis con 8192 y hacer más conversaciones vagas para calibrar.
 
+### Resultados (2026-10-28, PC de pruebas)
+- `pytest -m live` completo: 29/30. La única falla, de alcance, se corrigió en dos pasos (análisis contradictorio → conversacional; excepción para un tema nuevo con su síntoma). `tests/live/test_live_scope.py` repetido: **14/14**. El mixto queda en alcance y el partido en un hilo con fiebre ya no (el análisis lo dejó "en_alcance" con `about_health` falso, y la regla lo trató como conversacional).
+- Guion y calibración: la regla eligió bien en los casos claros (0,68–0,74) y con los mensajes vagos (0,45–0,49, indagar, con el turno y el avance bien contados). "me duele el brazo" (0,66) respondió con un registro de aorta: se propuso subir el umbral para responder a 0,68.
+- Se fijó el contexto del análisis en 6144 (con 4096 se cortaba el JSON) y se agregó un reintento ante respuestas vacías de Ollama.
+
 ## 4. Calibración
 Con las trazas del punto 3, revisar:
 - **Responder sin indagar:** ¿los turnos con evidencia clara superan 0,60 con margen o coincidencia?

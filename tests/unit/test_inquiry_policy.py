@@ -61,14 +61,23 @@ def test_signals_without_candidates_keep_the_best_score() -> None:
 @pytest.mark.parametrize(
     ("sig", "expected"),
     [
-        (signals(0.65, margin=0.05), TurnMode.ANSWER),
-        (signals(0.65, margin=0.01, agreement=2), TurnMode.ANSWER),
-        (signals(0.65, margin=0.01, agreement=1), TurnMode.INQUIRE),
+        (signals(0.70, margin=0.05), TurnMode.ANSWER),
+        (signals(0.70, margin=0.01, agreement=2), TurnMode.ANSWER),
+        (signals(0.70, margin=0.01, agreement=1), TurnMode.INQUIRE),
+        (signals(0.66, margin=0.06, agreement=2), TurnMode.INQUIRE),
         (signals(0.55), TurnMode.INQUIRE),
         (signals(0.42), TurnMode.INQUIRE),
         (signals(0.30), TurnMode.ABSTAIN),
     ],
-    ids=["clara-margen", "clara-coincidencia", "alta-ambigua", "prometedora", "piso", "nada"],
+    ids=[
+        "clara-margen",
+        "clara-coincidencia",
+        "alta-ambigua",
+        "brazo-0,66",
+        "prometedora",
+        "piso",
+        "nada",
+    ],
 )
 def test_first_turn_of_a_topic(sig: InquirySignals, expected: TurnMode) -> None:
     result = mode_of(sig)
@@ -90,7 +99,7 @@ def test_inquiry_with_progress_continues_and_counts_turns() -> None:
 
 
 def test_inquiry_answers_when_evidence_becomes_clear() -> None:
-    result = mode_of(signals(0.66, margin=0.06), INQUIRING)
+    result = mode_of(signals(0.70, margin=0.06), INQUIRING)
 
     assert (result.mode, result.turn) == (TurnMode.ANSWER, 1)
 

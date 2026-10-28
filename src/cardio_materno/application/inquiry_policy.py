@@ -45,7 +45,7 @@ class InquiryPolicy:
 
     min_similarity: float = 0.50
     inquiry_floor: float = 0.40
-    answer_threshold: float = 0.60
+    answer_threshold: float = 0.68
     min_margin: float = 0.03
     min_agreement: int = 2
     progress_delta: float = 0.02
