@@ -126,5 +126,7 @@ En el guion de la HU-11, la llamada de análisis llenó el contexto de 4096 toke
 - el análisis usa un contexto de **8192** si `OLLAMA_ANALYSIS_NUM_CTX` está vacía (antes heredaba `OLLAMA_NUM_CTX` = 4096); la respuesta sigue en 4096;
 - cuando Ollama corta por límite (`done_reason` "length"), el error lo dice ("límite de contexto o de tokens") y el log de la web y de WhatsApp registra la etapa.
 
-Pendiente: medir en el PC el tiempo del análisis con 8192 (más memoria para el caché del modelo de 24B, que no cabe entero en la GPU) frente a los 13-28 s medidos con 4096.
+**Medición inicial (2026-10-27):** con 8192, `ollama ps` mostró mistral-small3.1 67 % en CPU / 33 % en GPU; el análisis tardó 52,6 s y el RAG 7,8 s (el embedder en CPU compite con el modelo). 8192 es demasiado para este equipo: se medirá 6144 y, si sigue lento, se propondrá reducir el prompt del análisis (el catálogo con ejemplos es lo más pesado). En el mismo guion, las respuestas vacías o cortadas venían de un fallo intermitente de llama.cpp con la salida JSON (`Unexpected empty grammar stack`), no del contexto: se agregó un reintento.
+
+Pendiente: medir en el PC el tiempo del análisis con 6144 (más memoria para el caché del modelo de 24B, que no cabe entero en la GPU) frente a los 13-28 s medidos con 4096.
 

@@ -40,7 +40,8 @@ Si la web responde `502 Bad Gateway` ("No se pudo generar la respuesta"), o What
 
 En WhatsApp la línea es `Fallo del modelo (etapa: …): …`. La línea nunca incluye el texto de la persona. Causas frecuentes:
 - **Tiempo de espera agotado o Ollama no responde:** revisar `ollama ps` y `journalctl -u ollama`, y que no haya pruebas en vivo usando la GPU al mismo tiempo.
-- **Respuesta vacía o cortada:** suele ser la GPU ocupada; reiniciar Ollama si se repite.
+- **Respuesta vacía o cortada:** si en `journalctl -u ollama` aparece `Unexpected empty grammar stack after accepting piece`, es un fallo intermitente de llama.cpp con la salida JSON de mistral-small3.1. El adaptador ya reintenta una vez (queda la línea "se reintenta (1/1)"); si falla dos veces seguidas, reenviar el mensaje. Revisar también si hay una versión nueva de Ollama (`ollama --version`).
+- **Análisis lento:** `ollama ps` muestra cuánto del modelo corre en CPU. Con `OLLAMA_ANALYSIS_NUM_CTX=8192`, mistral-small3.1 quedó 67 % en CPU y el análisis tardó 52,6 s (2026-10-27); un contexto menor deja más en la GPU.
 - **"El modelo no devolvió la estructura esperada (…)":** el JSON no cumple el contrato; el detalle dice qué campo falló.
 
 El turno que falla no se guarda: se puede reenviar el mismo mensaje.
