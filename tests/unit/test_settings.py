@@ -224,6 +224,13 @@ def test_literal_min_overlap_from_env_reaches_the_grounding_policy(tmp_path: Pat
     assert EvidencePolicy().grounding.literal_min_overlap == 1
 
 
+def test_inquiry_floor_from_env_overrides_the_policy_file(tmp_path: Path) -> None:
+    overrides = load_rag_settings({"INQUIRY_FLOOR": "0.45"}, tmp_path).policy_overrides
+
+    assert apply_policy_overrides(EvidencePolicy(), overrides).inquiry_floor == 0.45
+    assert EvidencePolicy().inquiry_floor == 0.40
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [("RAG_MIN_SIMILARITY", "1.5"), ("GROUNDING_MIN_SUPPORT", "-0.1"), ("RAG_TOP_K", "0")],

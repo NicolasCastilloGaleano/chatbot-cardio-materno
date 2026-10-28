@@ -106,6 +106,7 @@ class PolicyOverrides:
         max_free_words: `GROUNDING_MAX_FREE_WORDS`, palabras de una frase sin cita.
         literal_min_overlap: `GROUNDING_LITERAL_MIN_OVERLAP`, raíces compartidas con la
             consulta para mostrar una frase del texto literal.
+        inquiry_floor: `INQUIRY_FLOOR`, similitud mínima de un candidato de indagación.
     """
 
     min_similarity: float | None = None
@@ -115,6 +116,7 @@ class PolicyOverrides:
     max_free_sentences: int | None = None
     max_free_words: int | None = None
     literal_min_overlap: int | None = None
+    inquiry_floor: float | None = None
 
 
 @dataclass(frozen=True)
@@ -185,6 +187,7 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         max_free_sentences=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_SENTENCES"),
         max_free_words=_get_optional_positive_int(env, "GROUNDING_MAX_FREE_WORDS"),
         literal_min_overlap=_get_optional_positive_int(env, "GROUNDING_LITERAL_MIN_OVERLAP"),
+        inquiry_floor=_get_optional_fraction(env, "INQUIRY_FLOOR"),
     )
 
 
