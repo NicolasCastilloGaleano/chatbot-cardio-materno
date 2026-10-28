@@ -109,7 +109,8 @@ def test_unrelated_message_inside_a_thread_with_symptoms_is_out_of_scope(
     print(
         f"partido en un hilo con fiebre → {analysis.scope} · about_health={analysis.about_health}"
     )
-    assert effective_scope(analysis, turn.recent) is Scope.OUT_OF_SCOPE
+    # Fuera de alcance o, si el análisis se contradice, conversacional; nunca en alcance.
+    assert effective_scope(analysis, turn.recent) is not Scope.IN_SCOPE
 
 
 def test_direct_request_for_guidance_is_marked(analyzer: OllamaLanguageModel, prompt: str) -> None:

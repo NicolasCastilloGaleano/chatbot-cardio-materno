@@ -106,7 +106,12 @@ def test_health_message_with_symptoms_stays_in_scope_even_if_marked_out() -> Non
     assert message.about_health and effective_scope(message) is Scope.IN_SCOPE
 
 
-def test_analysis_in_scope_is_kept_even_if_about_health_is_false() -> None:
-    message = replace(analysis(Scope.IN_SCOPE, Domain.CARDIOVASCULAR), about_health=False)
+def test_contradictory_analysis_is_treated_as_conversational() -> None:
+    """En vivo (2026-10-28): el partido en un hilo con fiebre salió en_alcance y no de salud."""
+    message = replace(
+        analysis(Scope.IN_SCOPE, Domain.MATERNAL_CHILD, ("fiebre en el bebé",)),
+        about_health=False,
+        thread_action=ThreadAction.CONTINUE,
+    )
 
-    assert effective_scope(message) is Scope.IN_SCOPE
+    assert effective_scope(message, ASKED) is Scope.CONVERSATIONAL

@@ -60,3 +60,12 @@ El criterio del usuario: se descarta un mensaje **solo si todo el mensaje** es a
 **Consecuencias.**
 - ✅ Se cumple el escenario de la HU-07, y la HU-11 no indaga sobre mensajes ajenos.
 - ⚠️ Si el análisis marca por error las dos salidas en un mensaje con un síntoma real o en una respuesta a una pregunta del asistente, el mensaje se descarta. Las alarmas del filtro 1 siguen activas. Se vigila repitiendo `pytest -m live` de alcance (incluido el caso del brazo y la gallina, más dos casos nuevos: el partido en un hilo con fiebre y el pedido directo de orientación), obligatorio por el cambio de prompt.
+
+## Actualización 2026-10-28: análisis contradictorio (aprobada por Nicolas Castillo Galeano)
+**Contexto.** En la corrida en vivo del 2026-10-28, "¿quién ganó el partido?" en un hilo con fiebre salió con `about_health` falso pero `scope` "en_alcance" (por el tema del hilo). Como la regla del punto 2 solo respetaba el "no es de salud" si el análisis no lo dejaba en alcance, los síntomas del hilo lo volvieron a meter. Antes había pasado lo mismo con un "gracias".
+
+**Decisión.**
+1. El prompt v7 exige coherencia: con `about_health` falso, `scope` es "conversacional" (saludos, agradecimientos, despedidas) o "fuera_de_alcance" (temas ajenos), nunca "en_alcance".
+2. Respaldo determinista: si el análisis se contradice (`about_health` falso y "en_alcance"), el mensaje se trata como **conversacional**. Recibe una respuesta amable sin RAG ni indagación, queda en el hilo sin cambiar su dominio ni su resumen (HU-07) y el prompt de respuesta no habla del tema ajeno. Se eligió conversacional y no fuera de alcance porque es la salida más segura cuando las señales chocan: un "gracias" no recibe el mensaje de "solo atiendo temas de salud".
+3. Sin cambios: las alarmas nuevas siguen teniendo prioridad y el recordatorio de una alarma ya avisada va antes de la respuesta (ADR 0018).
+

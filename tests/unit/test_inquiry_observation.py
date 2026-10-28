@@ -112,6 +112,23 @@ def test_inquiry_is_not_evaluated_when_the_message_is_not_about_health() -> None
     assert result.trace.about_health is False
 
 
+def test_contradictory_unrelated_message_in_a_thread_is_answered_as_conversational() -> None:
+    """En vivo (2026-10-28): el análisis dejó el partido en_alcance pero no de salud."""
+    fever = agent_json("¿Desde cuándo?", thread_action="nuevo", reported_symptoms=["fiebre"])
+    match = agent_json(
+        "Sobre eso no puedo ayudarte.", summary="El partido", reported_symptoms=["fiebre"]
+    ) | {"about_health": False}
+    retriever = FakeRetriever(promising())
+    service = make_service(ScriptedAgent(fever, match), config=OBSERVE, retriever=retriever)
+
+    service.send("mi bebé tiene fiebre")
+    result = service.send("¿quién ganó el partido?")
+
+    assert result.trace is not None and result.trace.scope == "conversacional"
+    assert result.trace.inquiry is None and len(retriever.queries) == 1
+    assert result.thread is not None and result.thread.summary == "resumen"
+
+
 def test_console_debug_line_shows_the_observed_mode() -> None:
     inquiry = InquiryTrace(TurnMode.INQUIRE, 1, 0, 0.55, 0.03, 2, "Acidez", None, True)
 
