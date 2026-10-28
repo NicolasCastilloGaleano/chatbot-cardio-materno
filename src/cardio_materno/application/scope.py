@@ -36,10 +36,18 @@ def effective_scope(analysis: AnalysisTurn, recent: Sequence[ChatMessage] = ()) 
         analysis: Resultado de la llamada de análisis.
         recent: Mensajes recientes del hilo activo (vacío si no hay hilo).
 
+    Desde el 2026-10-27 (prompt de análisis v7), si el análisis dice que el mensaje nuevo no
+    trata de salud (`about_health` falso) y no lo deja en alcance, se respeta su decisión: los
+    síntomas que el análisis repite del hilo no bastan ("¿quién ganó el partido?" en medio de
+    una consulta por fiebre). Las alarmas nuevas se evalúan antes y siempre tienen prioridad.
+
     Returns:
-        `en_alcance` si hay signos del catálogo marcados, síntomas reportados o una respuesta
-        a una pregunta pendiente; si no, el alcance que decidió el análisis.
+        El alcance del análisis si el mensaje nuevo no trata de salud; si no, `en_alcance` si
+        hay signos del catálogo marcados, síntomas reportados o una respuesta a una pregunta
+        pendiente; si no, el alcance que decidió el análisis.
     """
+    if not analysis.about_health and analysis.scope is not Scope.IN_SCOPE:
+        return analysis.scope
     if analysis.reported_signs or analysis.reported_symptoms:
         return Scope.IN_SCOPE
     if analysis.scope is Scope.OUT_OF_SCOPE and answers_pending_question(analysis, recent):

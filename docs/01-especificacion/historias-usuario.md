@@ -360,7 +360,9 @@ Escenario: Los síntomas acumulados del hilo no dejan en alcance un mensaje ajen
   Y el análisis marca el mensaje como "fuera_de_alcance" e indica que el mensaje actual no trata de salud ("about_health": false)
   Entonces los síntomas acumulados no bastan: recibe el mensaje fijo de alcance y no se registra (como dice el escenario "Mensaje ajeno en medio de una consulta")
   Y si en el hilo hay una alarma ya avisada, el recordatorio va antes del mensaje fijo (ADR 0018)
-  Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente sigue en alcance, como hoy
+  Y aunque el último mensaje del asistente tenga una pregunta pendiente, el mensaje ajeno no queda en alcance
+  Y un mensaje que reporta un síntoma, que el análisis deja en alcance o que responde una pregunta del asistente ("about_health": true) sigue en alcance, como hoy
+  Y un saludo en un hilo con síntomas se trata como conversacional
 
 Escenario: Saludo o agradecimiento
   Cuando escribo "hola" o "gracias"

@@ -1,5 +1,7 @@
 """Pruebas de las reglas deterministas de alcance (HU-07, ADR 0009)."""
 
+from dataclasses import replace
+
 import pytest
 
 from cardio_materno.application.agent_turn import AnalysisTurn, Scope, ThreadAction
@@ -82,3 +84,29 @@ def test_without_thread_there_is_no_pending_question() -> None:
 
 def test_out_of_scope_message_invites_the_person_to_continue() -> None:
     assert OUT_OF_SCOPE_MESSAGE.rstrip().endswith("?")
+
+
+# --- Mensaje nuevo que no trata de salud (prompt de análisis v7, 2026-10-27) ---------------
+
+
+@pytest.mark.parametrize("scope", [Scope.OUT_OF_SCOPE, Scope.CONVERSATIONAL])
+def test_accumulated_symptoms_do_not_keep_an_unrelated_message_in_scope(scope: Scope) -> None:
+    unrelated = replace(
+        analysis(scope, Domain.MATERNAL_CHILD, ("fiebre en el bebé",)),
+        about_health=False,
+        thread_action=ThreadAction.CONTINUE,
+    )
+
+    assert effective_scope(unrelated, ASKED) is scope
+
+
+def test_health_message_with_symptoms_stays_in_scope_even_if_marked_out() -> None:
+    message = analysis(Scope.OUT_OF_SCOPE, Domain.MATERNAL_CHILD, ("fiebre en el bebé",))
+
+    assert message.about_health and effective_scope(message) is Scope.IN_SCOPE
+
+
+def test_analysis_in_scope_is_kept_even_if_about_health_is_false() -> None:
+    message = replace(analysis(Scope.IN_SCOPE, Domain.CARDIOVASCULAR), about_health=False)
+
+    assert effective_scope(message) is Scope.IN_SCOPE
