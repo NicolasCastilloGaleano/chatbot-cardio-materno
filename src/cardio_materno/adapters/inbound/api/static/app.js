@@ -487,7 +487,9 @@ function traceSections(trace, thread) {
 
 function groundingSections(check) {
   if (!check) return [section("Verificación del respaldo", "No aplica en este turno.")];
-  const sections = [section("Verificación del respaldo", metricGrid([["Frases respaldadas", `${check.supported}/${check.total}`], ["Texto literal", check.literal ? "Sí" : "No"]]))];
+  const metrics = [["Frases respaldadas", `${check.supported}/${check.total}`], ["Texto literal", check.literal ? "Sí" : "No"]];
+  if (check.literal && check.literal_total) metrics.push(["Frases del registro mostradas", `${check.literal_shown}/${check.literal_total}`]);
+  const sections = [section("Verificación del respaldo", metricGrid(metrics))];
   if (check.dropped.length) sections.push(section("Frases descartadas", tags(check.dropped, true)));
   return sections;
 }

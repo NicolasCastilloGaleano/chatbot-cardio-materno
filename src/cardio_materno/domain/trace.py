@@ -55,12 +55,16 @@ class GroundingCheck:
         total: Frases que redactó el agente.
         literal: True si se mostró el texto literal del registro en lugar de la redacción.
         dropped: Frases descartadas (para auditar).
+        literal_shown: Con texto literal, frases del registro que se mostraron (B-028).
+        literal_total: Con texto literal, frases que tiene el registro.
     """
 
     supported: int
     total: int
     literal: bool = False
     dropped: tuple[str, ...] = ()
+    literal_shown: int = 0
+    literal_total: int = 0
 
 
 @dataclass(frozen=True)

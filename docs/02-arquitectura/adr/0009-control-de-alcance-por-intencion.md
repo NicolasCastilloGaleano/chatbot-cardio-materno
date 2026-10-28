@@ -47,3 +47,15 @@ El criterio del usuario: se descarta un mensaje **solo si todo el mensaje** es a
 - **Decisión:** `effective_scope(analysis, recent)` devuelve "en_alcance" cuando se cumplen las tres condiciones: el análisis dijo "fuera_de_alcance", `thread_action` es "continuar" y el último mensaje del asistente en el hilo contiene "?". Cuenta cualquier pregunta del mensaje, no solo la final.
 - **Límites:** un mensaje que el análisis marca como tema nuevo ("¿quién ganó el partido?") sigue recibiendo el mensaje fijo. Los mensajes fuera de alcance siguen sin registrarse, así que el mensaje fijo nunca cuenta como pregunta pendiente.
 - **Mensaje fijo de alcance:** desde la misma fecha termina con una pregunta abierta ("¿Tienes alguna duda o molestia sobre estos temas que quieras contarme?") para invitar a seguir, en lugar de cerrar la conversación. Sigue sin registrarse.
+
+## Actualización 2026-10-27: los síntomas acumulados del hilo no dejan en alcance un mensaje ajeno (aprobada, prompt de análisis v7)
+**Contexto.** El prompt de análisis v6 repite en `reported_symptoms` lo dicho antes en el hilo, para que el filtro 2 combine el contexto con el signo nuevo. Desde el 2026-10-17, `effective_scope` deja en alcance todo mensaje con síntomas reportados. Juntas, las dos reglas hacen que **cualquier** mensaje en un hilo con síntomas quede en alcance. En el guion de B-027 (2026-10-27), "¿quién ganó el partido?" en el hilo de la fiebre del bebé terminó en una abstención guardada en el hilo, y el resumen del hilo mencionó el partido. Eso contradice el escenario "Mensaje ajeno en medio de una consulta" de la HU-07. Con la HU-11 en modo `activo`, ese mensaje recibiría además una pregunta de indagación.
+
+**Decisión.**
+1. El prompt de análisis v7 agrega el booleano `about_health`: si el mensaje **nuevo**, por sí mismo, trata de salud o continúa la conversación de salud del hilo (responde, pregunta o comenta sobre ella).
+2. En `effective_scope`, los signos o síntomas reportados dejan el mensaje en alcance solo si `about_health` es verdadero. Si no, se aplican las reglas siguientes, como hoy: respuesta a una pregunta pendiente del asistente y, por último, el alcance que decidió el análisis.
+3. Un mensaje queda fuera de alcance solo si **las dos** salidas del análisis lo dicen (`scope` = `fuera_de_alcance` y `about_health` = falso) y no responde una pregunta pendiente. No cambian ni la prioridad de las alarmas (una alarma nueva siempre deja el mensaje en alcance) ni el recordatorio de una alarma ya avisada, que va antes del mensaje fijo (ADR 0018).
+
+**Consecuencias.**
+- ✅ Se cumple el escenario de la HU-07, y la HU-11 no indaga sobre mensajes ajenos.
+- ⚠️ Si el análisis marca por error las dos salidas en un mensaje con un síntoma real, el mensaje se descarta. Las alarmas del filtro 1 siguen activas. Se vigila repitiendo `pytest -m live` de alcance (incluido el caso del brazo y la gallina), obligatorio por el cambio de prompt.

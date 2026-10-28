@@ -25,6 +25,8 @@ QUESTIONS = [
     "¿qué puedo comer si tengo acidez en el embarazo?",
     "tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?",
     "estaba cocinando frijoles y empecé a sentir acidez, tengo 34 semanas, ¿es normal?",
+    # Pertinencia (B-028): solo lo que aplica a la alimentación, sin completar el máximo.
+    "¿qué alimentos ayudan a controlar la presión arterial?",
 ]
 
 
@@ -44,7 +46,9 @@ def describe(question: str, result: TurnResult) -> str:
         )
     else:
         check = trace.grounding
-        kind = f"{check.supported}/{check.total} frases" + (" · literal" if check.literal else "")
+        kind = f"{check.supported}/{check.total} frases · citas {list(trace.cited_evidence)}"
+        if check.literal:
+            kind += f" · literal ({check.literal_shown}/{check.literal_total} frases del registro)"
         kind += "".join(f"\n    descartada: {sentence}" for sentence in check.dropped)
     return f"{question} → {kind}\n    {result.reply}"
 

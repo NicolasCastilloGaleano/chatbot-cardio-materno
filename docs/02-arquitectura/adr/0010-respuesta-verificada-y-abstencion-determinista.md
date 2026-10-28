@@ -45,3 +45,21 @@ Responder sin respaldo o deformar la evidencia es inaceptable en un servicio de 
 - **RAG no disponible:** tiene un mensaje propio (`UNAVAILABLE_TEXT`), que no pide detalles porque no ayudarían. `abstention_text(status)` elige el mensaje según el resultado de la búsqueda.
 - **Las remisiones también necesitan respaldo:** se quitan `REFERRAL_WORDS` y `SAFE_NUMBERS` de `domain/grounding.py`. Antes, una frase como "acude de inmediato a urgencias o llama al 123" pasaba siempre la verificación, aunque el registro citado no lo dijera, y el agente podía remitir sin respaldo. Los avisos de urgencia de las alarmas no se afectan, porque los compone `compose_reply` y no el agente. Riesgo: más respuestas con texto literal; se mide antes y después con `pytest -m live` (`test_live_grounding.py`).
 - **Texto literal del registro más parecido:** cuando la redacción falla, la cita del agente no es confiable. `main_label` elige el registro de mayor similitud y, si empatan, el citado. Caso real (2026-10-24): "tengo acidez en el embarazo" citó un registro de preeclampsia (0,55) habiendo uno de acidez (0,60), y el literal remitió a urgencias. Se mantiene el prefijo "Según la información validada del proyecto:".
+
+## Actualización 2026-10-27: pertinencia de la respuesta (B-028, aprobada, pendiente de implementar)
+**Contexto.** La verificación garantiza que cada frase esté **respaldada**, pero no que sea **pertinente**. En el guion de B-027 (2026-10-27), "¿qué hago mientras llego?" en un hilo de sangrado en el embarazo mostró el texto literal completo de un registro de sangrado después de las relaciones, que preguntaba por las relaciones sin que la persona las hubiera mencionado. El prompt de respuesta v3 tampoco pide pertinencia: pide citar y pone un tope de 5 frases, y un modelo pequeño tiende a llenarlo.
+
+**Decisión.**
+1. **Prompt de respuesta v4:** antes de redactar, el agente revisa el CASO y usa solo los registros y las frases que responden a la situación y a la pregunta de la persona. El número de frases depende de lo que aporta: una sola frase es válida y el tope de 5 se mantiene. Un registro que trata otra situación (p. ej., una causa que la persona no mencionó) no se usa. La pertinencia de la redacción queda al juicio del modelo, porque no se puede verificar de forma determinista.
+2. **Literal por frases** (determinista, `domain/grounding.py`): del registro elegido por `main_label`, se muestran solo las frases que comparten al menos `literal_min_overlap` raíces de contenido (las mismas del verificador) con la consulta (`search_query` del análisis y el mensaje de la persona).
+   - Las frases con un aviso de atención (marcadores fijos: urgencias, inmediato, 123, acudir, consultar al personal de salud) se muestran **siempre**.
+   - Se conservan el orden y el texto exacto del registro.
+   - Si ninguna frase cumple, se muestra el registro completo, como hoy.
+   - `literal_min_overlap` vive en `knowledge/evidence_policy.json` (propuesta: 1) y en `.env` (`GROUNDING_LITERAL_MIN_OVERLAP`).
+3. **Traza:** `GroundingCheck` registra cuántas frases del registro se mostraron y cuántas tiene. La auditoría web y la consola lo muestran.
+
+**Consecuencias.**
+- ✅ No se relaja ninguna garantía: el literal sigue mostrando solo texto exacto del registro, y los avisos de atención nunca se ocultan.
+- ⚠️ El criterio del literal es léxico: una frase pertinente escrita con sinónimos puede quedar oculta. Se mitiga con el registro completo como último recurso y se mide en vivo (`test_live_grounding.py`: frases mostradas frente a total).
+- ⚠️ El literal mejora la pertinencia, pero no corrige la recuperación de un registro equivocado. Eso depende de la consulta, de la base (B-019) y de la indagación (HU-11).
+- Se mide antes y después con `pytest -m live`: tasa de literales y frases por respuesta, sin regresiones frente a `main`.

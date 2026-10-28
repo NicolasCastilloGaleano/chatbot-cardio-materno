@@ -58,7 +58,7 @@ Clase: `domain/trace.py::ReplyTrace`. Se serializa en `trace_codec.py`.
 | `search_query` | string | Consulta con la que se buscó la evidencia ("" si no se buscó) | `presión arterial alta` |
 | `reminded_rules` | string[] | Reglas ya avisadas en el hilo que el filtro 2 volvió a encontrar y que solo se recordaron, sin alerta nueva (ADR 0018). Ausente en trazas anteriores = [] | `["RN-MI-13"]` |
 | `domain_fallback` | bool | True si, sin evidencia en el dominio del análisis, la búsqueda se amplió a los dos dominios (HU-02, 2026-10-26). Ausente en trazas anteriores = false | `false` |
-| `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro) y `dropped` (frases descartadas). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"]}` |
+| `grounding` | objeto o null | Verificación del respaldo (ADR 0010): `supported` (frases mostradas), `total` (frases redactadas), `literal` (se mostró el texto literal del registro), `dropped` (frases descartadas) y, desde B-028, `literal_shown` y `literal_total` (con texto literal: frases del registro mostradas y frases que tiene; 0 sin literal o en trazas anteriores). `null` si no hubo redacción con evidencia (abstención, urgencia o saludo) | `{"supported": 1, "total": 2, "literal": true, "dropped": ["Come yogur…"], "literal_shown": 2, "literal_total": 5}` |
 
 ### Entidad: `KNOWLEDGE_ENTRY` (base de conocimiento, `knowledge/kb/entries.jsonl`)
 Clase: `domain/knowledge.py::KnowledgeEntry`. Contenido versionado en git; el índice vectorial derivado (`data/kb_index/`) no se versiona.

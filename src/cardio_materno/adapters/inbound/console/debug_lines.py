@@ -35,7 +35,7 @@ EVIDENCE_INSUFFICIENT_TEMPLATE = "[evidencia: insuficiente (mejor {best:.2f})]"
 EVIDENCE_UNAVAILABLE_TEXT = "[evidencia: no disponible (RAG desactivado o sin índice)]"
 UNCITED_WARNING = " | ⚠️ la respuesta no citó evidencia"
 GROUNDING_DEBUG_TEMPLATE = "[respaldo: {supported}/{total} frases{literal}]"
-GROUNDING_LITERAL_TEXT = " · texto literal del registro"
+GROUNDING_LITERAL_TEXT = " · texto literal del registro ({shown}/{total} frases)"
 ABSTENTION_DEBUG_TEXT = "[respaldo: abstención sin LLM (sin evidencia suficiente)]"
 TIMINGS_DEBUG_TEMPLATE = "[tiempos: {timings}]"
 TIMING_TEMPLATE = "{stage} {seconds:.1f} s"
@@ -159,8 +159,15 @@ def format_grounding_check(check: GroundingCheck) -> str:
     return GROUNDING_DEBUG_TEMPLATE.format(
         supported=check.supported,
         total=check.total,
-        literal=GROUNDING_LITERAL_TEXT if check.literal else "",
+        literal=format_literal_note(check),
     )
+
+
+def format_literal_note(check: GroundingCheck) -> str:
+    """Nota del texto literal con las frases del registro mostradas (vacía sin literal)."""
+    if not check.literal:
+        return ""
+    return GROUNDING_LITERAL_TEXT.format(shown=check.literal_shown, total=check.literal_total)
 
 
 def format_evidence_item(ref: EvidenceRef) -> str:

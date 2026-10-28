@@ -211,6 +211,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `GROUNDING_MIN_SUPPORT` | (archivo: `0.6`) | Fracción mínima de palabras de una frase que debe estar en el registro citado |
 | `GROUNDING_MAX_FREE_SENTENCES` | (archivo: `2`) | Frases sin cita permitidas (preguntas de aclaración, cortesía) |
 | `GROUNDING_MAX_FREE_WORDS` | (archivo: `20`) | Palabras máximas de una frase sin cita |
+| `GROUNDING_LITERAL_MIN_OVERLAP` | (archivo: `1`) | Raíces que una frase del texto literal debe compartir con la consulta para mostrarse; los avisos de atención se muestran siempre (B-028) |
 
 **5. Interfaz web local (ADR 0013)**
 | Variable | Por defecto | Para qué |
