@@ -36,6 +36,9 @@ from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
 logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).with_name("static")
+# El navegador revalida la página y sus archivos en cada carga: tras actualizar la rama no hace
+# falta forzar la recarga (2026-10-27: un app.js viejo en caché escondía el saludo sin hilo).
+NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
 APP_TITLE = "Chat cardio-materno: auditoría multicanal"
 ERROR_MODEL_MESSAGE = "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
 CHAT_NOT_FOUND = "Chat no encontrado"
@@ -122,7 +125,7 @@ def _add_page_routes(app: FastAPI) -> None:
     @app.get("/", include_in_schema=False)
     def home() -> FileResponse:
         """Entrega el cliente web."""
-        return FileResponse(STATIC_DIR / "index.html")
+        return FileResponse(STATIC_DIR / "index.html", headers=NO_CACHE_HEADERS)
 
     @app.get("/static/{asset_name}", include_in_schema=False)
     def static_asset(asset_name: str) -> FileResponse:
@@ -130,7 +133,7 @@ def _add_page_routes(app: FastAPI) -> None:
         asset = (STATIC_DIR / asset_name).resolve()
         if asset.parent != STATIC_DIR.resolve() or not asset.is_file():
             raise HTTPException(status_code=404, detail="Recurso no encontrado")
-        return FileResponse(asset)
+        return FileResponse(asset, headers=NO_CACHE_HEADERS)
 
 
 def _add_chat_routes(

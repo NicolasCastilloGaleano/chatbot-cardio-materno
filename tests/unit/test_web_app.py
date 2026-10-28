@@ -122,6 +122,13 @@ def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> No
     assert "afterSeq" in script and "Mensaje conversacional sin hilo: no se guarda" in script
 
 
+def test_page_and_assets_are_revalidated_on_every_load(database: SqliteDatabase) -> None:
+    harness = build(database)
+
+    for path in ("/", "/static/app.js", "/static/styles.css"):
+        assert harness.client.get(path).headers["cache-control"] == "no-cache"
+
+
 # --- Chats --------------------------------------------------------------------------------
 
 
