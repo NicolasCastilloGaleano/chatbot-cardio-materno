@@ -17,6 +17,7 @@ from cardio_materno.application.agent_turn import (
 )
 from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_prompt
 from cardio_materno.application.evidence import EvidencePolicy, build_evidence_query
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT
 from cardio_materno.application.turn_context import TurnInput, analysis_context
 from cardio_materno.domain.conversation import ChatMessage, Domain, Role, open_thread
 from cardio_materno.domain.grounding import unstated_details
@@ -113,3 +114,22 @@ def without_search_query(analysis: AnalysisTurn) -> AnalysisTurn:
 def finds(items: Sequence[EvidenceItem], expected: str) -> bool:
     """True si la categoría esperada está entre la evidencia que superó el umbral."""
     return any(item.entry.category == expected for item in items)
+
+
+def test_details_asked_by_the_assistant_continue_a_thread_without_domain(
+    analyzer: OllamaLanguageModel, prompt: str, alarm_policy: AlarmPolicy
+) -> None:
+    """Guion de la HU-11 (2026-10-27): la respuesta a la abstención abría un hilo nuevo."""
+    thread = open_thread(
+        "hilo-vivo", Domain.NONE, "La persona tiene un ardor raro.", datetime.now(UTC)
+    )
+    recent = (
+        ChatMessage(Role.USER, "tengo un ardor raro"),
+        ChatMessage(Role.ASSISTANT, ABSTENTION_TEXT),
+    )
+    turn = TurnInput("es en el pecho, después de comer", recent)
+
+    analysis = complete_analysis(analyzer, alarm_policy, analysis_context(prompt, thread, turn))
+
+    print(f"detalles pedidos → {analysis.thread_action} · {analysis.domain}")
+    assert analysis.thread_action is ThreadAction.CONTINUE
