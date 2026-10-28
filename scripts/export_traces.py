@@ -3,7 +3,7 @@
 Sirve para revisar los guiones y calibrar (p. ej., la indagación de la HU-11) sin copiar y
 pegar desde la auditoría web: un solo archivo trae, por hilo, el resumen, los mensajes y,
 en cada respuesta, el alcance, la búsqueda, la evidencia, el respaldo, los recordatorios, las
-alertas y la decisión de la regla de indagación.
+alertas, la decisión de la regla de indagación y los tiempos por etapa.
 
 Uso (en el PC de pruebas):
     python scripts/export_traces.py --since "2026-10-27 18:00" > trazas.md
@@ -152,6 +152,10 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         lines.append(grounding_line(trace.grounding))
     if trace.inquiry is not None:
         lines.append(inquiry_line(trace.inquiry))
+    if trace.timings:
+        lines.append(
+            "tiempos: " + " · ".join(f"{t.stage} {t.seconds:.1f} s" for t in trace.timings)
+        )
     return lines
 
 
