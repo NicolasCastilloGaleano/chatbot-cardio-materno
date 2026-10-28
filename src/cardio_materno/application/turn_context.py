@@ -19,10 +19,13 @@ class TurnInput:
     Attributes:
         user_text: Mensaje actual del usuario.
         recent: Últimos N mensajes del hilo activo (vacío si no hay hilo).
+        urgent_reminder: True si en el turno se recuerda una urgencia inmediata ya avisada
+            (B-030, ADR 0018): no se indaga y la respuesta acompaña la urgencia.
     """
 
     user_text: str
     recent: tuple[ChatMessage, ...] = ()
+    urgent_reminder: bool = False
 
 
 def describe_thread(thread: ConversationThread | None) -> str:

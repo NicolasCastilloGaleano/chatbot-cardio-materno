@@ -84,6 +84,8 @@ class GroundingPolicy:
         literal_min_overlap: Raíces que una frase del texto literal debe compartir con la
             consulta para mostrarse (B-028).
         max_inquiry_sentences: Máximo de frases de un turno de indagación (HU-11).
+        allow_questions: False para quitar las preguntas de lo que se muestra (acompañamiento
+            de una urgencia ya avisada, B-030).
     """
 
     min_support: float = 0.6
@@ -93,6 +95,7 @@ class GroundingPolicy:
     stem_chars: int = 5
     literal_min_overlap: int = 1
     max_inquiry_sentences: int = 3
+    allow_questions: bool = True
 
 
 def content_stems(text: str, policy: GroundingPolicy) -> frozenset[str]:
@@ -215,6 +218,7 @@ def pertinent_sentences(
     Se muestran, en su orden y sin cambios, las frases que comparten al menos
     `literal_min_overlap` raíces con la consulta y, además, las que tienen un aviso de
     atención. Si ninguna comparte raíces con la consulta, se muestra el registro completo.
+    Con `allow_questions` falso, nunca se muestran las preguntas del registro (B-030).
 
     Args:
         answer: Respuesta del registro.
@@ -224,7 +228,8 @@ def pertinent_sentences(
     Returns:
         Las frases que se muestran y el total de frases del registro.
     """
-    sentences = split_sentences(answer)
+    all_sentences = split_sentences(answer)
+    sentences = all_sentences if policy.allow_questions else without_questions(all_sentences)
     query_stems = content_stems(query_text, policy)
     on_topic = {
         s
@@ -232,9 +237,14 @@ def pertinent_sentences(
         if len(content_stems(s, policy) & query_stems) >= policy.literal_min_overlap
     }
     if not on_topic:
-        return sentences, len(sentences)
+        return sentences, len(all_sentences)
     shown = tuple(s for s in sentences if s in on_topic or has_attention_notice(s))
-    return shown, len(sentences)
+    return shown, len(all_sentences)
+
+
+def without_questions(sentences: Iterable[str]) -> tuple[str, ...]:
+    """Las frases que no son preguntas."""
+    return tuple(s for s in sentences if not s.rstrip().endswith(QUESTION_MARK))
 
 
 def _stems_of(words: Iterable[str], policy: GroundingPolicy) -> frozenset[str]:

@@ -44,6 +44,7 @@ from cardio_materno.application.agent_turn import (
 )
 from cardio_materno.application.alarm_policy import (
     REPLY_SEPARATOR,
+    URGENT_ACCOMPANIMENT_CONTEXT,
     AlarmDecision,
     AlarmPolicy,
     compose_reply,
@@ -78,7 +79,7 @@ from cardio_materno.application.scope import (
 )
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
-from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin
+from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin, Severity
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -297,7 +298,8 @@ class ConversationService:
             found, self._alerted_rules(current, analysis)
         )
         decisions = (pre, *post) if pre is not None else post
-        outcome = self._route(analysis, turn, decisions, timer)
+        urgent = any(rule.severity is Severity.IMMEDIATE for rule in reminded)
+        outcome = self._route(analysis, replace(turn, urgent_reminder=urgent), decisions, timer)
         outcome = with_model_usage(with_reminder(outcome, reminded), timer.usages)
         return with_unstated_details(outcome, turn)
 
@@ -364,12 +366,13 @@ class ConversationService:
         elif retrieval.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             reply = (
-                compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
+                compose_reply(decisions, None) if decisions else no_evidence_text(turn, retrieval)
             )
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
             outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
-        return with_search_query(with_inquiry(outcome, inquiry), query.text, widened)
+        outcome = with_urgent_accompaniment(with_inquiry(outcome, inquiry), turn)
+        return with_search_query(outcome, query.text, widened)
 
     def _inquiry(
         self,
@@ -380,14 +383,16 @@ class ConversationService:
     ) -> InquiryTrace | None:
         """Modo que elige la regla de indagación (HU-11); None si no se evalúa.
 
-        No se evalúa con la regla apagada, con una alarma nueva, sin buscador ni cuando el
+        No se evalúa con la regla apagada, con una alarma nueva, con una urgencia inmediata
+        recordada (se acompaña la urgencia, B-030), sin buscador ni cuando el
         mensaje nuevo no trata de salud (`about_health` falso: "gracias" en un hilo de la
         presión, guion del 2026-10-27). El estado anterior solo cuenta si el mensaje continúa
         el hilo. La decisión se aplica (`applied`) solo en modo activo.
         """
         off = self._config.inquiry_activation is InquiryActivation.OFF
         unavailable = retrieval.status is RetrievalStatus.UNAVAILABLE
-        if off or decisions or unavailable or not analysis.about_health:
+        blocked = decisions or turn.urgent_reminder or not analysis.about_health
+        if off or unavailable or blocked:
             return None
         continues = analysis.thread_action is ThreadAction.CONTINUE
         state = previous_state(turn.recent if continues else ())
@@ -469,8 +474,9 @@ class ConversationService:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
         query_text = build_evidence_query(analysis, turn.user_text).text
+        policy = replace(self._config.grounding, allow_questions=not turn.urgent_reminder)
         grounded = compose_grounded_reply(
-            draft, retrieval.items, turn.user_text, self._config.grounding, query_text
+            draft, retrieval.items, turn.user_text, policy, query_text
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
         return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
@@ -492,6 +498,8 @@ class ConversationService:
     ) -> tuple[DraftSentence, ...]:
         """Llamada de respuesta con evidencia: frases que solo pueden citar las etiquetas dadas."""
         evidence_text = format_evidence_context(retrieval.items, self._config.evidence_item_chars)
+        if turn.urgent_reminder:
+            evidence_text = f"{URGENT_ACCOMPANIMENT_CONTEXT}\n\n{evidence_text}"
         context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
         data = self._ports.responder.complete_json(context, grounded_reply_schema(retrieval.labels))
         return parse_grounded_reply(data, retrieval.labels)
@@ -656,7 +664,23 @@ def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> Turn
     trace = outcome.trace
     if trace is not None:
         trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
-    return replace(outcome, reply=f"{reminder}{REPLY_SEPARATOR}{outcome.reply}", trace=trace)
+    reply = f"{reminder}{REPLY_SEPARATOR}{outcome.reply}" if outcome.reply else reminder
+    return replace(outcome, reply=reply, trace=trace)
+
+
+def no_evidence_text(turn: TurnInput, retrieval: RetrievalResult) -> str:
+    """Respuesta sin evidencia: la abstención o, con una urgencia recordada, nada.
+
+    Con una urgencia recordada solo va el recordatorio, sin pedir detalles (B-030).
+    """
+    return "" if turn.urgent_reminder else abstention_text(retrieval.status)
+
+
+def with_urgent_accompaniment(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:
+    """Marca en la traza que el turno acompañó una urgencia ya avisada (B-030)."""
+    if not turn.urgent_reminder or outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, urgent_accompaniment=True))
 
 
 def without_evidence(retrieval: RetrievalResult) -> RetrievalResult:

@@ -152,6 +152,8 @@ class ReplyTrace:
         about_health: Si el análisis dijo que el mensaje nuevo, por sí mismo, trata de salud
             (prompt v7, ADR 0009). True en trazas anteriores.
         model_usage: Lectura del prompt y generación de cada llamada al modelo, por etapa.
+        urgent_accompaniment: True si el turno acompañó una urgencia inmediata ya avisada:
+            sin indagar y sin preguntas (B-030).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -171,6 +173,7 @@ class ReplyTrace:
     inquiry: InquiryTrace | None = None
     about_health: bool = True
     model_usage: tuple[ModelUsage, ...] = ()
+    urgent_accompaniment: bool = False
 
     @property
     def uncited(self) -> bool:
