@@ -187,7 +187,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 |---|---|---|---|
 | `OLLAMA_MODEL` | `OLLAMA_ANALYSIS_MODEL` / `OLLAMA_REPLY_MODEL` | `mistral-small3.1:24b` | Modelo (nombre de `ollama list`). **Decisión del equipo (2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` |
 | `OLLAMA_TEMPERATURE` | `OLLAMA_ANALYSIS_TEMPERATURE` / `OLLAMA_REPLY_TEMPERATURE` | `0.3` | Creatividad (0 = más predecible) |
-| `OLLAMA_NUM_CTX` | `OLLAMA_ANALYSIS_NUM_CTX` / `OLLAMA_REPLY_NUM_CTX` | `4096` | Ventana de contexto en tokens |
+| `OLLAMA_NUM_CTX` | `OLLAMA_ANALYSIS_NUM_CTX` / `OLLAMA_REPLY_NUM_CTX` | `4096` (análisis: `8192`) | Ventana de contexto en tokens. El análisis usa 8192 si su variable está vacía: con 4096 se cortaba en hilos largos (2026-10-27). Si Ollama corta una respuesta, el log dice "límite de contexto o de tokens" |
 | `OLLAMA_TIMEOUT_SECONDS` | `OLLAMA_ANALYSIS_TIMEOUT_SECONDS` / `OLLAMA_REPLY_TIMEOUT_SECONDS` | `180` | Espera máxima por respuesta (s) |
 | `OLLAMA_THINK` | `OLLAMA_ANALYSIS_THINK` / `OLLAMA_REPLY_THINK` | (vacío = no se envía) | `false` desactiva el razonamiento de modelos como qwen3 (**obligatorio** con qwen3 en la respuesta) |
 | — | `OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT` | `600` / `500` | Máximo de tokens que genera cada etapa (`auto` = sin límite) |

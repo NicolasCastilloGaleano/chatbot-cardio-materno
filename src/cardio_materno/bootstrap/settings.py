@@ -43,6 +43,11 @@ NUM_PREDICT_FIELD = "NUM_PREDICT"
 # Límite de tokens por defecto de cada etapa. Holgado: el JSON del análisis suele ocupar
 # 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
 STAGE_NUM_PREDICT_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "600", REPLY_MODEL_VARIABLE: "500"}
+NUM_CTX_FIELD = "NUM_CTX"
+# Contexto por defecto de una etapa si su variable está vacía (antes que OLLAMA_NUM_CTX). El
+# análisis lleva el catálogo de signos, el hilo y su JSON: con 4096 tokens Ollama lo cortaba
+# en los hilos largos (guion de la HU-11, 2026-10-27: n_tokens = 4095, truncated = 1).
+STAGE_NUM_CTX_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "8192"}
 MIN_FRACTION = 0.0
 MAX_FRACTION = 1.0
 TRUE_VALUES = frozenset({"true", "1", "si", "sí", "yes"})
@@ -220,7 +225,8 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     Cada etapa puede definir su modelo, temperatura, contexto, tiempo de espera y
     razonamiento (`OLLAMA_ANALYSIS_*` / `OLLAMA_REPLY_*`); si una variable de la etapa está
     vacía, se usa la general (`OLLAMA_*`). El límite de tokens es propio de cada etapa
-    (`OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT`; "auto" = sin límite).
+    (`OLLAMA_ANALYSIS_NUM_PREDICT` / `OLLAMA_REPLY_NUM_PREDICT`; "auto" = sin límite). El
+    análisis usa un contexto de 8192 si `OLLAMA_ANALYSIS_NUM_CTX` está vacía.
 
     Args:
         env: Variables de entorno.
@@ -233,7 +239,16 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     base = load_ollama_settings(stage_environment(env, prefix))
     predict_default = STAGE_NUM_PREDICT_DEFAULTS.get(model_variable, AUTO_VALUE)
     num_predict = _get_int_or_auto(env, prefix + NUM_PREDICT_FIELD, predict_default)
-    return replace(base, num_predict=num_predict)
+    num_ctx = _stage_num_ctx(env, prefix, model_variable, base.num_ctx)
+    return replace(base, num_predict=num_predict, num_ctx=num_ctx)
+
+
+def _stage_num_ctx(env: Mapping[str, str], prefix: str, model_variable: str, general: int) -> int:
+    """Contexto de la etapa: su variable, su valor por defecto o el general, en ese orden."""
+    if env.get(prefix + NUM_CTX_FIELD, "").strip():
+        return general
+    default = STAGE_NUM_CTX_DEFAULTS.get(model_variable)
+    return int(default) if default else general
 
 
 def stage_environment(env: Mapping[str, str], prefix: str) -> dict[str, str]:

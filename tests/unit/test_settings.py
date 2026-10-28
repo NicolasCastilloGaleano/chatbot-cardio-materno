@@ -209,7 +209,7 @@ def test_each_stage_can_set_model_temperature_context_and_timeout() -> None:
     assert (analysis.model, analysis.temperature, analysis.num_ctx) == (
         "mistral-small3.1:24b",
         0.1,
-        4096,
+        8192,
     )
     assert (reply.model, reply.temperature, reply.num_ctx, reply.timeout_seconds) == (
         "qwen3:8b",
@@ -350,3 +350,15 @@ def test_web_page_size_and_poll_interval() -> None:
         load_web_settings({"WEB_PAGE_SIZE": "0"})
     with pytest.raises(ConfigurationError, match="WEB_POLL_SECONDS"):
         load_web_settings({"WEB_POLL_SECONDS": "0"})
+
+
+def test_analysis_context_defaults_to_8192_unless_its_variable_is_set() -> None:
+    general = {"OLLAMA_NUM_CTX": "4096"}
+
+    analysis = load_stage_settings(general, "OLLAMA_ANALYSIS_MODEL")
+    explicit = load_stage_settings(
+        general | {"OLLAMA_ANALYSIS_NUM_CTX": "6144"}, "OLLAMA_ANALYSIS_MODEL"
+    )
+    reply = load_stage_settings(general, "OLLAMA_REPLY_MODEL")
+
+    assert (analysis.num_ctx, explicit.num_ctx, reply.num_ctx) == (8192, 6144, 4096)

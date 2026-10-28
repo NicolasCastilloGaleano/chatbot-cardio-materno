@@ -14,6 +14,7 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
     build_chat_payload,
+    extract_content,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
@@ -158,3 +159,10 @@ def test_warm_up_loads_the_model_without_messages() -> None:
         "keep_alive": "30m",
         "options": {"temperature": 0.3, "num_ctx": 4096},
     }
+
+
+def test_response_cut_by_the_context_or_token_limit_has_a_clear_error() -> None:
+    cut = {"message": {"content": '{"thread_action": "contin'}, "done_reason": "length"}
+
+    with pytest.raises(LanguageModelError, match="límite de contexto o de tokens"):
+        extract_content(cut)

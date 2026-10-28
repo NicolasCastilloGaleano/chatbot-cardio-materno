@@ -19,6 +19,11 @@ from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage
 
 CHAT_ENDPOINT = "/api/chat"
+DONE_REASON_LENGTH = "length"
+MSG_CUT_BY_LIMIT = (
+    "Ollama cortó la respuesta por el límite de contexto o de tokens. Sube "
+    "OLLAMA_<ETAPA>_NUM_CTX o OLLAMA_<ETAPA>_NUM_PREDICT (ANALYSIS o REPLY) en el .env."
+)
 DEFAULT_KEEP_ALIVE = "30m"
 
 
@@ -157,8 +162,11 @@ def extract_content(response: dict[str, Any]) -> str:
     """Obtiene el texto de la respuesta de `/api/chat`.
 
     Raises:
-        LanguageModelError: Si la respuesta no trae contenido.
+        LanguageModelError: Si Ollama cortó la respuesta por el límite de contexto o de tokens
+            (`done_reason` "length") o si la respuesta no trae contenido.
     """
+    if response.get("done_reason") == DONE_REASON_LENGTH:
+        raise LanguageModelError(MSG_CUT_BY_LIMIT)
     message = response.get("message")
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str) or not content.strip():
