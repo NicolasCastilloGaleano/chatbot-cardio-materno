@@ -53,7 +53,7 @@ sequenceDiagram
             L2-->>S: {reply}
             S-->>U: saludo / presentación del servicio (nunca abre un hilo; sin hilo activo NO se registra)
         else en alcance (o con alarma prioritaria)
-            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback)
+            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback). Con INQUIRY_MODE observar y sin alarma nueva, la regla de indagación (HU-11) registra en trace.inquiry qué modo elegiría, sin cambiar la respuesta
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
                 S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
