@@ -97,6 +97,9 @@ En el guion y en vivo, el modo activo indagó preguntas de información ("¿qué
 - **Los registros *Indagar* son solo insumo de las preguntas.** En el modo responder se ofrecen únicamente los registros *Solucionar* y se quitan las preguntas de la redacción y del literal.
 - **Métrica:** una indagación resuelta termina en evidencia o en una alarma.
 
+## Verificación de la fase 3 (2026-10-31)
+En el PC con `INQUIRY_MODE=activo`: en vivo 35/35 y guion de 9 casos. Métricas: 5 indagaciones, 4 resueltas, 0 perdidas y 1,2 turnos. Las 4 resueltas terminaron en alarma, ninguna en evidencia, y algunas por el exceso de códigos del filtro 2, así que la meta se cumple, pero no mide la llegada a la evidencia. Decisión: `INQUIRY_MODE=activo` por defecto.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

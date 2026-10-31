@@ -287,7 +287,7 @@ Escenario: Un hilo nuevo evalúa las alarmas desde cero
   Cuando el análisis abre un hilo nuevo o el hilo anterior se cerró
   Entonces las reglas avisadas en otros hilos no cuentan como ya avisadas
 ```
-Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. 🔄 Aprobada e implementada el 2026-10-26 (B-027, ADR 0018): alarmas ya avisadas como recordatorio; falta la verificación en el PC
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. ✅ B-027 (ADR 0018, alarmas ya avisadas como recordatorio) verificado en el PC el 2026-10-27. ✅ B-030 (acompañamiento de una urgencia ya avisada) verificado en el PC el 2026-10-31; el contexto URGENCIA EN CURSO espera la revisión clínica
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.
@@ -718,4 +718,4 @@ Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
 
 Las metas las decide el equipo.
 
-Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. 🔄 Fase 3 (`activo`) implementada y probada automáticamente el 2026-10-28 (rama `feat/hu-11-activo`); falta la verificación en el PC
+Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. ✅ Fase 3 (`activo`) verificada en el PC el 2026-10-31 (en vivo 35/35, guion de 9 casos) y fusionada a `main`, con `INQUIRY_MODE=activo` por defecto. Métricas en vivo: 5 indagaciones, 4 resueltas (todas en alarma), 0 perdidas, 1,2 turnos. Pendiente: revisión clínica del cierre
