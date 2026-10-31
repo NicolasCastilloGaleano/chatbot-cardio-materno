@@ -18,6 +18,7 @@ from cardio_materno.domain.grounding import (
     is_allowed_without_citation,
     is_supported,
     pertinent_sentences,
+    without_questions,
 )
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
 from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
@@ -32,6 +33,13 @@ ABSTENTION_TEXT = (
 UNAVAILABLE_TEXT = (
     "En este momento no puedo consultar la información para orientarte. "
     "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
+)
+# Cierre honesto de la indagación (HU-11, ADR 0017): sin LLM. Pendiente de revisión clínica.
+CLOSING_TEXT = (
+    "Con lo que me cuentas no encuentro información validada en la base del proyecto para "
+    "orientarte sobre esto. Te recomiendo consultarlo con el personal de salud de tu EPS o "
+    "centro de salud. Si tienes otra duda sobre el corazón, la presión arterial, el embarazo o "
+    "tu bebé, con gusto te ayudo."
 )
 LITERAL_TEMPLATE = "Según la información validada del proyecto: {answer}"
 SENTENCE_SEPARATOR = " "
@@ -93,8 +101,11 @@ def compose_grounded_reply(
         alguna frase citada no está respaldada o no queda ninguna frase.
     """
     verdicts = verify_sentences(draft, items, user_text, policy)
-    kept = [v.sentence for v in verdicts if v.accepted]
-    dropped = tuple(v.sentence.text for v in verdicts if not v.accepted)
+    accepted = [v.sentence for v in verdicts if v.accepted]
+    kept = accepted if policy.allow_questions else [s for s in accepted if not is_question(s)]
+    dropped = tuple(v.sentence.text for v in verdicts if not v.accepted) + tuple(
+        s.text for s in accepted if s not in kept
+    )
     failed_citation = any(v.sentence.evidence_id for v in verdicts if not v.accepted)
     if failed_citation or not kept:
         check = GroundingCheck(len(kept), len(draft), True, dropped)
@@ -137,7 +148,12 @@ def literal_reply(
     label = main_label(draft, items)
     shown, total = pertinent_sentences(entry_of(label, items).answer, query_text, policy)
     full_check = replace(check, literal_shown=len(shown), literal_total=total)
-    return GroundedReply(literal_text(shown), (label,), full_check)
+    return GroundedReply(literal_text(shown) if shown else "", (label,), full_check)
+
+
+def is_question(sentence: DraftSentence) -> bool:
+    """True si la frase redactada es una pregunta."""
+    return not without_questions([sentence.text])
 
 
 def main_label(draft: Sequence[DraftSentence], items: Sequence[EvidenceItem]) -> str:

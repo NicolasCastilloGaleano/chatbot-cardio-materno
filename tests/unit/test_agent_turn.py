@@ -91,6 +91,7 @@ def test_analysis_schema_has_no_reply_and_lists_allowed_values() -> None:
         "scope_reason",
         "about_health",
         "wants_guidance",
+        "asks_information",
     }
     assert properties["reported_signs"]["maxItems"] == 0
 
@@ -154,7 +155,7 @@ def test_about_health_and_wants_guidance_are_parsed_with_safe_defaults() -> None
     assert {"about_health", "wants_guidance"} <= set(ANALYSIS_SCHEMA["required"])
 
 
-@pytest.mark.parametrize("field", ["about_health", "wants_guidance"])
+@pytest.mark.parametrize("field", ["about_health", "wants_guidance", "asks_information"])
 def test_non_boolean_flags_raise_error(field: str) -> None:
     with pytest.raises(LanguageModelError, match=field):
         parse_analysis(analysis_json(**{field: "sí"}))

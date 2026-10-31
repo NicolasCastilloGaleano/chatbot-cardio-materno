@@ -14,6 +14,7 @@ Lista única de lo que se **implementó para mostrar resultados** o se **propuso
 | 6 | **Modelo de cada etapa** (análisis y respuesta) y umbral del RAG | Equipo | [ADR 0011](../02-arquitectura/adr/0011-modelos-por-etapa-y-latencia.md) con las rondas del benchmark | ✅ Aprobado (2026-10-12, ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`, umbral 0,50; medida (filtro 2 16/18, turno p50 de 46,5 s) |
 | 7 | **Vacíos de la base de conocimiento** (p. ej., alimentación con acidez, diabetes gestacional), que hoy reciben abstención | Equipo clínico y líder del proyecto | B-019 en el [backlog](backlog.md) | ⏳ Pendiente |
 | 8 | **Textos fijos del canal WhatsApp:** "solo texto", aviso de espera y error del modelo (`application/channel_messages.py`). Son textos no clínicos generados con IA | Equipo | HU-09 | 🟡 Implementado para pruebas; pendiente |
+| 10 | **Textos de la HU-11 y de B-030:** cierre honesto (`CLOSING_TEXT`), pregunta fija, contexto URGENCIA EN CURSO y marcadores de aviso de atención del texto literal | Equipo clínico | `application/grounded_reply.py`, `inquiry_turn.py`, `alarm_policy.py`, `domain/grounding.py`; ADR 0017 y 0018 | 🟡 Implementado; pendiente de revisión clínica |
 | 9 | **Consentimiento (HU-01)** antes de atender a personas reales por WhatsApp | Equipo y aliados | HU-01, `proteccion-datos.md` | ⏳ Pendiente (bloquea el piloto) |
 
 ## Cómo se registra una decisión

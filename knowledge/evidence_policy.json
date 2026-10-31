@@ -19,5 +19,6 @@
   "inquiry_min_agreement": 2,
   "inquiry_progress_delta": 0.02,
   "inquiry_max_turns": 3,
-  "inquiry_max_stalled": 2
+  "inquiry_max_stalled": 2,
+  "inquiry_max_sentences": 3
 }

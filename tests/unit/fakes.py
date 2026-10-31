@@ -42,6 +42,7 @@ ANALYSIS_KEYS = (
     "scope_reason",
     "about_health",
     "wants_guidance",
+    "asks_information",
 )
 
 
@@ -148,6 +149,8 @@ class ScriptedAgent:
             raise self.current["reply"]
         if "sentences" not in schema["properties"]:
             return {"reply": self.current["reply"], "evidence_ids": self.current["evidence_ids"]}
+        if schema["properties"]["sentences"]["items"].get("type") == "string":
+            return {"sentences": self.current.get("questions", ["¿Desde cuándo lo sientes?"])}
         if "sentences" in self.current:
             return {"sentences": self.current["sentences"]}
         offered = schema["properties"]["sentences"]["items"]["properties"]["evidence_id"]["enum"]

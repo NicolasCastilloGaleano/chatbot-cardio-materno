@@ -272,11 +272,22 @@ Escenario: El recordatorio nunca se pierde
   Cuando el mensaje es fuera de alcance, conversacional o termina en abstención
   Entonces el recordatorio también aparece al comienzo de la respuesta
 
+Escenario: Acompañamiento de una urgencia ya avisada (B-030, ADR 0018, 2026-10-28; aplica también a la HU-04)
+  Dado un hilo con una urgencia inmediata ya avisada que el filtro 2 vuelve a encontrar
+  Cuando escribo "¿qué hago mientras llego?" o "¿voy directamente a urgencias?"
+  Entonces la respuesta empieza con el recordatorio de urgencia
+  Y no se indaga: no hay preguntas para caracterizar la situación
+  Y lo que sigue al recordatorio prioriza, con evidencia verificada, qué hacer mientras llego, qué llevar o decir al llegar y qué evitar
+  Y las frases con pregunta se quitan de la respuesta, también del texto literal del registro
+  Y solo se usan registros de enfoque "Solucionar": los de enfoque "Indagar" piden caracterizar, no orientan (2026-10-31)
+  Y si no hay evidencia pertinente de ese enfoque, la respuesta es solo el recordatorio, sin el mensaje de abstención
+  Y con una alarma prioritaria ya avisada (p. ej., presión alta), el turno sigue como hoy: puede indagar o responder
+
 Escenario: Un hilo nuevo evalúa las alarmas desde cero
   Cuando el análisis abre un hilo nuevo o el hilo anterior se cerró
   Entonces las reglas avisadas en otros hilos no cuentan como ya avisadas
 ```
-Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. 🔄 Aprobada e implementada el 2026-10-26 (B-027, ADR 0018): alarmas ya avisadas como recordatorio; falta la verificación en el PC
+Estado: ✅ Verificada técnicamente en el PC de pruebas (2026-10-10). Reglas PROVISIONALES: falta la validación clínica. ✅ B-027 (ADR 0018, alarmas ya avisadas como recordatorio) verificado en el PC el 2026-10-27. ✅ B-030 (acompañamiento de una urgencia ya avisada) verificado en el PC el 2026-10-31; el contexto URGENCIA EN CURSO espera la revisión clínica
 
 ### HU-04: Alerta por signos de alarma cardiovasculares
 **Como** persona con riesgo cardiovascular, **quiero** saber si mis síntomas requieren atención urgente, **para** actuar a tiempo.
@@ -604,7 +615,9 @@ Escenario: Las alarmas van primero y nunca se indaga con una alarma nueva
   Cuando un mensaje activa una alarma nueva en el hilo (filtro 1 o filtro 2), de prioridad o de urgencia
   Entonces el turno se resuelve como hoy (HU-03, HU-04) y no se hace una pregunta de indagación
   Y la indagación nunca retrasa ni reemplaza el mensaje fijo de una alarma
-  Y si la alarma ya se avisó en el hilo y solo se recuerda (ADR 0018), el recordatorio va primero y el turno puede indagar o responder
+  Y si la alarma ya se avisó en el hilo y solo se recuerda (ADR 0018), el recordatorio va primero
+  Y si la regla recordada es de urgencia inmediata, no se indaga: se acompaña la urgencia (HU-03, B-030, 2026-10-28)
+  Y si es prioritaria, el turno puede indagar o responder
 
 Escenario: Evidencia clara desde el primer mensaje
   Dado que el mejor registro supera el umbral para responder (0,68 desde el 2026-10-28; antes, propuesta de 0,60)
@@ -616,6 +629,7 @@ Escenario: Indagar cuando la evidencia es prometedora pero no segura
   Dado que el mejor registro está entre el piso de indagación (propuesta: 0,40) y el umbral para responder
   Cuando escribo "tengo un ardor raro"
   Entonces el asistente hace 1 o 2 preguntas para caracterizar la situación, sin afirmaciones de salud
+  Y el turno tiene como máximo 3 frases: las preguntas y, si acaso, una frase de cortesía
   Y las preguntas buscan los datos que diferencian a los registros candidatos (p. ej., dónde arde, desde cuándo, si está embarazada)
   Y no pregunta lo que ya conté en el hilo
   Y la traza registra el modo "indagar", el número de turno de indagación y las señales de la búsqueda
@@ -626,6 +640,18 @@ Escenario: Los registros de indagación son un insumo opcional (2026-10-27)
   Entonces usa esos registros si encajan con lo que conté, y reformula sus preguntas con naturalidad, sin copiarlas como un formulario
   Y si no encajan, o no hay registros "Indagar" entre los candidatos, formula sus propias preguntas con su conocimiento
   Y en ambos casos las preguntas buscan los datos que acercan la conversación a un registro de la base, no explorar por explorar
+
+Escenario: Una pregunta de información no se indaga (2026-10-31)
+  Cuando hago una pregunta concreta de información ("¿qué alimentos ayudan a controlar la presión?", "¿cuántas unidades de insulina me pongo?") o mi mensaje no reporta síntomas
+  Entonces el asistente no me hace preguntas
+  Y responde con evidencia si hay un registro que orienta (similitud de 0,50 o más)
+  Y si no lo hay, muestra la abstención; si ya me la mostró, cierra con el mensaje honesto
+
+Escenario: Los registros de indagación no son respuestas (2026-10-31)
+  Dado que la regla decide responder
+  Cuando la evidencia incluye registros de enfoque "Indagar" y "Solucionar"
+  Entonces la respuesta usa solo los registros "Solucionar" y se quitan las preguntas, también del texto literal
+  Y si entre la evidencia no hay ningún registro "Solucionar", la regla no responde: sigue indagando si puede, o se abstiene o cierra
 
 Escenario: Un mensaje ajeno no se indaga
   Dado que el asistente está indagando
@@ -676,13 +702,20 @@ Escenario: Modo de observación antes de activar
 Escenario: Auditoría de la indagación
   Cuando reviso un chat en la interfaz de auditoría
   Entonces cada respuesta muestra su modo (responder, indagar o cerrar), el turno de indagación y las señales de la búsqueda
+  Y en modo activo se ve que la regla decidió el turno ("aplicada") y qué preguntas se descartaron en la verificación
+
+Escenario: Modo activo por defecto (fase 3, 2026-10-28)
+  Dado que la fase 3 se verificó en el PC con INQUIRY_MODE "activo" (guion y métricas de utilidad)
+  Cuando se fusiona a main
+  Entonces el valor por defecto de INQUIRY_MODE pasa a "activo"
+  Y "observar" y "apagado" siguen disponibles en el .env
 ```
 Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
-- porcentaje de indagaciones que terminan en una respuesta con evidencia (meta propuesta: ≥ 70 %);
+- porcentaje de indagaciones resueltas, es decir, las que terminan en una respuesta con evidencia **o en una alarma** detectada con los detalles que dio la persona (meta propuesta: ≥ 70 %; decisión de Nicolas Castillo Galeano del 2026-10-31);
 - turnos de indagación promedio antes de responder (meta propuesta: ≤ 2);
 - indagaciones perdidas, es decir, las que preguntaron y terminaron en el cierre honesto (meta propuesta: ≤ 20 %);
 - cero afirmaciones de salud en los turnos de indagación.
 
 Las metas las decide el equipo.
 
-Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. 🔄 Fase 3 (`activo`) pendiente
+Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. ✅ Fase 3 (`activo`) verificada en el PC el 2026-10-31 (en vivo 35/35, guion de 9 casos) y fusionada a `main`, con `INQUIRY_MODE=activo` por defecto. Métricas en vivo: 5 indagaciones, 4 resueltas (todas en alarma), 0 perdidas, 1,2 turnos. Pendiente: revisión clínica del cierre

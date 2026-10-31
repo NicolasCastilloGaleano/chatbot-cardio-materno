@@ -37,6 +37,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "inquiry": inquiry_to_dict(trace.inquiry) if trace.inquiry else None,
         "about_health": trace.about_health,
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
+        "urgent_accompaniment": trace.urgent_accompaniment,
     }
 
 
@@ -63,6 +64,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         inquiry=inquiry_from_dict(data["inquiry"]) if data.get("inquiry") else None,
         about_health=bool(data.get("about_health", True)),
         model_usage=tuple(usage_from_dict(item) for item in data.get("model_usage", [])),
+        urgent_accompaniment=bool(data.get("urgent_accompaniment", False)),
     )
 
 
@@ -79,6 +81,8 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "progress": inquiry.progress,
         "wants_guidance": inquiry.wants_guidance,
         "applied": inquiry.applied,
+        "informational": inquiry.informational,
+        "has_answer": inquiry.has_answer,
     }
 
 
@@ -95,6 +99,8 @@ def inquiry_from_dict(data: dict[str, Any]) -> InquiryTrace:
         progress=data.get("progress"),
         wants_guidance=bool(data.get("wants_guidance", False)),
         applied=bool(data.get("applied", False)),
+        informational=bool(data.get("informational", False)),
+        has_answer=bool(data.get("has_answer", True)),
     )
 
 

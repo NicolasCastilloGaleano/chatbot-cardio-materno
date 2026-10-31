@@ -58,6 +58,7 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "scope_reason": {"type": "string"},
             "about_health": {"type": "boolean"},
             "wants_guidance": {"type": "boolean"},
+            "asks_information": {"type": "boolean"},
         },
         "required": [
             "thread_action",
@@ -70,6 +71,7 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "scope_reason",
             "about_health",
             "wants_guidance",
+            "asks_information",
         ],
     }
 
@@ -99,6 +101,7 @@ class AnalysisTurn:
         about_health: Si el mensaje nuevo, por sí mismo, trata de salud o continúa la
             conversación de salud del hilo (ADR 0009, prompt v7). True si falta.
         wants_guidance: Si la persona pide directamente qué hacer (HU-11, ADR 0017).
+        asks_information: Si hace una pregunta concreta de información (HU-11, prompt v8).
     """
 
     thread_action: ThreadAction
@@ -111,6 +114,7 @@ class AnalysisTurn:
     reported_signs: tuple[str, ...] = ()
     about_health: bool = True
     wants_guidance: bool = False
+    asks_information: bool = False
 
 
 @dataclass(frozen=True)
@@ -164,6 +168,7 @@ def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> An
         reported_signs=_sign_codes(data, sign_codes),
         about_health=_optional_flag(data, "about_health", default=True),
         wants_guidance=_optional_flag(data, "wants_guidance", default=False),
+        asks_information=_optional_flag(data, "asks_information", default=False),
     )
 
 
@@ -224,6 +229,35 @@ def parse_grounded_reply(data: dict[str, Any], labels: Sequence[str]) -> tuple[D
     if not isinstance(raw, list):
         raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' debe ser una lista"))
     sentences = tuple(s for s in (_parse_sentence(item, labels) for item in raw) if s.text)
+    if not sentences:
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' vacío"))
+    return sentences
+
+
+def inquiry_schema(max_sentences: int) -> dict[str, Any]:
+    """JSON Schema del turno de indagación: frases sin citas (preguntas y cortesía).
+
+    Args:
+        max_sentences: Máximo de frases del turno.
+    """
+    sentences = {"type": "array", "minItems": 1, "maxItems": max_sentences}
+    return {
+        "type": "object",
+        "properties": {"sentences": sentences | {"items": {"type": "string"}}},
+        "required": ["sentences"],
+    }
+
+
+def parse_inquiry(data: dict[str, Any]) -> tuple[str, ...]:
+    """Valida el turno de indagación; descarta las frases vacías.
+
+    Raises:
+        LanguageModelError: Si "sentences" no es una lista de textos o queda vacía.
+    """
+    raw = data.get("sentences")
+    if not isinstance(raw, list):
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' debe ser una lista"))
+    sentences = tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
     if not sentences:
         raise LanguageModelError(MSG_INVALID_TURN.format(detail="'sentences' vacío"))
     return sentences

@@ -262,12 +262,12 @@ def test_inquiry_thresholds_from_env_reach_the_inquiry_policy(tmp_path: Path) ->
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("", InquiryActivation.OBSERVE),
-        ("ACTIVO", InquiryActivation.ACTIVE),
+        ("", InquiryActivation.ACTIVE),
+        ("OBSERVAR", InquiryActivation.OBSERVE),
         ("apagado", InquiryActivation.OFF),
     ],
 )
-def test_inquiry_mode_defaults_to_observe(
+def test_inquiry_mode_defaults_to_active(
     tmp_path: Path, raw: str, expected: InquiryActivation
 ) -> None:
     env = {"INQUIRY_MODE": raw} if raw else {}

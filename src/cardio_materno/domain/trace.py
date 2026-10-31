@@ -42,6 +42,8 @@ class InquiryTrace:
         progress: Si hubo avance frente al turno de indagación anterior (None si no lo hubo).
         wants_guidance: Si la persona pidió directamente qué hacer.
         applied: True si la regla decidió el turno; False si solo se observó.
+        informational: Si el turno era informativo: no había una situación que caracterizar.
+        has_answer: Si la evidencia incluía un registro que orienta (*Solucionar*).
     """
 
     mode: TurnMode
@@ -54,6 +56,8 @@ class InquiryTrace:
     progress: bool | None = None
     wants_guidance: bool = False
     applied: bool = False
+    informational: bool = False
+    has_answer: bool = True
 
 
 @dataclass(frozen=True)
@@ -152,6 +156,8 @@ class ReplyTrace:
         about_health: Si el análisis dijo que el mensaje nuevo, por sí mismo, trata de salud
             (prompt v7, ADR 0009). True en trazas anteriores.
         model_usage: Lectura del prompt y generación de cada llamada al modelo, por etapa.
+        urgent_accompaniment: True si el turno acompañó una urgencia inmediata ya avisada:
+            sin indagar y sin preguntas (B-030).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -171,6 +177,7 @@ class ReplyTrace:
     inquiry: InquiryTrace | None = None
     about_health: bool = True
     model_usage: tuple[ModelUsage, ...] = ()
+    urgent_accompaniment: bool = False
 
     @property
     def uncited(self) -> bool:

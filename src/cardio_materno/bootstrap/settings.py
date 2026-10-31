@@ -17,7 +17,7 @@ DEFAULT_SHOW_THREAD_DEBUG = "true"
 DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
-DEFAULT_INQUIRY_MODE = "observar"
+DEFAULT_INQUIRY_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
 DEFAULT_KEEP_ALIVE = "30m"
 DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
@@ -101,7 +101,7 @@ class ConversationSettings:
     show_thread_debug: bool
     threads_dir: Path
     alarm_rules_file: Path
-    inquiry_activation: InquiryActivation = InquiryActivation.OBSERVE
+    inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
 
 
 @dataclass(frozen=True)
@@ -124,6 +124,7 @@ class PolicyOverrides:
         inquiry_progress_delta: `INQUIRY_PROGRESS_DELTA`, subida del mejor puntaje que es avance.
         inquiry_max_turns: `INQUIRY_MAX_TURNS`, máximo de turnos de indagación seguidos.
         inquiry_max_stalled: `INQUIRY_MAX_STALLED`, turnos de indagación seguidos sin avance.
+        inquiry_max_sentences: `INQUIRY_MAX_SENTENCES`, frases de un turno de indagación.
     """
 
     min_similarity: float | None = None
@@ -140,6 +141,7 @@ class PolicyOverrides:
     inquiry_progress_delta: float | None = None
     inquiry_max_turns: int | None = None
     inquiry_max_stalled: int | None = None
+    inquiry_max_sentences: int | None = None
 
 
 @dataclass(frozen=True)
@@ -217,6 +219,7 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         inquiry_progress_delta=_get_optional_fraction(env, "INQUIRY_PROGRESS_DELTA"),
         inquiry_max_turns=_get_optional_positive_int(env, "INQUIRY_MAX_TURNS"),
         inquiry_max_stalled=_get_optional_positive_int(env, "INQUIRY_MAX_STALLED"),
+        inquiry_max_sentences=_get_optional_positive_int(env, "INQUIRY_MAX_SENTENCES"),
     )
 
 

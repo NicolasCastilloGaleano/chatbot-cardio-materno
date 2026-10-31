@@ -68,6 +68,38 @@ El equipo decidió permitir que el agente indague con su propio conocimiento, co
 - El umbral de evidencia del RAG (`min_similarity`, 0,50) no cambia: sigue decidiendo qué registro cuenta como evidencia. El umbral para responder solo decide si se responde de inmediato o se indaga primero.
 - Los demás valores (piso 0,40, margen 0,03, coincidencia 2, avance 0,02, máximo 3 turnos, 2 sin avance) se mantienen hasta tener más datos.
 
+## Fase 3: modo activo (especificación, 2026-10-28)
+- **Turno de indagación:**
+  - llamada al modelo de respuesta con `inquiry_prompt_v1.md`, que recibe el CASO, los mensajes recientes y los candidatos (`RetrievalResult.candidates`) bajo la cabecera "CANDIDATOS (solo para orientar preguntas; no son evidencia)";
+  - la salida es `{"sentences": [...]}`.
+- **Verificación** (`domain/grounding.py::verify_inquiry`):
+  - solo preguntas cortas y cortesía (reutiliza `is_allowed_without_citation`);
+  - números solo si la persona los escribió;
+  - como máximo 3 frases y al menos una pregunta;
+  - si no queda ninguna pregunta, la pregunta fija;
+  - el resultado se guarda como un `GroundingCheck` (mostradas, total y descartadas).
+- **Despacho:** con `INQUIRY_MODE=activo`, el modo de la regla decide el turno:
+  - responder, con el camino de evidencia actual;
+  - indagar;
+  - abstenerse, con `ABSTENTION_TEXT`;
+  - cerrar, con el texto fijo del punto 8.
+- **Sin cambios:**
+  - con una alarma nueva no se evalúa la regla;
+  - con una urgencia inmediata recordada tampoco: se acompaña la urgencia (ADR 0018, actualización 2026-10-28, B-030);
+  - con una prioritaria recordada, la regla decide.
+- **Valor por defecto:** `INQUIRY_MODE` pasa a `activo` al fusionar, si el guion y las métricas de utilidad salen bien en el PC.
+
+## Ajustes tras el guion del modo activo (2026-10-31, Nicolas Castillo Galeano)
+En el guion y en vivo, el modo activo indagó preguntas de información ("¿qué alimentos ayudan…?", y "¿cuántas unidades de insulina me pongo?" recibió "¿cuál es tu nivel de glucosa?"), y algunas respuestas salieron como preguntas porque el registro elegido era *Indagar*.
+- **Las preguntas de información no se indagan.** El prompt de análisis v8 agrega `asks_information` (la persona hace una pregunta concreta de información). Un turno es **informativo** si la marca o si no reporta síntomas ni signos. Solo tener síntomas no bastaba: en "¿cuántas unidades de insulina me pongo?" la diabetes se reporta como síntoma.
+- **Pedidos directos e informativos:** se responde si hay un registro que orienta; si no, abstención y, si ya se pidió detalle, cierre. Nunca se pregunta. Antes, un pedido directo sin indagación previa podía terminar indagado.
+- **Responder exige un registro *Solucionar*.** La señal `has_answer` dice si la evidencia incluye alguno. Sin él, la regla no responde: sigue indagando si puede, o se abstiene o cierra.
+- **Los registros *Indagar* son solo insumo de las preguntas.** En el modo responder se ofrecen únicamente los registros *Solucionar* y se quitan las preguntas de la redacción y del literal.
+- **Métrica:** una indagación resuelta termina en evidencia o en una alarma.
+
+## Verificación de la fase 3 (2026-10-31)
+En el PC con `INQUIRY_MODE=activo`: en vivo 35/35 y guion de 9 casos. Métricas: 5 indagaciones, 4 resueltas, 0 perdidas y 1,2 turnos. Las 4 resueltas terminaron en alarma, ninguna en evidencia, y algunas por el exceso de códigos del filtro 2, así que la meta se cumple, pero no mide la llegada a la evidencia. Decisión: `INQUIRY_MODE=activo` por defecto.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

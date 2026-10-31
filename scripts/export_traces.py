@@ -145,14 +145,27 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         f"síntomas: {'; '.join(trace.reported_symptoms) or 'ninguno'}"
         f" · signos: {', '.join(trace.reported_signs) or 'ninguno'}",
     ]
-    if trace.reminded_rules:
-        lines.append(f"recordatorio de: {', '.join(trace.reminded_rules)}")
+    lines.extend(alarm_lines(trace))
     if trace.retrieval_status is not None:
         lines.extend(search_lines(trace))
     if trace.grounding is not None:
         lines.append(grounding_line(trace.grounding))
     if trace.inquiry is not None:
         lines.append(inquiry_line(trace.inquiry))
+    return lines + timing_lines(trace)
+
+
+def alarm_lines(trace: ReplyTrace) -> list[str]:
+    """Recordatorio de alarmas ya avisadas y acompañamiento de la urgencia (B-027, B-030)."""
+    lines = [f"recordatorio de: {', '.join(trace.reminded_rules)}"] if trace.reminded_rules else []
+    if trace.urgent_accompaniment:
+        lines.append("acompañamiento de la urgencia: sin indagar ni preguntas")
+    return lines
+
+
+def timing_lines(trace: ReplyTrace) -> list[str]:
+    """Tiempos por etapa y uso del modelo."""
+    lines = []
     if trace.timings:
         lines.append(
             "tiempos: " + " · ".join(f"{t.stage} {t.seconds:.1f} s" for t in trace.timings)
@@ -196,6 +209,8 @@ def inquiry_line(inquiry: InquiryTrace) -> str:
     """Decisión de la regla de indagación (HU-11) y sus señales."""
     applied = "aplicada" if inquiry.applied else "observada"
     guidance = " · pide orientación" if inquiry.wants_guidance else ""
+    guidance += " · informativa" if inquiry.informational else ""
+    guidance += "" if inquiry.has_answer else " · sin registro que oriente"
     return (
         f"indagación {applied}: {inquiry.mode} · turno {inquiry.turn} · s1 {inquiry.best_score:.2f}"
         f" · margen {inquiry.margin:.2f} · coincidencia {inquiry.agreement}"

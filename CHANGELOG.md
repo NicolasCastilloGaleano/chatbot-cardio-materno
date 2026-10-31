@@ -6,6 +6,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Ajustes del modo activo (HU-11, ADR 0017, 2026-10-31):**
+  - prompt de análisis v8 con `asks_information`: las preguntas de información no se indagan; se responden con evidencia o reciben la abstención y, si ya se pidió detalle, el cierre;
+  - responder exige un registro *Solucionar* (`has_answer`), y al responder o acompañar una urgencia se ofrecen solo esos registros y se quitan las preguntas; los registros *Indagar* solo guían la indagación;
+  - un pedido directo nunca se indaga;
+  - la métrica cuenta como resuelta una indagación que termina en evidencia o en alarma.
+- **Indagación en modo activo (HU-11, fase 3, ADR 0017):** con `INQUIRY_MODE=activo`, la regla decide el turno:
+  - responder con evidencia;
+  - indagar con 1 o 2 preguntas del agente (`inquiry_prompt_v1.md`), orientadas por los candidatos, que no son evidencia, y verificadas por `verify_inquiry`: solo preguntas cortas con los números que dijo la persona y cortesía, como máximo `INQUIRY_MAX_SENTENCES` (3), y una pregunta fija si no queda ninguna;
+  - abstenerse;
+  - cerrar con el mensaje honesto (`CLOSING_TEXT`, sin LLM).
+- **Acompañamiento de una urgencia ya avisada (B-030, ADR 0018):** tras recordar una urgencia inmediata no se indaga. La respuesta recibe el contexto URGENCIA EN CURSO, se quitan las preguntas (también del texto literal) y, sin evidencia, va solo el recordatorio. Queda en `trace.urgent_accompaniment` y se ve en la auditoría, la consola y la exportación.
+- Prueba en vivo `tests/live/test_live_inquiry.py` (métricas de la HU-11 y urgencia sin preguntas) y guion `docs/08-despliegue/prueba-indagacion-activo.md`.
+- **Especificación de la fase 3 de la HU-11 (modo activo) y de B-030 (acompañamiento de una urgencia ya avisada):** escenarios en la HU-11 y la HU-03, actualizaciones del ADR 0017 y del ADR 0018, y backlog y trazabilidad.
 - **Uso del modelo por etapa en la traza:** cada llamada a Ollama guarda los tokens y los segundos de lectura del prompt y de generación (`trace.model_usage`). Se ven en la auditoría web ("Uso del modelo"), en la consola (`[uso del modelo: …]`) y en la exportación de trazas, para saber si la lentitud del análisis viene de leer el prompt o de generar. El puerto `LanguageModel` agrega `last_usage()`.
 - La exportación de trazas (`scripts/export_traces.py`) incluye los tiempos por etapa y si el mensaje trata de salud.
 - **Registro de la causa de los fallos del modelo:** `StageTimer` marca el `LanguageModelError` con la etapa (análisis, RAG o respuesta). La web (antes de responder 502) y el canal WhatsApp escriben en la terminal la etapa y la causa técnica, sin el texto de la persona. Se agregó a `operacion.md` una guía para diagnosticar el 502.
@@ -65,6 +78,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 - Rutas web `POST /api/messages`, `POST /api/session/end`, `GET /api/threads` y `GET /api/threads/{id}`, reemplazadas por `/api/chats…` (HU-10). La consola ya no guarda en `data/threads` (JSON).
 
 ### Changed
+- **`INQUIRY_MODE=activo` por defecto (HU-11):** la regla de indagación decide el turno. `observar` y `apagado` siguen disponibles en `.env`.
 - **Prompt de análisis v7:** agrega `about_health` (si el mensaje nuevo, por sí mismo, trata de salud) y `wants_guidance` (pedido directo de orientación). En `effective_scope`, si `about_health` es falso y el análisis no deja el mensaje en alcance, se respeta su decisión: un mensaje ajeno en un hilo con síntomas ya no queda en alcance por los síntomas repetidos del hilo ni por una pregunta pendiente (HU-07, ADR 0009; hallazgo del guion de B-027). Dos pruebas en vivo nuevas de alcance.
 - **Texto literal con las frases pertinentes (B-028, HU-02, ADR 0010):** cuando la redacción no pasa la verificación, del registro principal se muestran solo las frases que comparten raíces con la consulta (`search_query` y el mensaje) y, siempre, las que tienen un aviso de atención (urgencias, inmediato, 123, acudir, personal de salud). Si ninguna comparte, el registro completo, como antes. Umbral `literal_min_overlap` en `evidence_policy.json` v1.3.0 y en `.env` (`GROUNDING_LITERAL_MIN_OVERLAP`). La traza (`grounding.literal_shown` / `literal_total`), la auditoría web y la consola muestran cuántas frases se mostraron.
 - **Prompt de respuesta v4 (B-028):** antes de redactar, el agente elige solo los registros y las frases que aplican al caso; el número de frases depende de lo que aporta (una sola es válida). `test_live_grounding.py` reporta las citas y las frases del literal, y suma una pregunta de alimentación y presión.

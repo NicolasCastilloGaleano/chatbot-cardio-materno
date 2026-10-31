@@ -21,6 +21,14 @@ NO_SIGNS_TEXT = "(no hay signos de alarma cargados)"
 SIGN_LINE_TEMPLATE = "- {code}: {sign}{examples}"
 SIGN_EXAMPLES_TEMPLATE = " (ej.: {examples})"
 EXAMPLES_SEPARATOR = "; "
+# Contexto de la respuesta que acompaña una urgencia inmediata ya avisada (B-030, ADR 0018).
+# Pendiente de revisión clínica.
+URGENT_ACCOMPANIMENT_CONTEXT = (
+    "URGENCIA EN CURSO: a la persona ya se le indicó acudir de inmediato al servicio de "
+    "urgencias o llamar a la línea 123. De la EVIDENCIA usa solo lo que sirva para ese momento: "
+    "qué hacer mientras llega, qué llevar o decir al llegar y qué evitar. No hagas preguntas para "
+    "caracterizar la situación, no des diagnósticos y nunca sugieras esperar."
+)
 # Recordatorio de una regla ya avisada en el hilo que el filtro 2 vuelve a encontrar (ADR 0018).
 REMINDER_MESSAGES = {
     Severity.IMMEDIATE: (

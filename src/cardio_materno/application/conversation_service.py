@@ -35,28 +35,41 @@ from cardio_materno.application.agent_turn import (
     ThreadAction,
     analysis_schema,
     grounded_reply_schema,
+    inquiry_schema,
     parse_analysis,
     parse_grounded_reply,
+    parse_inquiry,
     parse_reply,
     reply_schema,
 )
 from cardio_materno.application.alarm_policy import (
     REPLY_SEPARATOR,
+    URGENT_ACCOMPANIMENT_CONTEXT,
     AlarmDecision,
     AlarmPolicy,
     compose_reply,
     reminder_for,
 )
 from cardio_materno.application.errors import LanguageModelError
-from cardio_materno.application.evidence import build_evidence_query, format_evidence_context
-from cardio_materno.application.grounded_reply import abstention_text, compose_grounded_reply
+from cardio_materno.application.evidence import (
+    build_evidence_query,
+    format_candidates_context,
+    format_evidence_context,
+)
+from cardio_materno.application.grounded_reply import (
+    CLOSING_TEXT,
+    abstention_text,
+    compose_grounded_reply,
+)
 from cardio_materno.application.inquiry_policy import (
     InquiryActivation,
     InquiryPolicy,
+    TurnIntent,
     evaluate_inquiry,
     previous_state,
     search_signals,
 )
+from cardio_materno.application.inquiry_turn import compose_inquiry
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -67,7 +80,7 @@ from cardio_materno.application.scope import (
 )
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
-from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin
+from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin, Severity
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -78,7 +91,7 @@ from cardio_materno.domain.conversation import (
     update_thread,
 )
 from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
-from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
+from cardio_materno.domain.knowledge import Focus, RetrievalResult, RetrievalStatus
 from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
@@ -86,6 +99,7 @@ from cardio_materno.domain.trace import (
     ModelUsage,
     ReplyTrace,
     StageTiming,
+    TurnMode,
 )
 
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
@@ -95,6 +109,8 @@ ALARM_SUMMARY_TEMPLATE = "Alerta: {sign}."
 STAGE_ANALYSIS = "análisis"
 STAGE_RAG = "RAG"
 STAGE_REPLY = "respuesta"
+# Modos de la regla de indagación que se resuelven sin la evidencia del RAG (HU-11).
+MODES_WITHOUT_EVIDENCE = frozenset({TurnMode.INQUIRE, TurnMode.ABSTAIN, TurnMode.CLOSE})
 
 Clock = Callable[[], datetime]
 IdGenerator = Callable[[], str]
@@ -152,8 +168,9 @@ class ConversationConfig:
         evidence_item_chars: Longitud máxima de cada respuesta de evidencia mostrada.
         grounding: Parámetros de la verificación del respaldo (ADR 0010).
         inquiry: Umbrales de la regla de indagación (HU-11, ADR 0017).
-        inquiry_activation: Cómo participa la regla de indagación; en la fase 2 solo se
-            observa: el modo se registra en la traza y el turno se resuelve como antes.
+        inquiry_activation: Cómo participa la regla de indagación: `observar` solo registra
+            el modo en la traza; `activo` deja que la regla decida el turno (fase 3).
+        inquiry_prompt: Instrucciones del turno de indagación (HU-11, fase 3).
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -167,6 +184,7 @@ class ConversationConfig:
     grounding: GroundingPolicy = field(default_factory=GroundingPolicy)
     inquiry: InquiryPolicy = field(default_factory=InquiryPolicy)
     inquiry_activation: InquiryActivation = InquiryActivation.OFF
+    inquiry_prompt: str = ""
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -281,7 +299,8 @@ class ConversationService:
             found, self._alerted_rules(current, analysis)
         )
         decisions = (pre, *post) if pre is not None else post
-        outcome = self._route(analysis, turn, decisions, timer)
+        urgent = any(rule.severity is Severity.IMMEDIATE for rule in reminded)
+        outcome = self._route(analysis, replace(turn, urgent_reminder=urgent), decisions, timer)
         outcome = with_model_usage(with_reminder(outcome, reminded), timer.usages)
         return with_unstated_details(outcome, turn)
 
@@ -333,21 +352,31 @@ class ConversationService:
         decisions: tuple[AlarmDecision, ...],
         timer: StageTimer,
     ) -> TurnOutcome:
-        """Busca evidencia; sin evidencia suficiente se abstiene sin llamar al LLM."""
+        """Busca evidencia y resuelve el turno.
+
+        En modo activo, la regla de indagación decide: indagar, abstenerse o cerrar no usan la
+        evidencia; responder sigue el camino de siempre. Sin evidencia suficiente se abstiene
+        sin llamar al LLM.
+        """
         query = build_evidence_query(analysis, turn.user_text)
         retrieval, widened = timer.measure(STAGE_RAG, lambda: self._search(query))
-        inquiry = self._observe_inquiry(analysis, turn, decisions, retrieval)
-        if retrieval.status is not RetrievalStatus.SUFFICIENT:
-            trace = build_trace(analysis, retrieval, (), timer.timings)
-            reply = (
-                compose_reply(decisions, None) if decisions else abstention_text(retrieval.status)
-            )
+        inquiry = self._inquiry(analysis, turn, decisions, retrieval)
+        mode = inquiry.mode if inquiry is not None and inquiry.applied else None
+        orients = turn.urgent_reminder or mode is TurnMode.ANSWER
+        offered = orienting_evidence(retrieval) if orients else retrieval
+        if mode in MODES_WITHOUT_EVIDENCE:
+            outcome = self._decided_without_evidence(mode, analysis, turn, retrieval, timer)
+        elif offered.status is not RetrievalStatus.SUFFICIENT:
+            trace = build_trace(analysis, offered, (), timer.timings)
+            reply = compose_reply(decisions, None) if decisions else no_evidence_text(turn, offered)
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
-            outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
-        return with_search_query(with_inquiry(outcome, inquiry), query.text, widened)
+            answering = replace(turn, no_questions=orients)
+            outcome = self._grounded_answer(analysis, answering, decisions, offered, timer)
+        outcome = with_urgent_accompaniment(with_inquiry(outcome, inquiry), turn)
+        return with_search_query(outcome, query.text, widened)
 
-    def _observe_inquiry(
+    def _inquiry(
         self,
         analysis: AnalysisTurn,
         turn: TurnInput,
@@ -356,21 +385,59 @@ class ConversationService:
     ) -> InquiryTrace | None:
         """Modo que elige la regla de indagación (HU-11); None si no se evalúa.
 
-        No se evalúa con la regla apagada, con una alarma nueva, sin buscador ni cuando el
+        No se evalúa con la regla apagada, con una alarma nueva, con una urgencia inmediata
+        recordada (se acompaña la urgencia, B-030), sin buscador ni cuando el
         mensaje nuevo no trata de salud (`about_health` falso: "gracias" en un hilo de la
         presión, guion del 2026-10-27). El estado anterior solo cuenta si el mensaje continúa
-        el hilo. En la fase 2 la decisión solo se registra (`applied` falso).
+        el hilo. La decisión se aplica (`applied`) solo en modo activo.
         """
         off = self._config.inquiry_activation is InquiryActivation.OFF
         unavailable = retrieval.status is RetrievalStatus.UNAVAILABLE
-        if off or decisions or unavailable or not analysis.about_health:
+        blocked = decisions or turn.urgent_reminder or not analysis.about_health
+        if off or unavailable or blocked:
             return None
         continues = analysis.thread_action is ThreadAction.CONTINUE
         state = previous_state(turn.recent if continues else ())
-        signals = search_signals(retrieval.candidates, retrieval.best_score)
-        return evaluate_inquiry(
-            signals, state, analysis.wants_guidance, self._config.inquiry, applied=False
-        )
+        signals = search_signals(retrieval.candidates, retrieval.best_score, retrieval.items)
+        intent = TurnIntent(analysis.wants_guidance, is_informational(analysis))
+        applied = self._config.inquiry_activation is InquiryActivation.ACTIVE
+        return evaluate_inquiry(signals, state, intent, self._config.inquiry, applied)
+
+    def _decided_without_evidence(
+        self,
+        mode: TurnMode,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        retrieval: RetrievalResult,
+        timer: StageTimer,
+    ) -> TurnOutcome:
+        """Turno que la regla resuelve sin la evidencia: indagar, abstenerse o cerrar."""
+        if mode is TurnMode.INQUIRE:
+            return self._inquire(analysis, turn, retrieval, timer)
+        text = CLOSING_TEXT if mode is TurnMode.CLOSE else abstention_text(retrieval.status)
+        trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings)
+        return TurnOutcome(text, (), trace, analysis)
+
+    def _inquire(
+        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult, timer: StageTimer
+    ) -> TurnOutcome:
+        """Turno de indagación: preguntas del agente, verificadas (HU-11, ADR 0017)."""
+        draft = timer.measure(STAGE_REPLY, lambda: self._ask(analysis, turn, retrieval))
+        timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
+        said = [m.content for m in turn.recent if m.role is Role.USER] + [turn.user_text]
+        asked = compose_inquiry(draft, said, self._config.grounding)
+        trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings, asked.check)
+        return TurnOutcome(asked.text, (), trace, analysis)
+
+    def _ask(
+        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult
+    ) -> tuple[str, ...]:
+        """Llamada de indagación: recibe los candidatos, que solo orientan las preguntas."""
+        chars = self._config.evidence_item_chars
+        candidates = format_candidates_context(retrieval.candidates, chars)
+        context = reply_context(self._config.inquiry_prompt, analysis, turn, candidates)
+        schema = inquiry_schema(self._config.grounding.max_inquiry_sentences)
+        return parse_inquiry(self._ports.responder.complete_json(context, schema))
 
     def _search(self, query: EvidenceQuery) -> tuple[RetrievalResult, bool]:
         """Busca en el dominio del análisis y, si no hay evidencia suficiente, en los dos.
@@ -408,11 +475,13 @@ class ConversationService:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
         query_text = build_evidence_query(analysis, turn.user_text).text
+        policy = replace(self._config.grounding, allow_questions=not turn.no_questions)
         grounded = compose_grounded_reply(
-            draft, retrieval.items, turn.user_text, self._config.grounding, query_text
+            draft, retrieval.items, turn.user_text, policy, query_text
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
-        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
+        text = grounded.text or no_evidence_text(turn, retrieval)
+        return TurnOutcome(compose_reply(decisions, text), decisions, trace, analysis)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
@@ -431,6 +500,8 @@ class ConversationService:
     ) -> tuple[DraftSentence, ...]:
         """Llamada de respuesta con evidencia: frases que solo pueden citar las etiquetas dadas."""
         evidence_text = format_evidence_context(retrieval.items, self._config.evidence_item_chars)
+        if turn.urgent_reminder:
+            evidence_text = f"{URGENT_ACCOMPANIMENT_CONTEXT}\n\n{evidence_text}"
         context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
         data = self._ports.responder.complete_json(context, grounded_reply_schema(retrieval.labels))
         return parse_grounded_reply(data, retrieval.labels)
@@ -595,7 +666,46 @@ def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> Turn
     trace = outcome.trace
     if trace is not None:
         trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
-    return replace(outcome, reply=f"{reminder}{REPLY_SEPARATOR}{outcome.reply}", trace=trace)
+    reply = f"{reminder}{REPLY_SEPARATOR}{outcome.reply}" if outcome.reply else reminder
+    return replace(outcome, reply=reply, trace=trace)
+
+
+def is_informational(analysis: AnalysisTurn) -> bool:
+    """True si no hay una situación que caracterizar (HU-11, ajuste del 2026-10-31)."""
+    reports = analysis.reported_symptoms or analysis.reported_signs
+    return analysis.asks_information or not reports
+
+
+def orienting_evidence(retrieval: RetrievalResult) -> RetrievalResult:
+    """La búsqueda solo con los registros que orientan (*Solucionar*).
+
+    Los registros *Indagar* dicen qué preguntar: guían la indagación, pero no son una
+    respuesta (ajuste del 2026-10-31).
+    """
+    items = tuple(item for item in retrieval.items if item.entry.focus is Focus.SOLVE)
+    if items or retrieval.status is not RetrievalStatus.SUFFICIENT:
+        return replace(retrieval, items=items)
+    return replace(retrieval, items=(), status=RetrievalStatus.INSUFFICIENT)
+
+
+def no_evidence_text(turn: TurnInput, retrieval: RetrievalResult) -> str:
+    """Respuesta sin evidencia: la abstención o, con una urgencia recordada, nada.
+
+    Con una urgencia recordada solo va el recordatorio, sin pedir detalles (B-030).
+    """
+    return "" if turn.urgent_reminder else abstention_text(retrieval.status)
+
+
+def with_urgent_accompaniment(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:
+    """Marca en la traza que el turno acompañó una urgencia ya avisada (B-030)."""
+    if not turn.urgent_reminder or outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, urgent_accompaniment=True))
+
+
+def without_evidence(retrieval: RetrievalResult) -> RetrievalResult:
+    """La búsqueda sin los registros de evidencia: el turno no se los ofreció al agente."""
+    return replace(retrieval, items=())
 
 
 def with_model_usage(outcome: TurnOutcome, usages: tuple[ModelUsage, ...]) -> TurnOutcome:
