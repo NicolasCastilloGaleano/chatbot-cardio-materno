@@ -279,7 +279,8 @@ Escenario: Acompañamiento de una urgencia ya avisada (B-030, ADR 0018, 2026-10-
   Y no se indaga: no hay preguntas para caracterizar la situación
   Y lo que sigue al recordatorio prioriza, con evidencia verificada, qué hacer mientras llego, qué llevar o decir al llegar y qué evitar
   Y las frases con pregunta se quitan de la respuesta, también del texto literal del registro
-  Y si no hay evidencia pertinente, la respuesta es solo el recordatorio, sin el mensaje de abstención
+  Y solo se usan registros de enfoque "Solucionar": los de enfoque "Indagar" piden caracterizar, no orientan (2026-10-31)
+  Y si no hay evidencia pertinente de ese enfoque, la respuesta es solo el recordatorio, sin el mensaje de abstención
   Y con una alarma prioritaria ya avisada (p. ej., presión alta), el turno sigue como hoy: puede indagar o responder
 
 Escenario: Un hilo nuevo evalúa las alarmas desde cero
@@ -640,6 +641,18 @@ Escenario: Los registros de indagación son un insumo opcional (2026-10-27)
   Y si no encajan, o no hay registros "Indagar" entre los candidatos, formula sus propias preguntas con su conocimiento
   Y en ambos casos las preguntas buscan los datos que acercan la conversación a un registro de la base, no explorar por explorar
 
+Escenario: Una pregunta de información no se indaga (2026-10-31)
+  Cuando hago una pregunta concreta de información ("¿qué alimentos ayudan a controlar la presión?", "¿cuántas unidades de insulina me pongo?") o mi mensaje no reporta síntomas
+  Entonces el asistente no me hace preguntas
+  Y responde con evidencia si hay un registro que orienta (similitud de 0,50 o más)
+  Y si no lo hay, muestra la abstención; si ya me la mostró, cierra con el mensaje honesto
+
+Escenario: Los registros de indagación no son respuestas (2026-10-31)
+  Dado que la regla decide responder
+  Cuando la evidencia incluye registros de enfoque "Indagar" y "Solucionar"
+  Entonces la respuesta usa solo los registros "Solucionar" y se quitan las preguntas, también del texto literal
+  Y si entre la evidencia no hay ningún registro "Solucionar", la regla no responde: sigue indagando si puede, o se abstiene o cierra
+
 Escenario: Un mensaje ajeno no se indaga
   Dado que el asistente está indagando
   Cuando escribo "¿quién ganó el partido?"
@@ -698,7 +711,7 @@ Escenario: Modo activo por defecto (fase 3, 2026-10-28)
   Y "observar" y "apagado" siguen disponibles en el .env
 ```
 Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
-- porcentaje de indagaciones que terminan en una respuesta con evidencia (meta propuesta: ≥ 70 %);
+- porcentaje de indagaciones resueltas, es decir, las que terminan en una respuesta con evidencia **o en una alarma** detectada con los detalles que dio la persona (meta propuesta: ≥ 70 %; decisión de Nicolas Castillo Galeano del 2026-10-31);
 - turnos de indagación promedio antes de responder (meta propuesta: ≤ 2);
 - indagaciones perdidas, es decir, las que preguntaron y terminaron en el cierre honesto (meta propuesta: ≤ 20 %);
 - cero afirmaciones de salud en los turnos de indagación.

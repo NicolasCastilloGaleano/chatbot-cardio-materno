@@ -70,3 +70,4 @@ Se observó un segundo problema, que este ADR **no** resuelve: el filtro 2 asign
 - ⚠️ La base tiene pocos registros sobre qué hacer mientras se llega (p. ej., el sangrado en el embarazo, guion de B-028). En esos casos sale solo el recordatorio, hasta que el equipo clínico amplíe la base (B-019).
 - ⚠️ El contexto URGENCIA EN CURSO es un texto nuevo que debe revisar el equipo clínico.
 
+**Ajuste del 2026-10-31.** En el guion del modo activo, tras el sangrado, el literal salió de un registro *Indagar* ("Describe si fueron unas gotas…", "Indica antecedentes…"): no tenía preguntas, pero seguía caracterizando. El acompañamiento usa solo registros *Solucionar*; si no hay, va solo el recordatorio.

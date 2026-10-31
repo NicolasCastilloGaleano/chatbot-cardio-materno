@@ -89,6 +89,14 @@ El equipo decidió permitir que el agente indague con su propio conocimiento, co
   - con una prioritaria recordada, la regla decide.
 - **Valor por defecto:** `INQUIRY_MODE` pasa a `activo` al fusionar, si el guion y las métricas de utilidad salen bien en el PC.
 
+## Ajustes tras el guion del modo activo (2026-10-31, Nicolas Castillo Galeano)
+En el guion y en vivo, el modo activo indagó preguntas de información ("¿qué alimentos ayudan…?", y "¿cuántas unidades de insulina me pongo?" recibió "¿cuál es tu nivel de glucosa?"), y algunas respuestas salieron como preguntas porque el registro elegido era *Indagar*.
+- **Las preguntas de información no se indagan.** El prompt de análisis v8 agrega `asks_information` (la persona hace una pregunta concreta de información). Un turno es **informativo** si la marca o si no reporta síntomas ni signos. Solo tener síntomas no bastaba: en "¿cuántas unidades de insulina me pongo?" la diabetes se reporta como síntoma.
+- **Pedidos directos e informativos:** se responde si hay un registro que orienta; si no, abstención y, si ya se pidió detalle, cierre. Nunca se pregunta. Antes, un pedido directo sin indagación previa podía terminar indagado.
+- **Responder exige un registro *Solucionar*.** La señal `has_answer` dice si la evidencia incluye alguno. Sin él, la regla no responde: sigue indagando si puede, o se abstiene o cierra.
+- **Los registros *Indagar* son solo insumo de las preguntas.** En el modo responder se ofrecen únicamente los registros *Solucionar* y se quitan las preguntas de la redacción y del literal.
+- **Métrica:** una indagación resuelta termina en evidencia o en una alarma.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|
