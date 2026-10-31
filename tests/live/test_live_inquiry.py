@@ -14,6 +14,7 @@ import pytest
 
 from cardio_materno.application.alarm_policy import REMINDER_MESSAGES, REPLY_SEPARATOR
 from cardio_materno.application.conversation_service import ConversationService, TurnResult
+from cardio_materno.application.grounded_reply import ABSTENTION_TEXT
 from cardio_materno.bootstrap.main import PROJECT_ROOT, build_service
 from cardio_materno.bootstrap.settings import load_conversation_settings
 from cardio_materno.domain.alarms import Severity
@@ -36,6 +37,13 @@ CONVERSATIONS = [
     ["mi niño está como decaído", "tiene 3 años y tiene diarrea desde ayer"],
 ]
 URGENT_CONVERSATION = ["estoy embarazada y estoy sangrando", "¿qué hago mientras llego?"]
+# Preguntas de información: nunca se responden con otra pregunta (guion del 2026-10-28).
+INFORMATION_QUESTIONS = [
+    "¿qué alimentos ayudan a controlar la presión arterial?",
+    "tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?",
+    "¿por qué es importante controlar la presión si no me duele nada?",
+]
+ALARM = "alarma"
 
 
 @pytest.fixture
@@ -59,17 +67,17 @@ def assert_only_questions(result: TurnResult, said: list[str]) -> None:
         assert is_allowed_inquiry_sentence(sentence, numbers, GroundingPolicy()), sentence
 
 
-def run(service: ConversationService, messages: list[str]) -> list[TurnMode | None]:
+def run(service: ConversationService, messages: list[str]) -> list[TurnMode | str | None]:
     """Envía los mensajes, imprime cada turno y comprueba los turnos de indagación."""
-    modes: list[TurnMode | None] = []
+    modes: list[TurnMode | str | None] = []
     for index, message in enumerate(messages):
         result = service.send(message)
-        mode = mode_of(result)
+        mode = ALARM if result.alerts else mode_of(result)
         modes.append(mode)
         print(f"  {message} → {mode}\n    {result.reply}")
         if mode is TurnMode.INQUIRE:
             assert_only_questions(result, messages[: index + 1])
-        if mode in (TurnMode.ANSWER, TurnMode.CLOSE):
+        if mode in (TurnMode.ANSWER, TurnMode.CLOSE, ALARM):
             break
     return modes
 
@@ -81,15 +89,27 @@ def test_inquiry_metrics(service: ConversationService) -> None:
         outcomes.append(run(service, messages))
         service.end_session()
     inquired = [m for m in outcomes if TurnMode.INQUIRE in m]
-    answered = [m for m in inquired if m[-1] is TurnMode.ANSWER]
+    answered = [m for m in inquired if m[-1] in (TurnMode.ANSWER, ALARM)]
     lost = [m for m in inquired if m[-1] is TurnMode.CLOSE]
     turns = [m.count(TurnMode.INQUIRE) for m in answered]
     print(
-        f"\nIndagaciones: {len(inquired)} · terminan en evidencia: {len(answered)} "
+        f"\nIndagaciones: {len(inquired)} · resueltas (evidencia o alarma): {len(answered)} "
         f"(meta ≥ 70 %) · perdidas: {len(lost)} (meta ≤ 20 %) · "
         f"turnos promedio hasta responder: {sum(turns) / len(turns) if turns else 0:.1f} (meta ≤ 2)"
     )
     assert inquired, "ningún mensaje vago se indagó: revisar los umbrales"
+
+
+@pytest.mark.parametrize("question", INFORMATION_QUESTIONS)
+def test_questions_of_information_are_not_answered_with_questions(
+    service: ConversationService, question: str
+) -> None:
+    result = service.send(question)
+
+    print(f"\n{question} → {mode_of(result)}\n    {result.reply}")
+    assert mode_of(result) is not TurnMode.INQUIRE
+    # La abstención termina pidiendo detalles: es un texto fijo, no una pregunta del agente.
+    assert "?" not in result.reply.replace(ABSTENTION_TEXT, "")
 
 
 def test_urgent_reminder_is_followed_by_guidance_without_questions(

@@ -6,6 +6,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Ajustes del modo activo (HU-11, ADR 0017, 2026-10-31):**
+  - prompt de análisis v8 con `asks_information`: las preguntas de información no se indagan; se responden con evidencia o reciben la abstención y, si ya se pidió detalle, el cierre;
+  - responder exige un registro *Solucionar* (`has_answer`), y al responder o acompañar una urgencia se ofrecen solo esos registros y se quitan las preguntas; los registros *Indagar* solo guían la indagación;
+  - un pedido directo nunca se indaga;
+  - la métrica cuenta como resuelta una indagación que termina en evidencia o en alarma.
 - **Indagación en modo activo (HU-11, fase 3, ADR 0017):** con `INQUIRY_MODE=activo`, la regla decide el turno:
   - responder con evidencia;
   - indagar con 1 o 2 preguntas del agente (`inquiry_prompt_v1.md`), orientadas por los candidatos, que no son evidencia, y verificadas por `verify_inquiry`: solo preguntas cortas con los números que dijo la persona y cortesía, como máximo `INQUIRY_MAX_SENTENCES` (3), y una pregunta fija si no queda ninguna;
