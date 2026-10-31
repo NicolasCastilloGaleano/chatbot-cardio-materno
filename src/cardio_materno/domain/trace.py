@@ -42,6 +42,8 @@ class InquiryTrace:
         progress: Si hubo avance frente al turno de indagación anterior (None si no lo hubo).
         wants_guidance: Si la persona pidió directamente qué hacer.
         applied: True si la regla decidió el turno; False si solo se observó.
+        informational: Si el turno era informativo: no había una situación que caracterizar.
+        has_answer: Si la evidencia incluía un registro que orienta (*Solucionar*).
     """
 
     mode: TurnMode
@@ -54,6 +56,8 @@ class InquiryTrace:
     progress: bool | None = None
     wants_guidance: bool = False
     applied: bool = False
+    informational: bool = False
+    has_answer: bool = True
 
 
 @dataclass(frozen=True)

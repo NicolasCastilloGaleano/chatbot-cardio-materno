@@ -206,6 +206,8 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "progress": inquiry.progress,
         "wants_guidance": inquiry.wants_guidance,
         "applied": inquiry.applied,
+        "informational": inquiry.informational,
+        "has_answer": inquiry.has_answer,
     }
 
 

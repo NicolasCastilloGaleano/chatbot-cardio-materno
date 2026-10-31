@@ -42,6 +42,7 @@ ANALYSIS_KEYS = (
     "scope_reason",
     "about_health",
     "wants_guidance",
+    "asks_information",
 )
 
 

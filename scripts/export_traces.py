@@ -209,6 +209,8 @@ def inquiry_line(inquiry: InquiryTrace) -> str:
     """Decisión de la regla de indagación (HU-11) y sus señales."""
     applied = "aplicada" if inquiry.applied else "observada"
     guidance = " · pide orientación" if inquiry.wants_guidance else ""
+    guidance += " · informativa" if inquiry.informational else ""
+    guidance += "" if inquiry.has_answer else " · sin registro que oriente"
     return (
         f"indagación {applied}: {inquiry.mode} · turno {inquiry.turn} · s1 {inquiry.best_score:.2f}"
         f" · margen {inquiry.margin:.2f} · coincidencia {inquiry.agreement}"

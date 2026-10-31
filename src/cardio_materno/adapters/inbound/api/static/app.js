@@ -517,6 +517,8 @@ function inquirySection(inquiry) {
     ["Avance", progress],
     ["Sin avance seguidos", String(inquiry.stalled)],
     ["Pide orientación", inquiry.wants_guidance ? "Sí" : "No"],
+    ["Pregunta de información", inquiry.informational ? "Sí" : "No"],
+    ["Hay registro que orienta", inquiry.has_answer ? "Sí" : "No"],
   ]));
 }
 

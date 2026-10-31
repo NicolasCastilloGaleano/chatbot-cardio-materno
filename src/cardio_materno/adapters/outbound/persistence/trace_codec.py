@@ -81,6 +81,8 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "progress": inquiry.progress,
         "wants_guidance": inquiry.wants_guidance,
         "applied": inquiry.applied,
+        "informational": inquiry.informational,
+        "has_answer": inquiry.has_answer,
     }
 
 
@@ -97,6 +99,8 @@ def inquiry_from_dict(data: dict[str, Any]) -> InquiryTrace:
         progress=data.get("progress"),
         wants_guidance=bool(data.get("wants_guidance", False)),
         applied=bool(data.get("applied", False)),
+        informational=bool(data.get("informational", False)),
+        has_answer=bool(data.get("has_answer", True)),
     )
 
 

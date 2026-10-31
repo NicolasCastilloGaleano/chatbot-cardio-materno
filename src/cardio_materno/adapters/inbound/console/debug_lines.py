@@ -50,6 +50,8 @@ URGENT_ACCOMPANIMENT_DEBUG_TEXT = (
     "[acompañamiento de la urgencia ya avisada: sin indagar ni preguntas]"
 )
 INQUIRY_GUIDANCE_TEXT = " · pide orientación"
+INQUIRY_INFORMATIONAL_TEXT = " · informativa"
+INQUIRY_NO_ANSWER_TEXT = " · sin registro que oriente"
 INQUIRY_PROGRESS_TEXT = {True: "sí", False: "no", None: "—"}
 TIMING_TEMPLATE = "{stage} {seconds:.1f} s"
 USAGE_DEBUG_TEMPLATE = "[uso del modelo: {usages}]"
@@ -98,6 +100,16 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
     return [line for line in optional if line]
 
 
+def inquiry_notes(inquiry: InquiryTrace) -> str:
+    """Notas de la decisión: pedido directo, turno informativo y falta de registro que oriente."""
+    notes = [
+        INQUIRY_GUIDANCE_TEXT if inquiry.wants_guidance else "",
+        INQUIRY_INFORMATIONAL_TEXT if inquiry.informational else "",
+        "" if inquiry.has_answer else INQUIRY_NO_ANSWER_TEXT,
+    ]
+    return "".join(notes)
+
+
 def format_inquiry_debug(inquiry: InquiryTrace) -> str:
     """Modo que eligió la regla de indagación y sus señales (HU-11)."""
     return INQUIRY_DEBUG_TEMPLATE.format(
@@ -109,7 +121,7 @@ def format_inquiry_debug(inquiry: InquiryTrace) -> str:
         agreement=inquiry.agreement,
         category=inquiry.top_category or NONE_TEXT,
         progress=INQUIRY_PROGRESS_TEXT[inquiry.progress],
-        guidance=INQUIRY_GUIDANCE_TEXT if inquiry.wants_guidance else "",
+        guidance=inquiry_notes(inquiry),
     )
 
 

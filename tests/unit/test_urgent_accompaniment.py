@@ -15,7 +15,12 @@ from cardio_materno.application.alarm_policy import (
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.inquiry_policy import InquiryActivation
 from cardio_materno.domain.alarms import Severity
-from cardio_materno.domain.knowledge import EvidenceItem, RetrievalResult, RetrievalStatus
+from cardio_materno.domain.knowledge import (
+    EvidenceItem,
+    Focus,
+    RetrievalResult,
+    RetrievalStatus,
+)
 from cardio_materno.domain.trace import ReplyTrace
 from tests.unit.fakes import (
     FakeRetriever,
@@ -94,7 +99,11 @@ def test_a_priority_reminder_can_still_be_inquired() -> None:
     )
     agent = ScriptedAgent(
         agent_json("r", thread_action="nuevo"),
-        signing(agent_json("r") | {"questions": ["¿Qué comes a diario?"]}, "PRESION_ALTA"),
+        signing(
+            agent_json("r", reported_symptoms=["presión alta"])
+            | {"questions": ["¿Qué comes a diario?"]},
+            "PRESION_ALTA",
+        ),
     )
     service = make_service(agent, config=CONFIG, retriever=FakeRetriever(promising))
     service.send("tengo presion alta")
@@ -111,3 +120,12 @@ def test_console_shows_the_urgent_accompaniment() -> None:
     result, _ = bleeding_then(agent_json("x"), nothing)
 
     assert URGENT_ACCOMPANIMENT_DEBUG_TEXT in trace_lines(trace_of(result))
+
+
+def test_only_solving_records_accompany_the_urgency() -> None:
+    characterizing = replace(knowledge_entry(answer="Describe el sangrado."), focus=Focus.INQUIRE)
+    retriever = FakeRetriever(evidence_result(characterizing))
+
+    result, context = bleeding_then(agent_json("x"), retriever)
+
+    assert result.reply == URGENT and context == ""

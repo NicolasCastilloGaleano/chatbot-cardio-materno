@@ -58,6 +58,7 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "scope_reason": {"type": "string"},
             "about_health": {"type": "boolean"},
             "wants_guidance": {"type": "boolean"},
+            "asks_information": {"type": "boolean"},
         },
         "required": [
             "thread_action",
@@ -70,6 +71,7 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "scope_reason",
             "about_health",
             "wants_guidance",
+            "asks_information",
         ],
     }
 
@@ -99,6 +101,7 @@ class AnalysisTurn:
         about_health: Si el mensaje nuevo, por sí mismo, trata de salud o continúa la
             conversación de salud del hilo (ADR 0009, prompt v7). True si falta.
         wants_guidance: Si la persona pide directamente qué hacer (HU-11, ADR 0017).
+        asks_information: Si hace una pregunta concreta de información (HU-11, prompt v8).
     """
 
     thread_action: ThreadAction
@@ -111,6 +114,7 @@ class AnalysisTurn:
     reported_signs: tuple[str, ...] = ()
     about_health: bool = True
     wants_guidance: bool = False
+    asks_information: bool = False
 
 
 @dataclass(frozen=True)
@@ -164,6 +168,7 @@ def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> An
         reported_signs=_sign_codes(data, sign_codes),
         about_health=_optional_flag(data, "about_health", default=True),
         wants_guidance=_optional_flag(data, "wants_guidance", default=False),
+        asks_information=_optional_flag(data, "asks_information", default=False),
     )
 
 

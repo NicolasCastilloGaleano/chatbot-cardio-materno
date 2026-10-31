@@ -26,6 +26,11 @@ from tests.unit.fakes import (
 OBSERVE = {"inquiry_activation": InquiryActivation.OBSERVE}
 
 
+def reporting(reply: str = "respuesta", **fields: Any) -> dict[str, Any]:
+    """Turno guionizado en que la persona reporta un síntoma."""
+    return agent_json(reply, reported_symptoms=fields.pop("reported_symptoms", ["ardor"]), **fields)
+
+
 def promising(score: float = 0.55, category: str = "Acidez") -> RetrievalResult:
     """Resultado con evidencia y un candidato entre el piso y el umbral para responder."""
     entry = replace(knowledge_entry(answer="respuesta"), category=category)
@@ -46,8 +51,8 @@ def inquiry_of(result: TurnResult) -> InquiryTrace:
 
 
 def test_observe_records_the_mode_without_changing_the_reply() -> None:
-    (observed,) = send_all(OBSERVE, FakeRetriever(promising()), agent_json("respuesta"))
-    (plain,) = send_all({}, FakeRetriever(promising()), agent_json("respuesta"))
+    (observed,) = send_all(OBSERVE, FakeRetriever(promising()), reporting("respuesta"))
+    (plain,) = send_all({}, FakeRetriever(promising()), reporting("respuesta"))
 
     assert observed.reply == plain.reply == "respuesta"
     assert inquiry_of(observed) == InquiryTrace(
@@ -57,7 +62,7 @@ def test_observe_records_the_mode_without_changing_the_reply() -> None:
 
 
 def test_the_next_turn_of_the_thread_reads_the_previous_inquiry() -> None:
-    turns = (agent_json("respuesta", thread_action="nuevo"), agent_json("respuesta"))
+    turns = (reporting("respuesta", thread_action="nuevo"), reporting("respuesta"))
 
     first, second = send_all(OBSERVE, FakeRetriever(promising(0.55), promising(0.58)), *turns)
 
@@ -66,7 +71,7 @@ def test_the_next_turn_of_the_thread_reads_the_previous_inquiry() -> None:
 
 
 def test_a_new_topic_restarts_the_inquiry() -> None:
-    turns = (agent_json("respuesta", thread_action="nuevo"),) * 2
+    turns = (reporting("respuesta", thread_action="nuevo"),) * 2
 
     _, second = send_all(OBSERVE, FakeRetriever(promising()), *turns)
 
@@ -74,7 +79,7 @@ def test_a_new_topic_restarts_the_inquiry() -> None:
 
 
 def test_direct_request_for_guidance_is_recorded() -> None:
-    turn = agent_json("respuesta") | {"wants_guidance": True}
+    turn = reporting("respuesta") | {"wants_guidance": True}
 
     (result,) = send_all(OBSERVE, FakeRetriever(promising(0.52)), turn)
 
@@ -84,7 +89,7 @@ def test_direct_request_for_guidance_is_recorded() -> None:
 def test_without_evidence_the_abstention_is_kept_and_the_mode_recorded() -> None:
     nothing = RetrievalResult(RetrievalStatus.INSUFFICIENT, best_score=0.3)
 
-    (result,) = send_all(OBSERVE, FakeRetriever(nothing), agent_json())
+    (result,) = send_all(OBSERVE, FakeRetriever(nothing), reporting())
 
     assert inquiry_of(result).mode is TurnMode.ABSTAIN
     assert "No tengo información validada" in result.reply
@@ -92,11 +97,11 @@ def test_without_evidence_the_abstention_is_kept_and_the_mode_recorded() -> None
 
 def test_inquiry_is_not_evaluated_with_a_new_alarm_or_without_the_retriever() -> None:
     config = OBSERVE | {"alarm_policy": make_alarm_policy()}
-    alarm = signing(agent_json("respuesta"), "PRESION_ALTA")
+    alarm = signing(reporting("respuesta"), "PRESION_ALTA")
     unavailable = FakeRetriever(RetrievalResult(RetrievalStatus.UNAVAILABLE))
 
     (with_alarm,) = send_all(config, FakeRetriever(promising()), alarm)
-    (without_rag,) = send_all(OBSERVE, unavailable, agent_json())
+    (without_rag,) = send_all(OBSERVE, unavailable, reporting())
 
     assert with_alarm.trace is not None and with_alarm.trace.inquiry is None
     assert without_rag.trace is not None and without_rag.trace.inquiry is None
@@ -104,7 +109,7 @@ def test_inquiry_is_not_evaluated_with_a_new_alarm_or_without_the_retriever() ->
 
 def test_inquiry_is_not_evaluated_when_the_message_is_not_about_health() -> None:
     """Guion del 2026-10-27: "gracias" en el hilo de la presión salía "indagar"."""
-    thanks = agent_json("Gracias por escribirme.") | {"about_health": False}
+    thanks = reporting("Gracias por escribirme.") | {"about_health": False}
 
     (result,) = send_all(OBSERVE, FakeRetriever(promising()), thanks)
 
@@ -114,8 +119,8 @@ def test_inquiry_is_not_evaluated_when_the_message_is_not_about_health() -> None
 
 def test_contradictory_unrelated_message_in_a_thread_is_answered_as_conversational() -> None:
     """En vivo (2026-10-28): el análisis dejó el partido en_alcance pero no de salud."""
-    fever = agent_json("¿Desde cuándo?", thread_action="nuevo", reported_symptoms=["fiebre"])
-    match = agent_json(
+    fever = reporting("¿Desde cuándo?", thread_action="nuevo", reported_symptoms=["fiebre"])
+    match = reporting(
         "Sobre eso no puedo ayudarte.", summary="El partido", reported_symptoms=["fiebre"]
     ) | {"about_health": False}
     retriever = FakeRetriever(promising())
@@ -130,7 +135,7 @@ def test_contradictory_unrelated_message_in_a_thread_is_answered_as_conversation
 
 
 def test_model_usage_of_each_stage_reaches_the_trace() -> None:
-    agent = ScriptedAgent(agent_json("respuesta"))
+    agent = ScriptedAgent(reporting("respuesta"))
     agent.analyzer.usage = ModelUsage("", 3700, 40.0, 210, 12.5)
     agent.responder.usage = ModelUsage("", 900, 3.0, 80, 5.0)
     service = make_service(agent, retriever=FakeRetriever(promising()))

@@ -64,6 +64,7 @@ from cardio_materno.application.grounded_reply import (
 from cardio_materno.application.inquiry_policy import (
     InquiryActivation,
     InquiryPolicy,
+    TurnIntent,
     evaluate_inquiry,
     previous_state,
     search_signals,
@@ -90,7 +91,7 @@ from cardio_materno.domain.conversation import (
     update_thread,
 )
 from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
-from cardio_materno.domain.knowledge import RetrievalResult, RetrievalStatus
+from cardio_materno.domain.knowledge import Focus, RetrievalResult, RetrievalStatus
 from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
@@ -361,16 +362,17 @@ class ConversationService:
         retrieval, widened = timer.measure(STAGE_RAG, lambda: self._search(query))
         inquiry = self._inquiry(analysis, turn, decisions, retrieval)
         mode = inquiry.mode if inquiry is not None and inquiry.applied else None
+        orients = turn.urgent_reminder or mode is TurnMode.ANSWER
+        offered = orienting_evidence(retrieval) if orients else retrieval
         if mode in MODES_WITHOUT_EVIDENCE:
             outcome = self._decided_without_evidence(mode, analysis, turn, retrieval, timer)
-        elif retrieval.status is not RetrievalStatus.SUFFICIENT:
-            trace = build_trace(analysis, retrieval, (), timer.timings)
-            reply = (
-                compose_reply(decisions, None) if decisions else no_evidence_text(turn, retrieval)
-            )
+        elif offered.status is not RetrievalStatus.SUFFICIENT:
+            trace = build_trace(analysis, offered, (), timer.timings)
+            reply = compose_reply(decisions, None) if decisions else no_evidence_text(turn, offered)
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
-            outcome = self._grounded_answer(analysis, turn, decisions, retrieval, timer)
+            answering = replace(turn, no_questions=orients)
+            outcome = self._grounded_answer(analysis, answering, decisions, offered, timer)
         outcome = with_urgent_accompaniment(with_inquiry(outcome, inquiry), turn)
         return with_search_query(outcome, query.text, widened)
 
@@ -396,11 +398,10 @@ class ConversationService:
             return None
         continues = analysis.thread_action is ThreadAction.CONTINUE
         state = previous_state(turn.recent if continues else ())
-        signals = search_signals(retrieval.candidates, retrieval.best_score)
+        signals = search_signals(retrieval.candidates, retrieval.best_score, retrieval.items)
+        intent = TurnIntent(analysis.wants_guidance, is_informational(analysis))
         applied = self._config.inquiry_activation is InquiryActivation.ACTIVE
-        return evaluate_inquiry(
-            signals, state, analysis.wants_guidance, self._config.inquiry, applied
-        )
+        return evaluate_inquiry(signals, state, intent, self._config.inquiry, applied)
 
     def _decided_without_evidence(
         self,
@@ -474,12 +475,13 @@ class ConversationService:
             trace = build_trace(analysis, retrieval, (), timer.timings)
             return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
         query_text = build_evidence_query(analysis, turn.user_text).text
-        policy = replace(self._config.grounding, allow_questions=not turn.urgent_reminder)
+        policy = replace(self._config.grounding, allow_questions=not turn.no_questions)
         grounded = compose_grounded_reply(
             draft, retrieval.items, turn.user_text, policy, query_text
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
-        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
+        text = grounded.text or no_evidence_text(turn, retrieval)
+        return TurnOutcome(compose_reply(decisions, text), decisions, trace, analysis)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
@@ -666,6 +668,24 @@ def with_reminder(outcome: TurnOutcome, reminded: tuple[AlarmRule, ...]) -> Turn
         trace = replace(trace, reminded_rules=tuple(rule.id for rule in reminded))
     reply = f"{reminder}{REPLY_SEPARATOR}{outcome.reply}" if outcome.reply else reminder
     return replace(outcome, reply=reply, trace=trace)
+
+
+def is_informational(analysis: AnalysisTurn) -> bool:
+    """True si no hay una situación que caracterizar (HU-11, ajuste del 2026-10-31)."""
+    reports = analysis.reported_symptoms or analysis.reported_signs
+    return analysis.asks_information or not reports
+
+
+def orienting_evidence(retrieval: RetrievalResult) -> RetrievalResult:
+    """La búsqueda solo con los registros que orientan (*Solucionar*).
+
+    Los registros *Indagar* dicen qué preguntar: guían la indagación, pero no son una
+    respuesta (ajuste del 2026-10-31).
+    """
+    items = tuple(item for item in retrieval.items if item.entry.focus is Focus.SOLVE)
+    if items or retrieval.status is not RetrievalStatus.SUFFICIENT:
+        return replace(retrieval, items=items)
+    return replace(retrieval, items=(), status=RetrievalStatus.INSUFFICIENT)
 
 
 def no_evidence_text(turn: TurnInput, retrieval: RetrievalResult) -> str:
