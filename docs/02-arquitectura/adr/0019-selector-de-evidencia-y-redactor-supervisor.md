@@ -110,6 +110,20 @@ Sin fallos de llamada en 20 llamadas. Cada corrida tardó de 61 a 72 s, carga in
 
 **Lectura:** `unsaid` identifica bien los datos no dichos y es estable. Las dos fallas vienen de pruebas con la evidencia más desfavorable (un registro específico, sin alternativa). No se sigue afinando el prompt con ellas: la decisión se toma con el guion en la web, con la evidencia que trae la búsqueda real. Las dos pruebas en vivo siguen en rojo a propósito hasta entonces.
 
+## Guion en la web con la búsqueda real (2026-11-02)
+| Caso | Respuesta mostrada (sin el selector) | Evaluación | Lo que habría elegido |
+|---|---|---|---|
+| Sangrado | **Instrucciones de una convulsión** (4/4 frases respaldadas) | Convulsión `no`; sangrado `en_parte` | `parcial`: solo "Pide ayuda para el traslado…" ✅ |
+| Ardor | Urgencias y sudor frío, literal | `no` (sudor frío) | `no_responde` ✅ |
+| Presión alta | Frases sobre la molestia en el pecho | `en_parte` (190/125): único registro *Solucionar* | `parcial`: incluye "marcadamente elevada" ❌ |
+| Comida | Sobre la alimentación | E3 `si`, E2 `en_parte`, E4 `no` | `parcial`: 4 frases de DASH ✅ (debió ser `responde`) |
+
+Una sola corrida. La convulsión volvió a salir en `main`: es la segunda vez en tres corridas de la web, y aquí el selector la descartó con la evidencia real.
+
+**Tiempo:** la selección tardó de 18,1 a 32,8 s (leer 5 a 7 s; generar 12 a 26 s), más que lo estimado con las pruebas fijas. Un turno con evidencia pasa de unos 72 s a unos 97 s.
+
+**Propuesta para el paso 1.2 (por aprobar):** el veredicto `parcial` no basta para mostrar un registro `en_parte`. Se muestran las frases de los registros `si`. Las de un registro `en_parte` solo se muestran con una urgencia en curso; en los demás casos, ese registro cuenta como `no_responde` y sigue la tabla del punto 2 (indagar, o solo el mensaje fijo de una alarma). Con esta regla, los cuatro casos quedan bien: traslado, indagar, solo el mensaje fijo y DASH.
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 
