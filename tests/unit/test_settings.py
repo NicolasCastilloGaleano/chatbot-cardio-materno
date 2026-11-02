@@ -232,12 +232,12 @@ def test_evidence_thresholds_from_env_override_the_policy_file(tmp_path: Path) -
     assert (policy.min_similarity, policy.top_k, policy.min_support) == (0.5, 4, 0.6)
 
 
-def test_selection_mode_defaults_to_observe_and_rejects_active_for_now(tmp_path: Path) -> None:
+def test_selection_mode_defaults_to_observe(tmp_path: Path) -> None:
     assert load_conversation_settings({}, tmp_path).selection_activation == "observar"
-    off = load_conversation_settings({"EVIDENCE_SELECTION_MODE": "apagado"}, tmp_path)
-    assert off.selection_activation == "apagado"
+    active = load_conversation_settings({"EVIDENCE_SELECTION_MODE": "activo"}, tmp_path)
+    assert active.selection_activation == "activo"
     with pytest.raises(ConfigurationError, match="EVIDENCE_SELECTION_MODE"):
-        load_conversation_settings({"EVIDENCE_SELECTION_MODE": "activo"}, tmp_path)
+        load_conversation_settings({"EVIDENCE_SELECTION_MODE": "otro"}, tmp_path)
 
 
 def test_selector_uses_the_analysis_model_unless_it_has_its_own() -> None:

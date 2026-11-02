@@ -12,7 +12,7 @@ regla.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from cardio_materno.domain.conversation import ChatMessage, Role
@@ -225,6 +225,28 @@ def choose_mode(
     if signals.best_score >= policy.inquiry_floor:
         return TurnMode.INQUIRE
     return no_answer_mode(state, exhausted)
+
+
+def mode_without_answer(
+    inquiry: InquiryTrace, state: InquiryState, policy: InquiryPolicy
+) -> InquiryTrace:
+    """Decisión final si la regla dijo responder y el selector no deja nada visible (HU-13).
+
+    Args:
+        inquiry: Decisión de la regla.
+        state: Estado de la indagación según la última respuesta del hilo.
+        policy: Umbrales de la regla.
+
+    Returns:
+        La decisión con el modo final y el de la regla: indagar si la persona reporta síntomas,
+        no hizo un pedido directo y quedan turnos; si no, abstenerse o cerrar.
+    """
+    exhausted = state.inquiring and is_exhausted(state, inquiry.stalled, policy)
+    decided = replace(inquiry, rule_mode=inquiry.mode)
+    if inquiry.wants_guidance or inquiry.informational or exhausted:
+        return replace(decided, mode=no_answer_mode(state, exhausted))
+    previous_turns = state.turn if state.inquiring else 0
+    return replace(decided, mode=TurnMode.INQUIRE, turn=previous_turns + 1)
 
 
 def is_clear_evidence(signals: InquirySignals, policy: InquiryPolicy) -> bool:

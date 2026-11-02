@@ -58,10 +58,11 @@ sequenceDiagram
             alt insuficiente o no disponible
                 S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
             else suficiente
-                opt EVIDENCE_SELECTION_MODE=observar y hay registros Solucionar (HU-13)
+                opt EVIDENCE_SELECTION_MODE observar o activo, y hay registros Solucionar (HU-13)
                     S->>L1: prompt del selector + caso + últimos N mensajes + FRASES numeradas + mensaje
-                    L1-->>S: {verdict, selected}: solo va a la traza
+                    L1-->>S: {records, verdict, selected}: con observar, solo va a la traza
                 end
+                Note over S: Con activo, el redactor recibe solo las frases visibles. Sin frases visibles: alarma o recordatorio solos, indagar, abstención o cierre
                 S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
                 L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}
                 S->>S: verificación determinista (domain/grounding.py); si una frase citada no está respaldada → texto literal del registro, solo con sus frases pertinentes y los avisos (B-028)

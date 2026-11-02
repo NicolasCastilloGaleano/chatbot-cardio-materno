@@ -81,9 +81,14 @@ def signing(turn: dict[str, Any], *codes: str) -> dict[str, Any]:
     return turn | {"reported_signs": list(codes)}
 
 
-def selecting(turn: dict[str, Any], verdict: str, *ids: str) -> dict[str, Any]:
-    """Guion del selector de evidencia para el turno (HU-13)."""
-    return turn | {"selection": {"verdict": verdict, "selected": list(ids)}}
+def selecting(turn: dict[str, Any], verdict: str, *ids: str, fit: str = "si") -> dict[str, Any]:
+    """Guion del selector de evidencia para el turno (HU-13).
+
+    Evalúa con `fit` los registros de los ids elegidos.
+    """
+    labels = dict.fromkeys(sentence_id.partition(".")[0] for sentence_id in ids)
+    records = [{"label": label, "fit": fit, "unsaid": ""} for label in labels]
+    return turn | {"selection": {"records": records, "verdict": verdict, "selected": list(ids)}}
 
 
 def citing(turn: dict[str, Any], *labels: str) -> dict[str, Any]:

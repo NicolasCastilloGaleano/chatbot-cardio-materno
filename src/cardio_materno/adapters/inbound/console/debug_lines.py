@@ -46,7 +46,7 @@ INQUIRY_DEBUG_TEMPLATE = (
     " · coincidencia {agreement} ({category}) · avance {progress}{guidance}]"
 )
 SELECTION_DEBUG_TEMPLATE = (
-    "[selector observado: {verdict} · elegidas: {selected}"
+    "[selector {state}: {verdict} · elegidas: {selected} · visibles: {shown}"
     " · avisos que agregaría: {added} · avisos por fuera: {omitted}]"
 )
 SELECTION_FAILED_TEMPLATE = "[selector observado: falló ({cause}); el turno siguió el flujo actual]"
@@ -112,7 +112,9 @@ def format_selection_debug(selection: SelectionTrace) -> str:
     if selection.verdict is None:
         return SELECTION_FAILED_TEMPLATE.format(cause=selection.failure or NONE_TEXT)
     return SELECTION_DEBUG_TEMPLATE.format(
+        state="aplicado" if selection.applied else "observado",
         verdict=selection.verdict,
+        shown=", ".join(selection.shown) or NONE_TEXT,
         selected=", ".join((*selection.selected, *selection.context)) or NONE_TEXT,
         added=", ".join(selection.added_notices) or NONE_TEXT,
         omitted=", ".join(selection.omitted_notices) or NONE_TEXT,

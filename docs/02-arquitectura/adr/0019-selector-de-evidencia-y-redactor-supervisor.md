@@ -47,6 +47,13 @@ Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *So
 
 Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien en `observar`, no se construye el redactor. El resultado se revisa con el líder del proyecto antes de seguir con las demás etapas.
 
+## Paso 1.2 (2026-11-02)
+- **Aprobados por el usuario (Santiago Silva):** el paso 1.1 con su resultado en la web y la regla de `en_parte`. Pendiente la revisión con el líder.
+- **Implementado detrás de `EVIDENCE_SELECTION_MODE=activo`:** frases visibles (`visible_ids`), redactor (`reply_prompt_v5.md`), verificación contra las frases visibles sin la pregunta del registro, literal de esas frases (`with_selected_literal`) y decisión final (`mode_without_answer`). La traza guarda el modo que eligió la regla (`rule_mode`).
+- **Visibles:** las frases de los registros `si`. Las de un registro `en_parte`, solo con una urgencia en curso. Un registro sin evaluación no se muestra.
+- **Regla provisional de los avisos (punto 1, sigue abierto):** solo se refuerzan los de los registros `si`. Por eso `observar` sigue siendo el valor por defecto: `activo` no pasa a ser el valor por defecto ni se fusiona hasta que decida el equipo clínico.
+- **Colaborador:** el flujo con frases seleccionadas sigue en `conversation_service.py`, con sus reglas en funciones puras de `evidence_selection.py`. No se extrajo más, para no mezclar esa reorganización con este cambio.
+
 ## Decisiones y avance (2026-11-01)
 - **Puntos 2 a 5:** propuestas aprobadas por el usuario (Santiago Silva). Pendiente la revisión con el líder del proyecto.
 - **Punto 1:** sigue abierto. Lo decide el equipo clínico con lo medido en `observar`.

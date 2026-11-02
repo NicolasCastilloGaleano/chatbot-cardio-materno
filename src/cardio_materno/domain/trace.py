@@ -83,6 +83,7 @@ class SelectionTrace:
         applied: True si el resultado decidió la respuesta; False si solo se observó.
         reviews: Evaluación de cada registro frente al caso.
         failure: Causa, si la llamada falló.
+        shown: Frases que la regla deja mostrar (con `applied`, las que se usaron).
     """
 
     offered: tuple[OfferedSentence, ...]
@@ -94,6 +95,7 @@ class SelectionTrace:
     applied: bool = False
     reviews: tuple[RecordReview, ...] = ()
     failure: str = ""
+    shown: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -115,6 +117,7 @@ class InquiryTrace:
         applied: True si la regla decidió el turno; False si solo se observó.
         informational: Si el turno era informativo: no había una situación que caracterizar.
         has_answer: Si la evidencia incluía un registro que orienta (*Solucionar*).
+        rule_mode: Modo que eligió la regla, si el selector de evidencia lo cambió (HU-13).
     """
 
     mode: TurnMode
@@ -129,6 +132,7 @@ class InquiryTrace:
     applied: bool = False
     informational: bool = False
     has_answer: bool = True
+    rule_mode: TurnMode | None = None
 
 
 @dataclass(frozen=True)

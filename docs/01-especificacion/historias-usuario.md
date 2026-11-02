@@ -783,7 +783,18 @@ Escenario: Si la redacción no se verifica (paso 1.2)
   Entonces se muestra el texto literal de las frases seleccionadas y reforzadas, sin preguntas
   Y esas frases salen de todos los registros elegidos, en el orden del selector
 
-Escenario: La evidencia no responde (paso 1.2, por decidir)
+Escenario: Un registro que supone datos que no di no se muestra (paso 1.2)
+  Dado que EVIDENCE_SELECTION_MODE es "activo"
+  Cuando el selector evalúa un registro como "en_parte", porque supone datos que no di
+  Entonces sus frases no se muestran
+  Y el turno sigue como si la evidencia no respondiera
+  Y con una urgencia en curso sí se muestran las acciones generales que eligió, sin agregar sus avisos
+
+Escenario: Un registro ajeno se descarta aunque se haya elegido (paso 1.2)
+  Cuando el selector evalúa un registro como "no"
+  Entonces el código descarta sus frases
+
+Escenario: La evidencia no responde (paso 1.2)
   Dado que INQUIRY_MODE y EVIDENCE_SELECTION_MODE son "activo"
   Cuando el selector dice "no_responde" o no selecciona ninguna frase
   Entonces no se muestra esa evidencia
@@ -825,4 +836,4 @@ Compuertas, que se verifican en el PC:
 - **Paso 1.1:** en `observar`, comparar con la línea base del ADR 0019 qué habría elegido el selector en ardor con reflujo, presión alta, DASH y sangrado (en brazo y pecho pesado no corre). Es obligatorio que en "¿qué hago mientras llego?" con sangrado no elija las instrucciones de una convulsión. Si no elige bien, no se construye el redactor.
 - **Pasos 1.2 y 1.3:** con `activo`, `pytest -m live` completo, un guion nuevo y sin regresiones en alarmas. Si sale bien, `activo` pasa a ser el valor por defecto y se fusiona.
 
-Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 implementado, pendiente de verificar en el PC ([guion](../08-despliegue/prueba-selector-observar.md)).
+Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 verificado en el PC ([guion](../08-despliegue/prueba-selector-observar.md)). Paso 1.2 implementado detrás de `activo`, pendiente de verificar ([guion](../08-despliegue/prueba-selector-activo.md)).

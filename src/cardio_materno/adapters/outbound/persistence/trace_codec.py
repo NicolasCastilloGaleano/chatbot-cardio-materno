@@ -89,6 +89,7 @@ def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
             {"label": r.label, "fit": str(r.fit), "unsaid": r.unsaid} for r in selection.reviews
         ],
         "failure": selection.failure,
+        "shown": list(selection.shown),
     }
 
 
@@ -108,6 +109,7 @@ def selection_from_dict(data: dict[str, Any]) -> SelectionTrace:
             for r in data.get("reviews", [])
         ),
         failure=data.get("failure", ""),
+        shown=tuple(data.get("shown", [])),
     )
 
 
@@ -126,6 +128,7 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "applied": inquiry.applied,
         "informational": inquiry.informational,
         "has_answer": inquiry.has_answer,
+        "rule_mode": str(inquiry.rule_mode) if inquiry.rule_mode else None,
     }
 
 
@@ -144,6 +147,7 @@ def inquiry_from_dict(data: dict[str, Any]) -> InquiryTrace:
         applied=bool(data.get("applied", False)),
         informational=bool(data.get("informational", False)),
         has_answer=bool(data.get("has_answer", True)),
+        rule_mode=TurnMode(data["rule_mode"]) if data.get("rule_mode") else None,
     )
 
 

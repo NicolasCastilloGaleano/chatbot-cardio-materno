@@ -224,6 +224,7 @@ def selection_lines(selection: SelectionTrace) -> list[str]:
     groups = (
         ("elegida", selection.selected),
         ("por contexto", selection.context),
+        ("visible", selection.shown),
         ("aviso que agregaría", selection.added_notices),
         ("aviso por fuera", selection.omitted_notices),
     )

@@ -209,6 +209,7 @@ def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
             {"label": r.label, "fit": str(r.fit), "unsaid": r.unsaid} for r in selection.reviews
         ],
         "failure": selection.failure,
+        "shown": list(selection.shown),
     }
 
 
@@ -227,6 +228,7 @@ def inquiry_to_dict(inquiry: InquiryTrace) -> dict[str, Any]:
         "applied": inquiry.applied,
         "informational": inquiry.informational,
         "has_answer": inquiry.has_answer,
+        "rule_mode": str(inquiry.rule_mode) if inquiry.rule_mode else None,
     }
 
 

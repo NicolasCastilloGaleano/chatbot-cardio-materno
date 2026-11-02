@@ -13,8 +13,9 @@ Flujo de cada turno (ADR 0007 y 0008):
    nunca se abre un hilo.
 5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
    suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
-   Con `EVIDENCE_SELECTION_MODE=observar`, antes de redactar corre el selector de evidencia
-   (HU-13, ADR 0019): su resultado solo va a la traza y la respuesta no cambia.
+   Con `EVIDENCE_SELECTION_MODE`, antes de redactar corre el selector de evidencia (HU-13,
+   ADR 0019): con `observar` su resultado solo va a la traza; con `activo`, la respuesta
+   sale de las frases visibles y, si no hay, se indaga, se abstiene o se cierra.
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
@@ -61,17 +62,22 @@ from cardio_materno.application.evidence import (
 from cardio_materno.application.evidence_selection import (
     EvidenceSelector,
     SelectionActivation,
+    format_selected_context,
+    selected_evidence,
+    shown_sentences,
 )
 from cardio_materno.application.grounded_reply import (
     CLOSING_TEXT,
     abstention_text,
     compose_grounded_reply,
+    with_selected_literal,
 )
 from cardio_materno.application.inquiry_policy import (
     InquiryActivation,
     InquiryPolicy,
     TurnIntent,
     evaluate_inquiry,
+    mode_without_answer,
     previous_state,
     search_signals,
 )
@@ -184,6 +190,7 @@ class ConversationConfig:
         selection_activation: Cómo participa el selector de evidencia (HU-13).
         selection_prompt: Instrucciones del selector de evidencia.
         selection_max_sentences: Máximo de frases que elige el selector.
+        selected_reply_prompt: Instrucciones del redactor con frases seleccionadas (HU-13).
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -201,6 +208,7 @@ class ConversationConfig:
     selection_activation: SelectionActivation = SelectionActivation.OFF
     selection_prompt: str = ""
     selection_max_sentences: int = DEFAULT_SELECTION_MAX_SENTENCES
+    selected_reply_prompt: str = ""
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -246,6 +254,25 @@ class TurnOutcome:
     analysis: AnalysisTurn | None = None
     record: bool = True
     conversational: bool = False
+
+
+@dataclass(frozen=True)
+class EvidenceTurn:
+    """Lo que ya se decidió de un turno que va a mostrar evidencia.
+
+    Attributes:
+        analysis: Análisis del turno.
+        decisions: Decisiones de alarma del turno.
+        retrieval: Resultado completo de la búsqueda.
+        offered: Evidencia que se ofrece en el turno.
+        inquiry: Decisión de la regla de indagación (None si no se evaluó).
+    """
+
+    analysis: AnalysisTurn
+    decisions: tuple[AlarmDecision, ...]
+    retrieval: RetrievalResult
+    offered: RetrievalResult
+    inquiry: InquiryTrace | None
 
 
 class ConversationService:
@@ -397,11 +424,85 @@ class ConversationService:
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
             answering = replace(turn, no_questions=orients)
-            selection = self._select(analysis, answering, offered, timer)
-            outcome = self._grounded_answer(analysis, answering, decisions, offered, timer)
-            outcome = with_selection(outcome, selection)
+            evidence = EvidenceTurn(analysis, decisions, retrieval, offered, inquiry)
+            outcome, inquiry = self._evidence_turn(evidence, answering, timer)
         outcome = with_urgent_accompaniment(with_inquiry(outcome, inquiry), turn)
         return with_search_query(outcome, query.text, widened)
+
+    def _evidence_turn(
+        self, evidence: EvidenceTurn, turn: TurnInput, timer: StageTimer
+    ) -> tuple[TurnOutcome, InquiryTrace | None]:
+        """Turno que va a mostrar evidencia: con el selector activo, sale de lo que deja ver."""
+        analysis, decisions, offered = evidence.analysis, evidence.decisions, evidence.offered
+        selection = self._select(analysis, turn, offered, timer)
+        active = self._config.selection_activation is SelectionActivation.ACTIVE
+        if selection is None or selection.verdict is None or not active:
+            outcome = self._grounded_answer(analysis, turn, decisions, offered, timer)
+            return with_selection(outcome, selection), evidence.inquiry
+        applied = replace(selection, applied=True)
+        if applied.shown:
+            return (
+                with_selection(self._selected_answer(evidence, turn, applied, timer), applied),
+                evidence.inquiry,
+            )
+        outcome, inquiry = self._nothing_to_show(evidence, turn, timer)
+        return with_selection(outcome, applied), inquiry
+
+    def _selected_answer(
+        self,
+        evidence: EvidenceTurn,
+        turn: TurnInput,
+        selection: SelectionTrace,
+        timer: StageTimer,
+    ) -> TurnOutcome:
+        """Redacta con las frases visibles y verifica contra ellas (ADR 0019)."""
+        analysis, decisions = evidence.analysis, evidence.decisions
+        selected = selected_evidence(evidence.offered, selection)
+        try:
+            draft = timer.measure(
+                STAGE_REPLY, lambda: self._draft_selected(analysis, turn, selected)
+            )
+            timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
+        except LanguageModelError:
+            if not decisions:
+                raise
+            trace = build_trace(analysis, selected, (), timer.timings)
+            return TurnOutcome(compose_reply(decisions, None), decisions, trace, analysis)
+        query_text = build_evidence_query(analysis, turn.user_text).text
+        policy = replace(self._config.grounding, allow_questions=False)
+        grounded = with_selected_literal(
+            compose_grounded_reply(draft, selected.items, turn.user_text, policy, query_text),
+            shown_sentences(selection),
+        )
+        trace = build_trace(analysis, selected, grounded.cited, timer.timings, grounded.check)
+        return TurnOutcome(compose_reply(decisions, grounded.text), decisions, trace, analysis)
+
+    def _draft_selected(
+        self, analysis: AnalysisTurn, turn: TurnInput, selected: RetrievalResult
+    ) -> tuple[DraftSentence, ...]:
+        """Llamada del redactor: solo recibe las frases seleccionadas."""
+        sentences = format_selected_context(selected.items)
+        if turn.urgent_reminder:
+            sentences = f"{URGENT_ACCOMPANIMENT_CONTEXT}\n\n{sentences}"
+        context = reply_context(self._config.selected_reply_prompt, analysis, turn, sentences)
+        data = self._ports.responder.complete_json(context, grounded_reply_schema(selected.labels))
+        return parse_grounded_reply(data, selected.labels)
+
+    def _nothing_to_show(
+        self, evidence: EvidenceTurn, turn: TurnInput, timer: StageTimer
+    ) -> tuple[TurnOutcome, InquiryTrace | None]:
+        """Sin frases visibles: la alarma o el recordatorio solos, o la regla decide de nuevo."""
+        analysis, decisions, retrieval = evidence.analysis, evidence.decisions, evidence.retrieval
+        inquiry = evidence.inquiry
+        if decisions or turn.urgent_reminder or inquiry is None or not inquiry.applied:
+            trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings)
+            text = no_evidence_text(turn, retrieval)
+            reply = compose_reply(decisions, None) if decisions else text
+            return TurnOutcome(reply, decisions, trace, analysis), inquiry
+        continues = analysis.thread_action is ThreadAction.CONTINUE
+        state = previous_state(turn.recent if continues else ())
+        final = mode_without_answer(inquiry, state, self._config.inquiry)
+        return self._decided_without_evidence(final.mode, analysis, turn, retrieval, timer), final
 
     def _select(
         self,

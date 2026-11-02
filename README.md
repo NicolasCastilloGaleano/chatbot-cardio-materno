@@ -20,7 +20,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
 | **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Hecho (HU-10 verificada en el PC de pruebas el 2026-10-26) |
 | **Indagación guiada por la evidencia** (HU-11, ADR 0017) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-31): `INQUIRY_MODE=activo` por defecto y acompañamiento de la urgencia (B-030); textos pendientes de revisión clínica |
-| **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019 propuesto) | 🔄 En curso: selector en modo observar (paso 1.1), por verificar en el PC de pruebas |
+| **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019 propuesto) | 🔄 En curso: selector verificado en modo observar (paso 1.1); selector y redactor en modo activo (paso 1.2), por verificar en el PC de pruebas |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |

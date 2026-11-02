@@ -15,7 +15,7 @@ from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLan
 from cardio_materno.adapters.outbound.rag.knowledge_files import load_entries
 from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
 from cardio_materno.application.evidence import EvidencePolicy
-from cardio_materno.application.evidence_selection import EvidenceSelector
+from cardio_materno.application.evidence_selection import EvidenceSelector, shown_sentences
 from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.application.turn_context import TurnInput
 from cardio_materno.bootstrap.main import PROJECT_ROOT, SELECTION_PROMPT_FILE
@@ -113,14 +113,8 @@ def run(
     trace = selector.select(analysis, turn, evidence(entries, case.entries), StageTimer())
     assert trace is not None and trace.verdict is not None, f"falló: {trace and trace.failure}"
     reviews = [(review.label, str(review.fit), review.unsaid) for review in trace.reviews]
-    print(f"{case.message} → {trace.verdict} {reviews}: {chosen_texts(trace)}")
+    print(f"{case.message} → {trace.verdict} {reviews}: {shown_sentences(trace)}")
     return trace
-
-
-def chosen_texts(trace: SelectionTrace) -> list[str]:
-    """Texto de las frases elegidas, con su contexto."""
-    chosen = {*trace.selected, *trace.context}
-    return [sentence.text for sentence in trace.offered if sentence.id in chosen]
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.name)
@@ -129,9 +123,9 @@ def test_selector_leaves_out_what_does_not_apply(
 ) -> None:
     trace = run(selector, entries, case)
 
-    chosen = " ".join(chosen_texts(trace)).lower()
-    assert not [word for word in case.forbidden if word in chosen]
-    assert not [word for word in case.required if word not in chosen]
+    shown = " ".join(shown_sentences(trace)).lower()
+    assert not [word for word in case.forbidden if word in shown]
+    assert not [word for word in case.required if word not in shown]
 
 
 def test_selector_answers_a_direct_question_about_food(
@@ -149,4 +143,4 @@ def test_selector_answers_a_direct_question_about_food(
     trace = run(selector, entries, case)
 
     assert trace.verdict is not SelectionVerdict.NO_ANSWER
-    assert "DASH" in " ".join(chosen_texts(trace))
+    assert "DASH" in " ".join(shown_sentences(trace))
