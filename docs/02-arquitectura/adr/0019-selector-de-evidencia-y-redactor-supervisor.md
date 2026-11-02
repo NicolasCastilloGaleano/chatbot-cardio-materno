@@ -1,0 +1,117 @@
+# ADR 0019: Selector de evidencia y redactor supervisor
+
+- **Estado:** Propuesto (2026-11-01), pendiente de revisión del equipo. Los puntos de la sección "Puntos por decidir" se cierran antes de implementar el paso que los usa
+- **Fecha:** 2026-11-01
+- **Decisores:** equipo del proyecto (Nicolas Castillo Galeano; equipo clínico para los avisos de atención). La IA propone; el equipo decide (AGENTS.md §5)
+- **Modifica:** ADR 0008 (una llamada más al modelo de respuesta), ADR 0010 (de dónde sale el texto literal) y ADR 0017 (un modo nuevo y un veredicto que puede cambiar el modo del turno)
+- **Historia:** HU-13 (B-031)
+
+## Contexto
+Con la HU-11 cerrada, el mayor problema que queda es la **pertinencia**: las respuestas están respaldadas, pero no siempre sirven (aorta para el dolor de brazo, sudor frío que nadie mencionó, frases que no aplican). La verificación del ADR 0010 comprueba que una frase esté en el registro, no que le sirva a la persona. La actualización de B-028 ya lo señaló: el criterio del literal es léxico y el prompt v4 pide elegir y redactar en la misma llamada.
+
+El líder del proyecto pidió que la respuesta sea útil y clara, que atienda la consulta, que siempre responda específicamente a la pregunta y que sea aplicable en el momento, no solo pedir asistencia médica.
+
+Hoy `_draft` hace dos trabajos en una llamada: elegir qué usar y redactar. Decisión del usuario (2026-10-31): **una tarea por agente, sin duplicar trabajo**. Un agente decide evidencias y frases; otro toma eso y genera la respuesta. No hay un revisor posterior que repita el trabajo.
+
+## Decisión
+Quien coordina es **el código determinista**, no un LLM. Los agentes son especialistas. Las alarmas, el riesgo y las rutas siguen siendo reglas (ADR 0004), y ninguna afirmación de salud se muestra sin respaldo verificable (ADR 0010).
+
+1. **Numerar frases (determinista, `application/evidence_selection.py`).** Cada registro *Solucionar* ofrecido se parte con `split_sentences` en frases con id (`E2.3`). Las preguntas no se ofrecen (`without_questions`). La evidencia nunca llega a la llamada de análisis (ADR 0008).
+2. **Agente selector** (`evidence_selection_prompt_v1.md`, modelo de respuesta). Recibe la pregunta, el CASO y las frases numeradas. Devuelve:
+   - `verdict`: `responde`, `parcial` o `no_responde`;
+   - `selected`: ids en orden de importancia, limitados por `enum` en el esquema.
+
+   Criterio: solo lo que responde a lo que la persona pregunta y aplica a su situación; primero lo que puede hacer ahora. Como elige ids, **no puede inventar texto**.
+3. **Refuerzo determinista.** Se agregan las frases con aviso de atención de los registros elegidos (`has_attention_notice`), para no perder una remisión. Ver el punto 1 por decidir.
+4. **Agente redactor supervisor** (`reply_prompt_v5.md`). Recibe solo las frases seleccionadas y genera la respuesta: primero la respuesta directa a la pregunta, luego lo aplicable en el momento y la remisión al final, en lenguaje claro. No decide qué evidencia usar. Sale frase por frase con cita.
+5. **Verificación** (`compose_grounded_reply`, sin cambiar la regla), contra las frases seleccionadas.
+6. **Si falla la verificación:** texto literal de las frases seleccionadas, que ya son pertinentes. En este flujo reemplaza a la selección léxica de `pertinent_sentences`, que queda para el modo `apagado`.
+7. **El veredicto decide con una regla, no con el LLM** (tabla del punto 2 por decidir).
+8. **Modo responder e indagar** (`TurnMode.ANSWER_AND_INQUIRE`): la respuesta verificada y **una** pregunta para afinar el caso (`INQUIRY_MAX_QUESTIONS_WITH_ANSWER`, 1). Aplica cuando hay un registro *Solucionar* sobre 0,50, la evidencia no es clara o el selector dijo `parcial`, la persona reporta síntomas sin pedido directo y quedan turnos de indagación. Cuenta como turno de indagación. Se entrega en un paso aparte, porque cambia la regla de la HU-11: hoy indagar no muestra evidencia.
+9. **Activación gradual** con `EVIDENCE_SELECTION_MODE`:
+   - `apagado`: el flujo actual, sin llamada nueva;
+   - `observar` (por defecto en la primera entrega): el selector corre y su resultado solo va a la traza; el turno se resuelve como hoy;
+   - `activo`: selector y redactor deciden la respuesta.
+10. **Si falla la llamada del selector:** se usa el flujo actual, sin error para la persona. La traza lo registra.
+11. **Auditoría:** `SelectionTrace` guarda el veredicto, los ids, las frases ofrecidas y seleccionadas, los avisos agregados y omitidos y si se aplicó (`applied`). Se ve en la web, la consola y `scripts/export_traces.py`. Sin almacenamiento nuevo: viaja en la traza, como en el ADR 0017.
+
+### Cuándo corre el selector
+Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *Solucionar*. No corre con una urgencia inmediata nueva, ni en turnos conversacionales, fuera de alcance, de indagación, de abstención o de cierre. Sí corre con una alarma prioritaria nueva y con una urgencia recordada (B-030), con el contexto URGENCIA EN CURSO.
+
+### Entrega por pasos
+| Paso | Qué entrega | Cambia lo que ve la persona |
+|---|---|---|
+| 1.1 | Numeración, selector en `observar`, traza y auditoría. El flujo con evidencia sale a un colaborador, para no seguir creciendo `conversation_service.py` | No |
+| 1.2 | Redactor con `reply_prompt_v5.md`, literal de las frases seleccionadas y veredictos en `activo` | Sí, solo con `activo` |
+| 1.3 | Responder e indagar | Sí, solo con `activo` |
+
+Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien en `observar`, no se construye el redactor. El resultado se revisa con el líder del proyecto antes de seguir con las demás etapas.
+
+## Puntos por decidir
+Son propuestas. Cada una indica qué paso bloquea.
+
+### 1. Avisos de atención que el selector deja por fuera (bloquea el paso 1.2; decide el equipo clínico)
+El refuerzo solo cubre los registros **elegidos**. Si el selector dice `no_responde`, o elige otro registro, un aviso como "ve a urgencias" no se muestra, y es el LLM quien lo dejó por fuera, en tensión con el ADR 0004. Hoy ya puede pasar al redactar, pero el literal conserva los avisos del registro principal. Reforzar siempre los avisos de todos los registros tiene el costo contrario: vuelven las remisiones sin relación con la consulta, como el registro de preeclampsia en la acidez (2026-10-24).
+
+**Propuesta:** medir antes de decidir. En `observar`, la traza registra los avisos de los registros ofrecidos que el selector omitió (`omitted_notices`). Con esos casos, el equipo clínico elige entre:
+- (a) reforzar solo los registros elegidos, como en el plan;
+- (b) reforzar además el aviso del registro de mayor similitud;
+- (c) reforzarlo solo si comparte tema con la consulta.
+
+Las alarmas deterministas no dependen de esto: se evalúan antes y el selector nunca las ve ni las quita.
+
+### 2. El veredicto llega después de la regla (bloquea el paso 1.2)
+La regla de la HU-11 decide antes de que exista el veredicto, y `no_responde` obliga a decidir de nuevo.
+
+**Propuesta:** la regla decide primero; si el modo muestra evidencia, corre el selector, y una función pura de `inquiry_policy.py` (`mode_after_selection`) da el modo final. La traza guarda ese modo final, que es el que cuenta para los turnos de indagación, y `InquiryTrace` conserva el modo que eligió la regla.
+
+| Modo de la regla | Veredicto | Condición | Modo final |
+|---|---|---|---|
+| Responder | `responde` | — | Responder |
+| Responder | `parcial` | Sin pedido directo, con síntomas y con turnos disponibles | Responder e indagar (paso 1.3; antes, responder) |
+| Responder | `parcial` | En otro caso | Responder |
+| Responder | `no_responde` | Sin pedido directo, con síntomas y con turnos disponibles | Indagar |
+| Responder | `no_responde` | En otro caso | Abstención o cierre (`no_answer_mode`) |
+
+Un veredicto con `selected` vacío cuenta como `no_responde`. Con `no_responde` se ignoran los ids. Un id fuera del `enum` o un JSON inválido cuentan como fallo del selector.
+
+### 3. Combinaciones con otros modos y alarmas (bloquea el paso 1.2)
+**Propuesta:**
+- **`INQUIRY_MODE` en `apagado` u `observar` con selección `activo`:** no hay regla que indague, así que `no_responde` muestra la abstención (`no_evidence_text`). Responder e indagar solo existe con los dos en `activo`.
+- **Alarma prioritaria nueva:** el mensaje fijo siempre se muestra. Con `responde` o `parcial`, va con la respuesta y nunca se pregunta; con `no_responde`, va solo.
+- **Urgencia recordada (B-030):** selector y redactor reciben URGENCIA EN CURSO; `no_responde` deja solo el recordatorio y nunca se pregunta.
+- **Pedido directo o pregunta de información:** nunca se pregunta.
+
+### 4. Citas y verificación (bloquea el paso 1.2)
+Hay dos caminos: citar la frase (`E2.3`), que obliga a parafrasear una sola frase y falla si el redactor une dos, o citar el registro (`E2`) con su texto reducido.
+
+**Propuesta:** el redactor cita `E2`. Cada registro se le entrega reducido a sus frases seleccionadas, sin la pregunta del registro, y esa versión reducida es contra la que se verifica. Así `compose_grounded_reply` no cambia de regla y una palabra de una frase no seleccionada no da respaldo. La traza sigue mostrando los registros originales.
+
+El literal necesita un camino propio, porque hoy muestra solo el registro principal: las frases seleccionadas y reforzadas de todos los registros, en el orden del selector, sin preguntas.
+
+### 5. Frases que dependen de la anterior (bloquea el paso 1.1)
+Una frase suelta puede perder su sentido ("Eso no es normal", "En ese caso, consulta"). El selector ve los ids en orden, pero nada le impide tomar solo la segunda.
+
+**Propuesta:**
+- el prompt pide elegir las dos cuando una depende de la otra;
+- una regla determinista agrega la frase anterior del mismo registro si la elegida empieza con un marcador de continuación (`eso`, `esto`, `ahí`, `por eso`, `en ese caso`, `entonces`). La lista se ajusta con lo que se observe en `observar`.
+
+La condición dentro de una misma frase ("si tiene fiebre, …") no se ve afectada, porque la frase va completa.
+
+## Alternativas consideradas
+| Alternativa | Pros | Contras |
+|---|---|---|
+| Revisor posterior que evalúa la respuesta redactada | No cambia el flujo actual | Repite el trabajo del redactor y, si rechaza, obliga a otra redacción o al literal. Decisión del usuario: sin revisores que dupliquen |
+| Selector que reescribe la evidencia | Podría juntar ideas | Puede inventar texto; con ids no puede |
+| Mejorar solo el prompt v4 | Sin llamada nueva | Mezcla dos tareas, y el literal sigue siendo léxico |
+| Reforzar siempre todos los avisos | Nunca se pierde una remisión | Vuelven las remisiones ajenas a la consulta (punto 1) |
+| Selector como regla léxica | Sin LLM | Es lo que hace `pertinent_sentences`: no entiende sinónimos ni la situación |
+
+## Consecuencias
+- ✅ Cada agente hace una tarea, y lo que elige el selector queda auditable frase por frase.
+- ✅ El literal mejora: ya no depende de coincidencias de palabras.
+- ✅ Se apaga por `.env`, sin revertir código.
+- ⚠️ El selector puede descartar una frase útil o un aviso: se mide en `observar` y es la razón del punto 1.
+- ⚠️ Un turno con evidencia hace una llamada más al modelo de respuesta. La latencia no es objetivo de este plan, pero se registra en `timings` y `model_usage`.
+- ⚠️ Si el contenido no tiene nada aplicable, ningún agente lo resuelve sin inventar. Por eso la etapa 2 del plan (B-032) registra los vacíos para el equipo clínico.
+- ⏳ Pendiente: revisión de este ADR y de la HU-13, y los puntos por decidir.

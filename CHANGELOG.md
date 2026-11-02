@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 ## [Unreleased]
 
 ### Added
+- **Especificación propuesta del selector de evidencia y el redactor supervisor (B-031):** HU-13 y ADR 0019 (propuesto), con cinco puntos por decidir: avisos de atención que el selector deja por fuera, veredicto después de la regla de indagación, combinaciones con otros modos y alarmas, citas y verificación, y frases que dependen de la anterior. Backlog: B-031 a B-033. Sin cambios de código.
 - **Ajustes del modo activo (HU-11, ADR 0017, 2026-10-31):**
   - prompt de análisis v8 con `asks_information`: las preguntas de información no se indagan; se responden con evidencia o reciben la abstención y, si ya se pidió detalle, el cierre;
   - responder exige un registro *Solucionar* (`has_answer`), y al responder o acompañar una urgencia se ofrecen solo esos registros y se quitan las preguntas; los registros *Indagar* solo guían la indagación;

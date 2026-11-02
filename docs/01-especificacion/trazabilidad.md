@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-10-26 (HU-03/HU-04: alarmas ya avisadas, propuesta)*
+*Última actualización: 2026-11-01 (HU-13: selector y redactor, propuesta)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -44,6 +44,7 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-11 | Las preguntas de información no se indagan; responder exige un registro *Solucionar* y va sin preguntas | `analysis_prompt_v8.md`, `inquiry_policy.py` (`TurnIntent`, `is_answerable`), `conversation_service.py::orienting_evidence` | `test_inquiry_policy.py`, `test_inquiry_active.py`, `tests/live/test_live_inquiry.py` | ✅ (automática); ✅ en el PC (2026-10-31) |
 | HU-11 | Cierre honesto con texto fijo, sin LLM | `application/grounded_reply.py::CLOSING_TEXT` | `test_inquiry_active.py::test_nothing_close_abstains_and_then_closes` | ✅ (automática) |
 | HU-03 / HU-04 | Acompañamiento de una urgencia ya avisada: sin indagar, sin preguntas, solo el recordatorio sin evidencia (B-030) | `conversation_service.py`, `alarm_policy.py::URGENT_ACCOMPANIMENT_CONTEXT`, `grounded_reply.py`, `domain/grounding.py` | `test_urgent_accompaniment.py`, `tests/live/test_live_inquiry.py` | ✅ (automática); ✅ en el PC (2026-10-31) |
+| HU-13 | Selector de evidencia y redactor supervisor (B-031, ADR 0019 propuesto) | Por implementar: `application/evidence_selection.py`, `evidence_selection_prompt_v1.md`, `reply_prompt_v5.md` | Por escribir | 📝 Especificación propuesta |
 | HU-09 | Dos personas no comparten contexto (el agente recibe solo el hilo de quien escribe) | `sqlite_thread_repository.py` (acotado por usuario), `sqlite_user_thread_store.py`, `ConversationService(active_thread_id)` | `test_conversation_per_user.py::test_interleaved_users_never_share_context`, `test_sqlite_persistence.py::test_a_user_never_sees_threads_or_messages_of_another`, `test_a_user_cannot_write_into_another_users_thread` | ✅ (automática; fase 2) |
 | HU-09 | El chat continuo retoma el hilo abierto con el mismo contexto que la consola | `UserThreadStore.open_thread`, `ConversationService(active_thread_id)` | `test_resumed_thread_gets_the_same_context_as_a_console_session`, `test_new_topic_closes_the_users_thread_and_keeps_one_open`, `test_only_one_open_thread_per_user` | ✅ (automática; fase 2) |
 | HU-09 | Base para el cierre por inactividad y la deduplicación | `domain/user.py::is_idle`, `last_activity_at`, `sqlite_channel_log.py` | `test_user.py`, `test_last_activity_follows_messages_even_without_thread_update`, `test_inbound_messages_are_deduplicated` | ✅ (automática) |
