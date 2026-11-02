@@ -24,6 +24,13 @@ Un chat nuevo por caso.
 | 5 | `me duele el brazo` | No corre: el turno indaga | Sin sección del selector |
 | 6 | `siento el pecho pesado cuando subo escaleras` | No corre: urgencia inmediata | Sin sección del selector; la alarma sale igual |
 
+## 2.1. Prueba con evidencia fija
+La búsqueda cambia entre corridas: el caso 1 puede no traer el registro de convulsión, y entonces no prueba nada. Esta prueba fija los registros, y es la que decide el caso 1:
+
+```bash
+pytest -m live -s tests/live/test_live_selection.py
+```
+
 ## 3. Qué anotar para el equipo clínico
 En cada caso con selector, la traza muestra dos listas (ADR 0019, punto 1):
 - **avisos que agregaría:** avisos de los registros elegidos que el selector no eligió;

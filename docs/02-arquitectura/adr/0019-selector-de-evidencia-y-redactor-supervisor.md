@@ -52,6 +52,17 @@ Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien
 - **Punto 1:** sigue abierto. Lo decide el equipo clínico con lo medido en `observar`.
 - **Paso 1.1, implementado** en `feat/hu-13-selector-redactor`: numeración, selector y su prompt, frases de contexto, revisión de avisos, traza y auditoría. `EVIDENCE_SELECTION_MODE` admite por ahora `apagado` y `observar`; `activo` se rechaza al arrancar hasta el paso 1.2. El colaborador extraído es `EvidenceSelector`: el resto del flujo con evidencia sale del servicio en el paso 1.2, que es el que lo cambia. Falta la verificación en el PC ([guion](../../08-despliegue/prueba-selector-observar.md)).
 
+## Primera prueba del paso 1.1 (2026-11-01): no aprobada
+| Caso | Veredicto | Resultado |
+|---|---|---|
+| Sangrado | `responde` | **No probó la condición:** la búsqueda solo trajo el registro de sangrado, sin el de convulsión. La falla de la línea base es intermitente. Además, eligió "sangrado abundante junto con dolor abdominal", que la persona no dijo |
+| Ardor | `responde` | Eligió "sudor frío", "este cambio" y "explica cuándo comenzó" (sin destinatario). El aviso de urgencias quedaría agregado. El único registro *Solucionar* trata de un dolor con sudor frío: debía ser `parcial` o `no_responde` |
+| Presión alta | `responde` | Eligió "esa presión es marcadamente elevada", de un registro de 190/125, sin que la persona diera cifras. Sí dejó por fuera el dolor en el pecho |
+| Comida (DASH) | — | No se corrió |
+| Brazo y pecho pesado | No corre | Correcto |
+
+Las tres veces dijo `responde`, y no distinguió el tema de la situación. Se ajustó el prompt (comparar el registro con el caso; frases que suponen datos no dichos o no se entienden solas; veredicto exigente), se agregaron `esa`, `ese`, `esas` y `esos` a los marcadores de continuación y se creó `tests/live/test_live_selection.py`, con la evidencia fija para no depender de la búsqueda. **Límite:** muchas frases mezclan una parte útil con un dato no dicho, y no se pueden cortar sin cambiar la base; eso va a los vacíos del contenido (B-032).
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 

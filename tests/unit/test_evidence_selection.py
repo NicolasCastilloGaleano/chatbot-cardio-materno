@@ -99,6 +99,7 @@ def test_schema_limits_the_ids_and_how_many_can_be_chosen() -> None:
         ("Eso no es normal.", True),
         ("En ese caso, consulta.", True),
         ("Ahí debes ir.", True),
+        ("Esa presión es elevada.", True),
         ("Estos alimentos ayudan.", False),
         ("Si tiene fiebre, consulta.", False),
     ],

@@ -28,7 +28,9 @@ PLACEHOLDER_PATTERN = re.compile(r"\[[^\]]*\]")
 SPACES_PATTERN = re.compile(r"\s{2,}")
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 # Inicio de una frase que solo se entiende con la anterior (texto sin tildes, ADR 0019).
-CONTINUATION_PATTERN = re.compile(r"^(eso|esto|ahi|por eso|en ese caso|entonces)\b")
+CONTINUATION_PATTERN = re.compile(
+    r"^(eso|esto|esa|ese|esas|esos|ahi|por eso|en ese caso|entonces)\b"
+)
 # Avisos de atención (texto sin tildes): una frase del registro con alguno se muestra siempre
 # en el texto literal, para no ocultar una remisión (B-028). Pendiente de revisión clínica.
 ATTENTION_MARKERS = (
