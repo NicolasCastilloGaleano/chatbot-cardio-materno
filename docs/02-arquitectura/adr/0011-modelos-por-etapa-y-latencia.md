@@ -157,3 +157,5 @@ Copia del modelo con `PARAMETER num_gpu 0` (`qwen3-cpu`), con mistral fijo en la
 
 El turno baja unos 20 s y queda más estable. El primer turno, con los modelos aún por cargar, tardó unos 100 s. Una tercera corrida se hizo con `OLLAMA_REPLY_MODEL=qwen3:8b` en `.env`, pero generó a 8 tokens por segundo, velocidad de CPU: el servidor seguramente seguía con la copia.
 
+**Decisión (2026-11-02, Santiago Silva):** la etapa de respuesta usa `qwen3-cpu` (`docs/08-despliegue/qwen3-cpu.Modelfile`). Queda pendiente confirmar la medición con más tipos de turno.
+

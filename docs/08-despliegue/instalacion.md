@@ -13,6 +13,8 @@ cd chatbot-cardio-materno
 # Modelos (si aún no están)
 ollama pull mistral-small3.1:24b
 ollama pull qwen3-embedding:8b
+ollama pull qwen3:8b
+ollama create qwen3-cpu -f docs/08-despliegue/qwen3-cpu.Modelfile
 
 # Entorno virtual: Ubuntu 24.04 no permite pip sobre el Python del sistema (PEP 668)
 python3 -m venv .venv

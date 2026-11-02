@@ -86,6 +86,8 @@ Para decidir qué modelo usa cada etapa:
    En la salida de la consola, cada turno con texto literal lista sus frases descartadas: sirven para calibrar `min_support`.
 4. Lleva el informe al equipo: la decisión se registra en el ADR 0011 con los criterios que allí se proponen. **El filtro 2 no puede perder detecciones.**
 
+**Actualización (2026-11-02):** la respuesta usa `qwen3-cpu`, una copia de `qwen3:8b` que corre en la CPU, para que mistral no salga de la GPU en cada turno. Si `ollama ps` muestra que un modelo se descarga en cada turno, revisa ese ajuste. Para volver a la GPU: `OLLAMA_REPLY_MODEL=qwen3:8b`.
+
 **Decisión vigente (ADR 0011, aceptado el 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50 (ver `.env.example`). Medida: alcance 9/9, filtro 2 16/18 y turno p50 de 46,5 s. Para reevaluar (con otro modelo o con otro hardware), repetir la comparación con la combinación nueva frente a esta.
 
 ## Pendiente
