@@ -56,7 +56,7 @@ Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien
 | Comida | ⚠️ DASH correcto, pero el redactor usó 1 de 4 frases visibles. Se ajustó `reply_prompt_v5.md` para que las use |
 | Brazo y pecho pesado | ✅ Sin cambios |
 
-Ninguna respuesta cayó en texto literal. Un turno con evidencia tarda de 95 a 105 s, y la selección, de 18 a 33 s. El redactor puede omitir un aviso reforzado: en una corrida del sangrado dejó fuera "sangrado abundante…", que la persona no dijo. Se debe revisar con el punto 1.
+Ninguna respuesta cayó en texto literal. Los turnos con selector tardaron de 87 a 106 s, salvo uno de 67 s con trabajo reciente aprovechado, y la selección, de 18 a 33 s. El redactor puede omitir un aviso reforzado: en una corrida del sangrado dejó fuera "sangrado abundante…", que la persona no dijo. Se debe revisar con el punto 1.
 
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
