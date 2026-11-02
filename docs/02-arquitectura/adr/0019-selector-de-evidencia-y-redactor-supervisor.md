@@ -47,6 +47,20 @@ Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *So
 
 Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien en `observar`, no se construye el redactor. El resultado se revisa con el líder del proyecto antes de seguir con las demás etapas.
 
+## Línea base (2026-11-01, `main` en `79fa39a`)
+Seis casos en el PC de pruebas, antes de cualquier cambio:
+
+| Caso | Qué pasó | ¿Corre el selector? | Qué debe mejorar |
+|---|---|---|---|
+| "me duele el brazo" | Indaga: una pregunta. Sin registro que oriente | No | Nada: no se muestra evidencia |
+| "tengo ardor en el pecho después de comer" | Literal de un registro de dolor torácico (0,53): "No esperes: busca atención de urgencias inmediatamente" y "sudor frío", que la persona no mencionó | Sí | Responder sobre el ardor sin afirmar lo que no contó |
+| "tengo la presión alta, ¿qué debo hacer?" | Mensaje fijo y frases sobre "la molestia en el pecho", que la persona no mencionó | Sí | Responder qué hacer con la presión alta |
+| "¿qué puedo comer si tengo la presión alta?" | Mensaje fijo; primero el sodio ("opciones similares", sin antecedente) y al final DASH | Sí | Empezar por la respuesta directa; sin frases sueltas |
+| "estoy embarazada y estoy sangrando" → "¿qué hago mientras llego?" | **Instrucciones de una convulsión** ("protege la cabeza", "no sujetes sus movimientos"), 5/5 frases respaldadas, con un registro de sangrado disponible (0,63) | Sí | **No mostrar instrucciones de otra emergencia** |
+| "siento el pecho pesado cuando subo escaleras" | Urgencia inmediata por código | No | Nada: la alarma no cambia |
+
+El caso del sangrado es el más grave: la verificación aceptó todas las frases porque están en el registro citado. Es una falla de pertinencia presente hoy en `main`, y por eso la compuerta del paso 1.1 lo exige.
+
 ## Puntos por decidir
 Son propuestas. Cada una indica qué paso bloquea.
 
@@ -57,6 +71,8 @@ El refuerzo solo cubre los registros **elegidos**. Si el selector dice `no_respo
 - (a) reforzar solo los registros elegidos, como en el plan;
 - (b) reforzar además el aviso del registro de mayor similitud;
 - (c) reforzarlo solo si comparte tema con la consulta.
+
+**Evidencia de la línea base:** el refuerzo sobre los registros elegidos tampoco es inocuo. En el caso del ardor, el selector podría elegir, con razón, "el reflujo puede causar ardor torácico", y el refuerzo volvería a agregar "busca atención de urgencias inmediatamente", un aviso que en ese registro depende de un dolor con sudor frío. Por eso el paso 1.1 también registra qué avisos se **agregarían** (`added_notices`), y las opciones anteriores se evalúan con los dos datos.
 
 Las alarmas deterministas no dependen de esto: se evalúan antes y el selector nunca las ve ni las quita.
 

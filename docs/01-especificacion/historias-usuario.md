@@ -822,7 +822,7 @@ Escenario: Auditoría de la selección
   Entonces veo el veredicto, las frases ofrecidas y seleccionadas, los avisos agregados y omitidos y si se aplicó
 ```
 Compuertas, que se verifican en el PC:
-- **Paso 1.1:** en `observar`, comparar qué habría elegido el selector en brazo/aorta, ardor con reflujo, presión alta, DASH, sangrado y pecho pesado. Si no elige bien, no se construye el redactor.
+- **Paso 1.1:** en `observar`, comparar con la línea base del ADR 0019 qué habría elegido el selector en ardor con reflujo, presión alta, DASH y sangrado (en brazo y pecho pesado no corre). Es obligatorio que en "¿qué hago mientras llego?" con sangrado no elija las instrucciones de una convulsión. Si no elige bien, no se construye el redactor.
 - **Pasos 1.2 y 1.3:** con `activo`, `pytest -m live` completo, un guion nuevo y sin regresiones en alarmas. Si sale bien, `activo` pasa a ser el valor por defecto y se fusiona.
 
 Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo.
