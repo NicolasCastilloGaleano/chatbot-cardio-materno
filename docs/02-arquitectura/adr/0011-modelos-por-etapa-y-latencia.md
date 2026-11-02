@@ -159,3 +159,5 @@ El turno baja unos 20 s y queda más estable. El primer turno, con los modelos a
 
 **Decisión (2026-11-02, Santiago Silva):** la etapa de respuesta usa `qwen3-cpu` (`docs/08-despliegue/qwen3-cpu.Modelfile`). Queda pendiente confirmar la medición con más tipos de turno.
 
+**Fallo persistente de gramática (2026-11-02):** con Ollama 0.40.2 y `qwen3-cpu`, mistral sigue cargado durante toda la sesión. Tras un rato de uso, el análisis falló en todas las solicitudes con `Unexpected empty grammar stack` (`test_live_scope.py`: 0 de 14), y al reiniciar Ollama pasó 14 de 14 con el mismo código. El reintento ahora descarga el modelo. No se sabe qué daña el proceso ni si el cambio de procesador aumenta su frecuencia: el error ya apareció el 2026-10-27, antes de `qwen3-cpu`. La decisión sobre `qwen3-cpu` sigue pendiente de `pytest -m live` completo.
+

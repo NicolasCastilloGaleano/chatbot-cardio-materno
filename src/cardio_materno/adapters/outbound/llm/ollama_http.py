@@ -36,8 +36,8 @@ class OllamaTimeoutError(LanguageModelError):
 class OllamaInvalidResponseError(LanguageModelError):
     """Ollama respondió, pero vacío o con un cuerpo que no es un objeto JSON.
 
-    Suele ser un fallo intermitente de la generación: p. ej., llama.cpp aborta la salida
-    restringida por el JSON Schema ("Unexpected empty grammar stack", 2026-10-27).
+    Suele ser un fallo de la generación: p. ej., llama.cpp aborta la salida restringida por el
+    JSON Schema ("Unexpected empty grammar stack", 2026-10-27). Ver `operacion.md`.
     """
 
 
