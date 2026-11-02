@@ -1,6 +1,6 @@
 # ADR 0019: Selector de evidencia y redactor supervisor
 
-- **Estado:** Propuesto (2026-11-01), pendiente de revisión del equipo. Los puntos de la sección "Puntos por decidir" se cierran antes de implementar el paso que los usa
+- **Estado:** Aceptado (2026-11-02, decisión del equipo informada por Santiago Silva), con las recomendaciones del documento de decisiones. El modelo del selector, el modo activo por defecto y la regla de los avisos quedan adoptados
 - **Fecha:** 2026-11-01
 - **Decisores:** equipo del proyecto (Nicolas Castillo Galeano; equipo clínico para los avisos de atención). La IA propone; el equipo decide (AGENTS.md §5)
 - **Modifica:** ADR 0008 (una llamada más al modelo de respuesta), ADR 0010 (de dónde sale el texto literal) y ADR 0017 (un modo nuevo y un veredicto que puede cambiar el modo del turno)
@@ -63,8 +63,18 @@ Ninguna respuesta cayó en texto literal. Los turnos con selector tardaron de 87
 
 **Evidencia fija con los síntomas del caso (5 corridas):** 4 de 4 las cinco veces, sin fallos de llamada. Sangrado: convulsión `no`, sangrado `en_parte`, y sale el traslado. Ardor: `no_responde`. Presión: `parcial`, sin frases visibles por la regla de `en_parte`. DASH: `responde`. El selector depende de que el análisis le entregue los síntomas.
 
+## Decisión del equipo (2026-11-02)
+Se adoptaron las recomendaciones del documento de decisiones:
+- **Riesgo de `main`:** se prioriza fusionar el selector en modo activo.
+- **Modelo del selector:** `mistral-small3.1:24b`.
+- **Activación:** `activo` por defecto. `observar` y `apagado` siguen disponibles.
+- **Avisos (punto 1):** la regla provisional queda como vigente: solo se refuerzan los de los registros `si`.
+- **Orden siguiente:** dos mensajes en las emergencias (ADR 0021) y después responder e indagar (paso 1.3).
+
+La base y las reglas de alarma siguen sin validación clínica: esta decisión no autoriza el uso con personas reales.
+
 ## Cierre del paso 1.2 (2026-11-02)
-Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pytest -m live` 38 de 39 (la falla se corrigió y el selector pasó en 5 corridas) y el caso de la comida, que ya usa 3 frases (selección de 36,5 s). La sección del selector se ve bien en el panel. `activo` sigue sin ser el valor por defecto: falta la decisión clínica sobre los avisos.
+Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pytest -m live` 38 de 39 (la falla se corrigió y el selector pasó en 5 corridas) y el caso de la comida, que ya usa 3 frases (selección de 36,5 s). La sección del selector se ve bien en el panel. Con la decisión del equipo, `activo` pasa a ser el valor por defecto.
 
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).

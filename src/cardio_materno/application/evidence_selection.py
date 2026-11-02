@@ -265,8 +265,8 @@ def visible_ids(
 
     Se muestran las frases de los registros `si`. Las de un registro `en_parte` suponen datos
     que la persona no dio: solo se muestran con una urgencia en curso, donde una acción general
-    sirve aunque el registro describa otro caso. Regla provisional de los avisos, hasta que
-    decida el equipo clínico (punto 1): se refuerzan solo los de los registros `si`.
+    sirve aunque el registro describa otro caso. Solo se refuerzan los avisos de los registros
+    `si` (ADR 0019, decisión del 2026-11-02).
 
     Args:
         selection: Selección válida.

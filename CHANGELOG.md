@@ -5,6 +5,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
+> **2026-11-02:** por decisión del equipo, ADR 0019 y 0021 aceptados y `EVIDENCE_SELECTION_MODE=activo` por defecto.
+
 ### Added
 - **Especificación propuesta de la orientación después del aviso de urgencia (B-034):** ADR 0021 (propuesto) y escenarios en la HU-03. El mensaje fijo sale de inmediato y la orientación verificada llega sola después, sin textos por alarma; solo con el selector activo y con aprobación clínica (P4). Sin cambios de código.
 - **Selector y redactor en modo activo (HU-13, paso 1.2, ADR 0019 propuesto):** con `EVIDENCE_SELECTION_MODE=activo`, la respuesta sale de las frases visibles: las de los registros `si` y, con una urgencia en curso, las de `en_parte`. El redactor (`reply_prompt_v5.md`) ordena la respuesta directa, lo aplicable en el momento y la remisión; se verifica contra esas frases, y si falla se muestran literalmente. Sin frases visibles, la alarma o el recordatorio van solos, o la regla indaga, se abstiene o cierra (`mode_without_answer`). Si falla el selector, el turno sigue el flujo anterior. `observar` sigue siendo el valor por defecto: la regla de los avisos es provisional hasta que decida el equipo clínico. Guion `docs/08-despliegue/prueba-selector-activo.md`.

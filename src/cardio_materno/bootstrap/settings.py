@@ -21,7 +21,7 @@ DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
 DEFAULT_INQUIRY_MODE = "activo"
 SELECTION_MODE_VARIABLE = "EVIDENCE_SELECTION_MODE"
-DEFAULT_SELECTION_MODE = "observar"
+DEFAULT_SELECTION_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
 DEFAULT_KEEP_ALIVE = "30m"
 DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
@@ -113,7 +113,7 @@ class ConversationSettings:
     threads_dir: Path
     alarm_rules_file: Path
     inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
-    selection_activation: SelectionActivation = SelectionActivation.OBSERVE
+    selection_activation: SelectionActivation = SelectionActivation.ACTIVE
 
 
 @dataclass(frozen=True)

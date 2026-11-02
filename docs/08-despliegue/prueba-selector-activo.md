@@ -2,9 +2,7 @@
 
 *Última actualización: 2026-11-02*
 
-Rama `feat/hu-13-selector-redactor`. Con `EVIDENCE_SELECTION_MODE=activo`, la respuesta sale de las frases que el selector eligió y la regla deja mostrar. El valor por defecto sigue siendo `observar` hasta que el equipo clínico decida la regla de los avisos (ADR 0019, punto 1).
-
-**Solo para pruebas.** La regla de los avisos es provisional.
+Rama `feat/hu-13-selector-redactor`. Con `EVIDENCE_SELECTION_MODE=activo`, la respuesta sale de las frases que el selector eligió y la regla deja mostrar. Es el valor por defecto desde la decisión del equipo del 2026-11-02.
 
 ## 1. Preparación
 - En `.env`: `EVIDENCE_SELECTION_MODE=activo` e `INQUIRY_MODE=activo`, con `OLLAMA_SELECTION_MODEL` vacío.
