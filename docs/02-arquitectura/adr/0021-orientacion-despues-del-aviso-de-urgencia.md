@@ -40,6 +40,13 @@ El servicio separa las dos partes: `send` devuelve el aviso e indica si hay orie
 4. **Silencio cuando no hay contenido.** ¿Es aceptable no enviar nada? **Propuesta:** sí, porque el aviso ya dio la instrucción principal y un texto vacío de contenido no ayuda.
 5. **Alcance de "nueva".** **Propuesta:** solo la primera vez por regla en el hilo. Después, sigue el acompañamiento actual si la persona escribe.
 
+## Implementación
+**Paso 1 (2026-11-02):** `send` devuelve el aviso y `urgent_guidance`, un pedido que el canal entrega a `guide`. `guide` nunca lanza un error de modelo. Con el filtro 1, el CASO sale del signo de la regla (`urgency_analysis`). Solo está conectado a la consola, y `URGENT_GUIDANCE_MODE` sigue `apagado` por defecto.
+
+Ajuste frente a la decisión 4: cuando no hay segundo mensaje no existe una traza donde guardar el motivo, así que se escribe en el registro de la aplicación, sin datos personales. B-032 debe tenerlo en cuenta.
+
+**Paso 2:** la web, con el trabajo en segundo plano, y WhatsApp.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

@@ -234,6 +234,8 @@ class ReplyTrace:
         urgent_accompaniment: True si el turno acompañó una urgencia inmediata ya avisada:
             sin indagar y sin preguntas (B-030).
         selection: Lo que hizo el selector de evidencia (HU-13); None si no corrió.
+        urgent_follow_up: True si es la orientación automática que sigue al aviso de una
+            urgencia (B-034, ADR 0021).
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -255,6 +257,7 @@ class ReplyTrace:
     model_usage: tuple[ModelUsage, ...] = ()
     urgent_accompaniment: bool = False
     selection: SelectionTrace | None = None
+    urgent_follow_up: bool = False
 
     @property
     def uncited(self) -> bool:

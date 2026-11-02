@@ -132,3 +132,7 @@ En el guion de la HU-11, la llamada de análisis llenó el contexto de 4096 toke
 
 ## Actualización 2026-11-01: modelo del selector de evidencia (HU-13, ADR 0019 propuesto)
 El selector es una tercera tarea de modelo y requiere juicio. Con evidencia fija, `qwen3:8b` pasó 2 de 4 casos en 5 corridas estables y `mistral-small3.1:24b` pasó 4 de 4 en una corrida. Por eso, salvo que `OLLAMA_SELECTION_MODEL` indique otro, usa el modelo del análisis. Suma tiempo a los turnos con evidencia: se debe medir por turno en el PC.
+
+## Actualización 2026-11-02: tiempos con el selector (trazas del PC, por confirmar)
+Un turno con evidencia tarda cerca de 100 s. En las trazas, `mistral-small3.1:24b` genera unos 4 tokens por segundo y `qwen3:8b` unos 66. Cuando los modelos ya estaban cargados, el análisis leyó el prompt en 0,7 s frente a unos 14 s, y el RAG tardó 0,4 s frente a unos 7,7 s. Hipótesis: el modelo de 24B no cabe en los 8 GB de VRAM y corre en buena parte en la CPU, y en cada turno se descargan y recargan modelos. Falta confirmarlo con `ollama ps` y `nvidia-smi`.
+

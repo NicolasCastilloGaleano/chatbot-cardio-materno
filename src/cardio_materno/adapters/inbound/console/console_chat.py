@@ -4,7 +4,10 @@ from collections.abc import Callable
 from typing import Protocol
 
 from cardio_materno.adapters.inbound.console.debug_lines import debug_lines
-from cardio_materno.application.conversation_service import TurnResult
+from cardio_materno.application.conversation_service import (
+    TurnResult,
+    UrgentGuidanceRequest,
+)
 from cardio_materno.application.errors import LanguageModelError
 
 EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
@@ -27,6 +30,10 @@ class ChatSession(Protocol):
 
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje y devuelve el turno."""
+        ...
+
+    def guide(self, request: UrgentGuidanceRequest) -> TurnResult | None:
+        """Orientación que sigue al aviso de una urgencia."""
         ...
 
     def end_session(self) -> None:
@@ -85,6 +92,14 @@ class ConsoleChat:
         except LanguageModelError as error:
             self._write(f"{ERROR_PREFIX}{error}")
             return
+        self._show(result)
+        if result.urgent_guidance is not None:
+            guidance = self._service.guide(result.urgent_guidance)
+            if guidance is not None:
+                self._show(guidance)
+
+    def _show(self, result: TurnResult) -> None:
+        """Muestra la respuesta del asistente y, si se pidió, las líneas de depuración."""
         self._write(f"{ASSISTANT_LABEL}{result.reply}")
         if self._show_thread_debug:
             for line in debug_lines(result):

@@ -14,6 +14,7 @@ from cardio_materno.application.conversation_service import (
     Clock,
     IdGenerator,
     TurnResult,
+    UrgentGuidanceRequest,
     new_uuid,
     utc_now,
 )
@@ -100,6 +101,10 @@ class DirectChat:
         self._users.save(seen_user(owner.user, self._clock()))
         return self._conversations.service_for(user_id).send(text)
 
+    def guide(self, user_id: str, request: UrgentGuidanceRequest) -> TurnResult | None:
+        """Orientación que sigue al aviso de una urgencia (ADR 0021)."""
+        return self._conversations.service_for(user_id).guide(request)
+
     def end(self, user_id: str) -> None:
         """Cierra el hilo abierto del chat (p. ej., al escribir "salir" en la consola)."""
         self._conversations.close_open_thread(user_id)
@@ -142,6 +147,10 @@ class ConsoleChatSession:
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje escrito en la consola."""
         return self._chat.send(self.user_id, user_text, from_console=True)
+
+    def guide(self, request: UrgentGuidanceRequest) -> TurnResult | None:
+        """Orientación que sigue al aviso de una urgencia (ADR 0021)."""
+        return self._chat.guide(self.user_id, request)
 
     def end_session(self) -> None:
         """Cierra el hilo abierto y libera el chat para continuarlo en la web."""

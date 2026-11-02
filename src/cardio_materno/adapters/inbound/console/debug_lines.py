@@ -49,6 +49,7 @@ SELECTION_DEBUG_TEMPLATE = (
     "[selector {state}: {verdict} · elegidas: {selected} · visibles: {shown}"
     " · avisos que agregaría: {added} · avisos por fuera: {omitted}]"
 )
+URGENT_FOLLOW_UP_DEBUG_TEXT = "[orientación automática después del aviso de urgencia]"
 SELECTION_FAILED_TEMPLATE = "[selector observado: falló ({cause}); el turno siguió el flujo actual]"
 INQUIRY_OBSERVED_TEXT = " observada"
 INQUIRY_APPLIED_TEXT = " aplicada"
@@ -94,6 +95,7 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         REMINDED_DEBUG_TEMPLATE.format(rule_ids=", ".join(trace.reminded_rules))
         if trace.reminded_rules
         else "",
+        URGENT_FOLLOW_UP_DEBUG_TEXT if trace.urgent_follow_up else "",
         URGENT_ACCOMPANIMENT_DEBUG_TEXT if trace.urgent_accompaniment else "",
         format_unstated_debug(trace),
         format_search_debug(trace),

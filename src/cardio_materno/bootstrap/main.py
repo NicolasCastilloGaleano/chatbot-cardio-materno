@@ -114,6 +114,7 @@ def build_conversation(
         inquiry_activation=settings.inquiry_activation,
         inquiry_prompt=_read(INQUIRY_PROMPT_FILE),
         selection_activation=settings.selection_activation,
+        urgent_guidance=settings.urgent_guidance,
         selection_prompt=_read(SELECTION_PROMPT_FILE),
         selection_max_sentences=rag.policy.selection_max_sentences,
         selected_reply_prompt=_read(SELECTED_REPLY_PROMPT_FILE),
