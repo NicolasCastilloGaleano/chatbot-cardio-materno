@@ -73,6 +73,18 @@ Las tres veces dijo `responde`, y no distinguió el tema de la situación. Se aj
 
 **Lectura:** el selector distingue entre registros de temas distintos, pero no rechaza un registro parecido cuando es el único ofrecido: llena el máximo de frases y dice `responde`. Son las situaciones que más necesitan `parcial` o `no_responde`. Una corrida no demuestra que el caso del sangrado sea estable. Siguen, sin cambiar código, tres mediciones: repetir la prueba, probar el modelo del análisis y bajar el máximo de frases. Si no bastan, se propone que el selector primero declare, por registro, qué datos supone que la persona no dio.
 
+## Mediciones del selector (2026-11-01)
+| Medición | Sangrado | Ardor | Presión | DASH |
+|---|---|---|---|---|
+| `qwen3:8b`, 5 corridas | ✅ 5/5 | ❌ 0/5 | ❌ 0/5 | ✅ 5/5 |
+| `mistral-small3.1:24b`, 1 corrida | ✅ `no_responde` | ✅ `no_responde` | ✅ `parcial`, 1 frase | ✅ `responde` |
+
+- **El modelo es lo que marca la diferencia:** es la primera vez que aparecen `parcial` y `no_responde`.
+- **La medición con 3 frases no fue válida:** la prueba tenía fijo el máximo en 5 e ignoró la variable. Se corrigió para usar la política.
+- **Exceso de rigor en el sangrado:** con mistral no elige nada, porque el registro habla de un sangrado abundante. Es seguro (queda el recordatorio), pero pierde "pide ayuda para el traslado". Hay que revisar el prompt para ese caso.
+- **Costo:** 171,6 s para 4 llamadas, con carga del modelo incluida; hace falta medir el tiempo por turno. Como el análisis ya usa ese modelo, el selector iría justo después sin otro cambio de modelo.
+- **Por decidir:** el plan indicaba el modelo de respuesta. Usar el de análisis es una decisión de modelos (ADR 0011).
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 

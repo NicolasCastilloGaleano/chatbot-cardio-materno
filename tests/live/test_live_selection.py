@@ -14,6 +14,7 @@ import pytest
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLanguageModel
 from cardio_materno.adapters.outbound.rag.knowledge_files import load_entries
 from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
+from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.application.evidence_selection import EvidenceSelector
 from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.application.turn_context import TurnInput
@@ -34,7 +35,6 @@ BLEEDING = "0ff6daad7591"
 REFLUX_WITH_COLD_SWEAT = "7135dd9ac2e6"
 READING_190 = "8ebd98075dee"
 DASH = "584a486ff23c"
-MAX_SENTENCES = 5
 SCORE = 0.6
 
 
@@ -81,12 +81,12 @@ CASES = [
 
 
 @pytest.fixture(scope="module")
-def selector() -> EvidenceSelector:
+def selector(evidence_policy: EvidencePolicy) -> EvidenceSelector:
     """Selector con el modelo y el prompt reales."""
     model = OllamaLanguageModel(load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     model.verify_ready()
     prompt = SELECTION_PROMPT_FILE.read_text(encoding="utf-8").strip()
-    return EvidenceSelector(model, prompt, MAX_SENTENCES)
+    return EvidenceSelector(model, prompt, evidence_policy.selection_max_sentences)
 
 
 @pytest.fixture(scope="module")
