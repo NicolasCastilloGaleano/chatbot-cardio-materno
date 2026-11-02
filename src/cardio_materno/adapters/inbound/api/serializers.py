@@ -171,6 +171,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "urgent_accompaniment": trace.urgent_accompaniment,
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
         "selection": selection_to_dict(trace.selection) if trace.selection else None,
+        "urgent_follow_up": trace.urgent_follow_up,
     }
 
 

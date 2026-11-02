@@ -40,6 +40,19 @@ El servicio separa las dos partes: `send` devuelve el aviso e indica si hay orie
 4. **Silencio cuando no hay contenido.** ¿Es aceptable no enviar nada? **Propuesta:** sí, porque el aviso ya dio la instrucción principal y un texto vacío de contenido no ayuda.
 5. **Alcance de "nueva".** **Propuesta:** solo la primera vez por regla en el hilo. Después, sigue el acompañamiento actual si la persona escribe.
 
+## Implementación
+**Paso 1 (2026-11-02):** `send` devuelve el aviso y `urgent_guidance`, un pedido que el canal entrega a `guide`. `guide` nunca lanza un error de modelo. Con el filtro 1, el CASO sale del signo de la regla (`urgency_analysis`). Solo está conectado a la consola, y `URGENT_GUIDANCE_MODE` sigue `apagado` por defecto.
+
+Ajuste frente a la decisión 4: cuando no hay segundo mensaje no existe una traza donde guardar el motivo, así que se escribe como advertencia en el registro de la aplicación, con el veredicto y la evaluación de los registros, sin datos personales. B-032 debe tenerlo en cuenta.
+
+**Ajuste tras la consola (2026-11-02):** con "siento el pecho pesado" la orientación explicó qué es la angina, porque el selector recibía el síntoma y no una pregunta. Ahora busca y selecciona con la pregunta fija de qué hacer mientras llega, igual para todas las alarmas, y con URGENCIA EN CURSO solo sirven frases de acción. La consola muestra que sigue trabajando.
+
+**Ajuste por el sangrado (2026-11-02):** en el PC, `estoy embarazada y estoy sangrando` terminó sin orientación por "sin evidencia suficiente". La base tiene 37 registros *Indagar* y 19 *Solucionar* que mencionan sangrado y embarazo, y `RAG_TOP_K` se aplica antes de descartar los *Indagar*, que pueden ocupar todos los puestos. Por eso la orientación busca solo en *Solucionar* (`EvidenceQuery.focus`), para todas las alarmas por igual, y el registro incluye la mejor similitud. La búsqueda de los turnos normales no cambia.
+
+**Verificación en el PC (2026-11-02):** con el ajuste, el sangrado recibió cuatro frases de acción, 4 de 4 respaldadas, unos 61 s después del aviso (selección 42,1 s, respuesta 18,0 s). Los registros usados tuvieron similitud 0,55 y 0,64, sobre el umbral de 0,50, lo que confirma que antes los tapaban los *Indagar*. La redacción sigue pendiente de revisión clínica.
+
+**Paso 2:** la web, con el trabajo en segundo plano, y WhatsApp.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

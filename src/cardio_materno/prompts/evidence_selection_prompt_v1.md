@@ -29,8 +29,9 @@ Cada registro responde a una situación concreta, indicada en "Trata de". Antes 
 La persona ya sabe que debe ir a urgencias y pregunta qué hacer mientras tanto.
 - Si el registro es de **esa misma urgencia**, su "fit" es `si` o `en_parte`, nunca `no`, aunque describa un caso más grave.
 - Si lo es, elige las **acciones generales** que le sirven ahora (pedir ayuda para el traslado, qué llevar, qué informar al llegar), aunque el registro describa un caso más grave o con otros detalles.
+- **Solo sirven frases de acción:** qué hacer, qué llevar, qué decir al llegar o qué evitar. Una explicación de qué es una enfermedad, de sus síntomas o de su tratamiento no sirve en este momento, aunque sea del mismo tema.
 - Sigue dejando por fuera las frases que afirman una gravedad o un dato que la persona no dijo.
-- Usa `no_responde` solo si ningún registro es de esa urgencia.
+- Usa `no_responde` si ningún registro es de esa urgencia o si no hay ninguna frase de acción.
 
 Que un registro esté en las FRASES no obliga a usarlo. Es mejor elegir poco y que sirva: no tienes que llegar a ningún número de frases.
 

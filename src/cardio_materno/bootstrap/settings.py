@@ -6,6 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
+from cardio_materno.application.conversation_service import UrgentGuidanceActivation
 from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.inquiry_policy import InquiryActivation
 
@@ -20,6 +21,8 @@ DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
 DEFAULT_INQUIRY_MODE = "activo"
+URGENT_GUIDANCE_MODE_VARIABLE = "URGENT_GUIDANCE_MODE"
+DEFAULT_URGENT_GUIDANCE_MODE = "apagado"
 SELECTION_MODE_VARIABLE = "EVIDENCE_SELECTION_MODE"
 DEFAULT_SELECTION_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
@@ -106,6 +109,7 @@ class ConversationSettings:
         alarm_rules_file: Catálogo de reglas de alarma (ADR 0007).
         inquiry_activation: `INQUIRY_MODE`, cómo participa la regla de indagación (HU-11).
         selection_activation: `EVIDENCE_SELECTION_MODE`, cómo participa el selector (HU-13).
+        urgent_guidance: `URGENT_GUIDANCE_MODE`, orientación después del aviso (ADR 0021).
     """
 
     context_messages: int
@@ -114,6 +118,7 @@ class ConversationSettings:
     alarm_rules_file: Path
     inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
     selection_activation: SelectionActivation = SelectionActivation.ACTIVE
+    urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
 
 
 @dataclass(frozen=True)
@@ -475,6 +480,12 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
         ),
         selection_activation=_get_activation(
             env, SELECTION_MODE_VARIABLE, DEFAULT_SELECTION_MODE, SelectionActivation
+        ),
+        urgent_guidance=_get_activation(
+            env,
+            URGENT_GUIDANCE_MODE_VARIABLE,
+            DEFAULT_URGENT_GUIDANCE_MODE,
+            UrgentGuidanceActivation,
         ),
     )
 

@@ -44,6 +44,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
         "urgent_accompaniment": trace.urgent_accompaniment,
         "selection": selection_to_dict(trace.selection) if trace.selection else None,
+        "urgent_follow_up": trace.urgent_follow_up,
     }
 
 
@@ -72,6 +73,7 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         model_usage=tuple(usage_from_dict(item) for item in data.get("model_usage", [])),
         urgent_accompaniment=bool(data.get("urgent_accompaniment", False)),
         selection=selection_from_dict(data["selection"]) if data.get("selection") else None,
+        urgent_follow_up=bool(data.get("urgent_follow_up", False)),
     )
 
 

@@ -40,7 +40,7 @@ Si la web responde `502 Bad Gateway` ("No se pudo generar la respuesta"), o What
 
 En WhatsApp la línea es `Fallo del modelo (etapa: …): …`. La línea nunca incluye el texto de la persona. Causas frecuentes:
 - **Tiempo de espera agotado o Ollama no responde:** revisar `ollama ps` y `journalctl -u ollama`, y que no haya pruebas en vivo usando la GPU al mismo tiempo.
-- **Respuesta vacía o cortada:** si en `journalctl -u ollama` aparece `Unexpected empty grammar stack after accepting piece`, es un fallo intermitente de llama.cpp con la salida JSON de mistral-small3.1. El adaptador ya reintenta una vez (queda la línea "se reintenta (1/1)"); si falla dos veces seguidas, reenviar el mensaje. Revisar también si hay una versión nueva de Ollama (`ollama --version`).
+- **Respuesta vacía o cortada:** si en `journalctl -u ollama` aparece `Unexpected empty grammar stack after accepting piece`, es un fallo de llama.cpp con la salida JSON de mistral-small3.1. El proceso del modelo puede quedar dañado: el 2026-11-02 fallaron 14 de 14 solicitudes hasta reiniciar Ollama. El adaptador descarga el modelo y reintenta una vez (queda la línea "se recarga el modelo y se reintenta (1/1)"). Si sigue fallando: `sudo systemctl restart ollama`. Revisar también si hay una versión nueva de Ollama (`ollama --version`).
 - **Análisis lento:** `ollama ps` muestra cuánto del modelo corre en CPU. En el PC de pruebas, mistral-small3.1 queda 67 % en CPU tanto con 8192 como con 6144 (2026-10-27): el reparto lo decide el tamaño del modelo frente a la memoria de la GPU, no el contexto. El análisis tardó 50-61 s.
 - **"El modelo no devolvió la estructura esperada (…)":** el JSON no cumple el contrato; el detalle dice qué campo falló.
 
@@ -85,6 +85,8 @@ Para decidir qué modelo usa cada etapa:
 
    En la salida de la consola, cada turno con texto literal lista sus frases descartadas: sirven para calibrar `min_support`.
 4. Lleva el informe al equipo: la decisión se registra en el ADR 0011 con los criterios que allí se proponen. **El filtro 2 no puede perder detecciones.**
+
+**Actualización (2026-11-02):** la respuesta usa `qwen3-cpu`, una copia de `qwen3:8b` que corre en la CPU, para que mistral no salga de la GPU en cada turno. Si `ollama ps` muestra que un modelo se descarga en cada turno, revisa ese ajuste. Para volver a la GPU: `OLLAMA_REPLY_MODEL=qwen3:8b`.
 
 **Decisión vigente (ADR 0011, aceptado el 2026-10-12):** análisis `mistral-small3.1:24b`, respuesta `qwen3:8b` sin razonamiento y umbral del RAG 0,50 (ver `.env.example`). Medida: alcance 9/9, filtro 2 16/18 y turno p50 de 46,5 s. Para reevaluar (con otro modelo o con otro hardware), repetir la comparación con la combinación nueva frente a esta.
 

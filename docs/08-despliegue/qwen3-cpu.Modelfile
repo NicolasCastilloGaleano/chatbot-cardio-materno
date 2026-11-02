@@ -1,0 +1,4 @@
+# Copia de qwen3:8b que corre en la CPU (ADR 0011, 2026-11-02).
+# Así, mistral-small3.1:24b se queda en la GPU y no hay cambio de modelos entre etapas.
+FROM qwen3:8b
+PARAMETER num_gpu 0

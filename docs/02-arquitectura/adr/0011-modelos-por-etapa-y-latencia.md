@@ -132,3 +132,34 @@ En el guion de la HU-11, la llamada de análisis llenó el contexto de 4096 toke
 
 ## Actualización 2026-11-01: modelo del selector de evidencia (HU-13, ADR 0019 propuesto)
 El selector es una tercera tarea de modelo y requiere juicio. Con evidencia fija, `qwen3:8b` pasó 2 de 4 casos en 5 corridas estables y `mistral-small3.1:24b` pasó 4 de 4 en una corrida. Por eso, salvo que `OLLAMA_SELECTION_MODEL` indique otro, usa el modelo del análisis. Suma tiempo a los turnos con evidencia: se debe medir por turno en el PC.
+
+## Actualización 2026-11-02: tiempos con el selector (trazas del PC, por confirmar)
+Un turno con evidencia tarda cerca de 100 s. En las trazas, `mistral-small3.1:24b` genera unos 4 tokens por segundo y `qwen3:8b` unos 66. Cuando los modelos ya estaban cargados, el análisis leyó el prompt en 0,7 s frente a unos 14 s, y el RAG tardó 0,4 s frente a unos 7,7 s. Hipótesis: el modelo de 24B no cabe en los 8 GB de VRAM y corre en buena parte en la CPU, y en cada turno se descargan y recargan modelos. Falta confirmarlo con `ollama ps` y `nvidia-smi`.
+
+## Diagnóstico del 2026-11-02
+Medido en el PC (RTX 2080 de 8 GB, 125 GB de RAM):
+- `mistral-small3.1:24b` ocupa 15 GB y corre 67 % en CPU y 33 % en GPU (`ollama ps`). Confirma la hipótesis: es lo que más pesa, y es un límite del hardware.
+- `qwen3:8b` ocupa 5,6 GB y corre 100 % en GPU, pero al cargarlo sale mistral. Los dos juntos suman unos 21 GB.
+- El cambio de modelos también pesa: en la orientación de consola, la respuesta tardó 39,9 s, de los que leer y generar fueron 3 s. Un turno sin cambio tardó 67 s, frente a unos 100 s.
+
+Opciones por medir: `qwen3` en CPU para no sacar a mistral de la GPU, y un modelo intermedio en el selector. Una GPU con 24 GB alojaría los dos modelos; es decisión del equipo.
+
+### Prueba con `qwen3` en CPU (2026-11-02)
+Copia del modelo con `PARAMETER num_gpu 0` (`qwen3-cpu`), con mistral fijo en la GPU. Tres turnos con evidencia en la web:
+
+| Etapa | Con cambio de modelos | `qwen3-cpu`, modelos ya cargados |
+|---|---|---|
+| Análisis | 48 a 56 s | 30 s |
+| RAG | 7 a 8 s | 0,4 a 0,5 s |
+| Selección | 18 a 37 s | 29 a 32 s |
+| Respuesta | 7 a 9 s | 16 a 23 s |
+| Turno | 87 a 106 s | 75 a 85 s |
+
+El turno baja unos 20 s y queda más estable. El primer turno, con los modelos aún por cargar, tardó unos 100 s. Una tercera corrida se hizo con `OLLAMA_REPLY_MODEL=qwen3:8b` en `.env`, pero generó a 8 tokens por segundo, velocidad de CPU: el servidor seguramente seguía con la copia.
+
+**Decisión (2026-11-02, Santiago Silva):** la etapa de respuesta usa `qwen3-cpu` (`docs/08-despliegue/qwen3-cpu.Modelfile`). Queda pendiente confirmar la medición con más tipos de turno.
+
+**Fallo persistente de gramática (2026-11-02):** con Ollama 0.40.2 y `qwen3-cpu`, mistral sigue cargado durante toda la sesión. Tras un rato de uso, el análisis falló en todas las solicitudes con `Unexpected empty grammar stack` (`test_live_scope.py`: 0 de 14), y al reiniciar Ollama pasó 14 de 14 con el mismo código. El reintento ahora descarga el modelo. No se sabe qué daña el proceso ni si el cambio de procesador aumenta su frecuencia: el error ya apareció el 2026-10-27, antes de `qwen3-cpu`. La decisión sobre `qwen3-cpu` sigue pendiente de `pytest -m live` completo.
+
+**Corrida completa (2026-11-02):** `pytest -m live` pasó 39 de 39 con `qwen3-cpu`, unos 29 minutos después de reiniciar Ollama, y el fallo de gramática no apareció. Eso respalda la calidad con `qwen3-cpu`, pero no prueba que la recarga recupere el fallo, que sigue sin verificarse con el error real.
+

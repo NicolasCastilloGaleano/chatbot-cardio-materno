@@ -161,6 +161,8 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
 def alarm_lines(trace: ReplyTrace) -> list[str]:
     """Recordatorio de alarmas ya avisadas y acompañamiento de la urgencia (B-027, B-030)."""
     lines = [f"recordatorio de: {', '.join(trace.reminded_rules)}"] if trace.reminded_rules else []
+    if trace.urgent_follow_up:
+        lines.append("orientación automática después del aviso de urgencia")
     if trace.urgent_accompaniment:
         lines.append("acompañamiento de la urgencia: sin indagar ni preguntas")
     return lines

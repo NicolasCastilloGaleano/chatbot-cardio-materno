@@ -24,18 +24,25 @@ from cardio_materno.domain.trace import ModelUsage
 
 logger = logging.getLogger(__name__)
 CHAT_ENDPOINT = "/api/chat"
-# Una respuesta vacía o un JSON inválido suelen ser fallos intermitentes: se reintenta una vez.
-# No se reintenta un tiempo de espera agotado (duplicaría la espera) ni un corte por límite.
+# Una respuesta vacía o un JSON inválido pueden venir de un proceso del modelo dañado: mientras
+# siga cargado, fallan todas las solicitudes (0 de 14 en el PC, 14 de 14 al reiniciar Ollama,
+# 2026-11-02). Por eso se descarga el modelo y se reintenta una vez. No se reintenta un tiempo
+# de espera agotado (duplicaría la espera) ni un corte por límite.
 INVALID_RESPONSE_RETRIES = 1
 NANOSECONDS_PER_SECOND = 1_000_000_000
 USAGE_DECIMALS = 2
-MSG_RETRY_LOG = "Ollama (%s) devolvió una respuesta vacía o inválida; se reintenta (%d/%d)."
+MSG_RETRY_LOG = (
+    "Ollama (%s) devolvió una respuesta vacía o inválida; se recarga el modelo y se "
+    "reintenta (%d/%d)."
+)
+MSG_UNLOAD_FAILED_LOG = "No se pudo descargar el modelo %s: %s"
 DONE_REASON_LENGTH = "length"
 MSG_CUT_BY_LIMIT = (
     "Ollama cortó la respuesta por el límite de contexto o de tokens. Sube "
     "OLLAMA_<ETAPA>_NUM_CTX o OLLAMA_<ETAPA>_NUM_PREDICT (ANALYSIS o REPLY) en el .env."
 )
 DEFAULT_KEEP_ALIVE = "30m"
+UNLOAD_KEEP_ALIVE = 0
 
 
 @dataclass(frozen=True)
@@ -98,7 +105,8 @@ class OllamaLanguageModel:
         Returns:
             El objeto JSON generado por el modelo.
 
-        Si la respuesta llega vacía o no es un objeto JSON, se reintenta una vez.
+        Si la respuesta llega vacía o no es un objeto JSON, se descarga el modelo y se
+        reintenta una vez.
 
         Raises:
             LanguageModelError: Si Ollama no responde, falla o no devuelve un objeto JSON
@@ -113,7 +121,18 @@ class OllamaLanguageModel:
                     MSG_RETRY_LOG, self._settings.model, attempt, INVALID_RESPONSE_RETRIES
                 )
                 logger.debug("Detalle del fallo: %s", error)
+                self._unload()
         return self._complete_once(payload)
+
+    def _unload(self) -> None:
+        """Descarga el modelo para que la siguiente solicitud use un proceso nuevo.
+
+        Si no se puede, solo lo registra: el reintento decide el resultado del turno.
+        """
+        try:
+            self._http.post(CHAT_ENDPOINT, build_unload_payload(self._settings))
+        except LanguageModelError as error:
+            logger.warning(MSG_UNLOAD_FAILED_LOG, self._settings.model, error)
 
     def _complete_once(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Una solicitud a `/api/chat` y su objeto JSON; guarda el uso que informa Ollama."""
@@ -190,6 +209,11 @@ def build_warm_up_payload(settings: OllamaSettings) -> dict[str, Any]:
         "keep_alive": settings.keep_alive,
         "options": build_options(settings),
     }
+
+
+def build_unload_payload(settings: OllamaSettings) -> dict[str, Any]:
+    """Solicitud sin mensajes y con `keep_alive` 0: Ollama descarga el modelo de la memoria."""
+    return {"model": settings.model, "messages": [], "keep_alive": UNLOAD_KEEP_ALIVE}
 
 
 def usage_from(response: dict[str, Any]) -> ModelUsage | None:

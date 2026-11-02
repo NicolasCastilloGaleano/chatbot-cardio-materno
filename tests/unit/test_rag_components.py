@@ -158,6 +158,19 @@ def test_retriever_filters_by_domain() -> None:
     assert all(item.entry.domain is Domain.CARDIOVASCULAR for item in result.items)
 
 
+def test_retriever_filters_by_focus_before_applying_the_limit() -> None:
+    inquire = KnowledgeEntry("a", Domain.MATERNAL_CHILD, "Cat", Focus.INQUIRE, "acidez", "¿Desde?")
+    solve = entry("b", Domain.MATERNAL_CHILD, "acidez", "comer porciones pequeñas")
+    policy = EvidencePolicy(top_k=1, min_similarity=0.0)
+    retriever = HybridRetriever(
+        [inquire, solve, ENTRIES[2]], make_index(), KeywordEmbedder(), policy
+    )
+
+    result = retriever.retrieve(EvidenceQuery("acidez", focus=Focus.SOLVE))
+
+    assert [item.entry.id for item in result.items] == ["b"]
+
+
 def test_lexical_only_match_never_qualifies_as_evidence() -> None:
     policy = EvidencePolicy(min_similarity=0.99)
 

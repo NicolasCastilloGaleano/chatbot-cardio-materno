@@ -98,7 +98,7 @@ def test_complete_json_rejects_invalid_or_empty_responses(body: Any) -> None:
     with pytest.raises(LanguageModelError, match="inesperada"):
         make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
 
-    assert len(opener.requests) == 2  # un reintento
+    assert len(opener.requests) == 3  # la solicitud, la descarga y un reintento
 
 
 class SequenceOpener(FakeOpener):
@@ -113,14 +113,33 @@ class SequenceOpener(FakeOpener):
         return super().__call__(request, timeout)
 
 
-def test_an_empty_or_cut_response_is_retried_once(caplog: pytest.LogCaptureFixture) -> None:
-    empty = {"message": {"content": "", "role": ""}, "done": False, "model": ""}
-    opener = SequenceOpener(empty, chat_body('{"reply": "Hola"}'))
+EMPTY = {"message": {"content": "", "role": ""}, "done": False, "model": ""}
+
+
+def test_an_empty_response_unloads_the_model_before_retrying(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    opener = SequenceOpener(EMPTY, {"done": True}, chat_body('{"reply": "Hola"}'))
 
     result = make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
 
-    assert result == {"reply": "Hola"} and len(opener.requests) == 2
-    assert "se reintenta (1/1)" in caplog.text
+    unload = json.loads(opener.requests[1].data)  # type: ignore[arg-type]
+    retry = json.loads(opener.requests[2].data)  # type: ignore[arg-type]
+    assert result == {"reply": "Hola"} and len(opener.requests) == 3
+    assert unload == {"model": SETTINGS.model, "messages": [], "keep_alive": 0}
+    assert retry["format"] == SCHEMA
+    assert "se recarga el modelo y se reintenta (1/1)" in caplog.text
+
+
+def test_the_retry_still_runs_if_the_model_cannot_be_unloaded(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    opener = SequenceOpener(EMPTY, b"no es json", chat_body('{"reply": "Hola"}'))
+
+    result = make_model(opener).complete_json(USER_MESSAGE, SCHEMA)
+
+    assert result == {"reply": "Hola"}
+    assert "No se pudo descargar el modelo" in caplog.text
 
 
 def test_timeouts_and_limit_cuts_are_not_retried() -> None:

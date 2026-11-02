@@ -20,15 +20,20 @@ Flujo de cada turno (ADR 0007 y 0008):
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
 
+Tras una urgencia inmediata nueva, y con `URGENT_GUIDANCE_MODE=activo`, el canal puede pedir
+la orientación aparte (`guide`, ADR 0021): el aviso nunca la espera.
+
 La evidencia nunca llega a la llamada de análisis, así no puede alterar los síntomas que
 revisan las reglas de alarma. El hilo solo se modifica al final del turno.
 """
 
+import logging
 import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from cardio_materno.application.agent_turn import (
     AnalysisTurn,
@@ -123,11 +128,32 @@ ALARM_SUMMARY_TEMPLATE = "Alerta: {sign}."
 STAGE_ANALYSIS = "análisis"
 STAGE_RAG = "RAG"
 STAGE_REPLY = "respuesta"
+# Entrada del mensaje que sigue al aviso de una urgencia. Pendiente de revisión clínica.
+URGENT_GUIDANCE_TEMPLATE = "Mientras llegas: {text}"
+# Lo que necesita la persona tras el aviso: guía la búsqueda y al selector (ADR 0021). Sin
+# esto, el mensaje "siento el pecho pesado" trajo una explicación de la angina.
+URGENT_GUIDANCE_QUESTION = "¿Qué hago ahora mientras llego al servicio de urgencias?"
+URGENT_GUIDANCE_QUERY = "qué hacer mientras llega a urgencias: {text}. {sign}"
+# El aviso, último mensaje del hilo: no va en el contexto.
+URGENT_NOTICE_MESSAGES = 1
 # Modos de la regla de indagación que se resuelven sin la evidencia del RAG (HU-11).
 MODES_WITHOUT_EVIDENCE = frozenset({TurnMode.INQUIRE, TurnMode.ABSTAIN, TurnMode.CLOSE})
 
+logger = logging.getLogger(__name__)
+
 Clock = Callable[[], datetime]
 IdGenerator = Callable[[], str]
+
+
+class UrgentGuidanceSkippedError(Exception):
+    """No hay orientación útil y verificada después del aviso: no se envía nada (ADR 0021)."""
+
+
+class UrgentGuidanceActivation(StrEnum):
+    """Si se orienta después del aviso de una urgencia (`URGENT_GUIDANCE_MODE`, ADR 0021)."""
+
+    OFF = "apagado"
+    ACTIVE = "activo"
 
 
 def utc_now() -> datetime:
@@ -191,6 +217,7 @@ class ConversationConfig:
         selection_prompt: Instrucciones del selector de evidencia.
         selection_max_sentences: Máximo de frases que elige el selector.
         selected_reply_prompt: Instrucciones del redactor con frases seleccionadas (HU-13).
+        urgent_guidance: Si se orienta después del aviso de una urgencia (ADR 0021).
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -209,9 +236,27 @@ class ConversationConfig:
     selection_prompt: str = ""
     selection_max_sentences: int = DEFAULT_SELECTION_MAX_SENTENCES
     selected_reply_prompt: str = ""
+    urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
+
+
+@dataclass(frozen=True)
+class UrgentGuidanceRequest:
+    """Lo necesario para orientar después del aviso de una urgencia (ADR 0021).
+
+    Attributes:
+        thread_id: Hilo de la urgencia.
+        user_text: Mensaje de la persona.
+        decision: Decisión de alarma que produjo el aviso.
+        analysis: Análisis del turno (None si la detectó el filtro 1, que no consulta al agente).
+    """
+
+    thread_id: str
+    user_text: str
+    decision: AlarmDecision
+    analysis: AnalysisTurn | None = None
 
 
 @dataclass(frozen=True)
@@ -225,6 +270,7 @@ class TurnResult:
         alerts: Alertas registradas en el turno.
         trace: Cómo se produjo la respuesta (None si no se consultó al agente).
         out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
+        urgent_guidance: Orientación que el canal puede pedir después de entregar el aviso.
     """
 
     reply: str
@@ -233,6 +279,7 @@ class TurnResult:
     alerts: tuple[Alert, ...] = ()
     trace: ReplyTrace | None = None
     out_of_scope: bool = False
+    urgent_guidance: UrgentGuidanceRequest | None = None
 
 
 @dataclass(frozen=True)
@@ -323,7 +370,34 @@ class ConversationService:
             outcome = TurnOutcome(compose_reply([pre], None), (pre,))
         else:
             outcome = self._consult_agent(current, turn, pre)
-        return self._finish(current, turn, outcome)
+        result = self._finish(current, turn, outcome)
+        return replace(result, urgent_guidance=self._guidance_request(turn, outcome, result))
+
+    def guide(self, request: UrgentGuidanceRequest) -> TurnResult | None:
+        """Orienta después del aviso de una urgencia y guarda el mensaje (ADR 0021).
+
+        Solo muestra frases elegidas por el selector y verificadas. Nunca lanza un error de
+        modelo: la persona ya recibió el aviso.
+
+        Args:
+            request: Pedido que entregó `send`.
+
+        Returns:
+            El mensaje de orientación, o None si no hay nada útil y verificado que decir.
+        """
+        thread = self._ports.repository.get_thread(request.thread_id)
+        if thread is None or not thread.is_open:
+            return None
+        try:
+            outcome = self._urgent_guidance(request, StageTimer(self._config.timer))
+        except (LanguageModelError, UrgentGuidanceSkippedError) as error:
+            logger.warning("Orientación de urgencia omitida: %s", error)
+            return None
+        message = ChatMessage(
+            Role.ASSISTANT, outcome.reply, thread.id, self._config.clock(), outcome.trace
+        )
+        self._ports.repository.append_message(message)
+        return TurnResult(outcome.reply, thread, False, (), outcome.trace)
 
     def end_session(self) -> None:
         """Cierra el hilo activo, si existe (p. ej., cuando el usuario escribe "salir")."""
@@ -503,6 +577,57 @@ class ConversationService:
         state = previous_state(turn.recent if continues else ())
         final = mode_without_answer(inquiry, state, self._config.inquiry)
         return self._decided_without_evidence(final.mode, analysis, turn, retrieval, timer), final
+
+    def _urgent_guidance(self, request: UrgentGuidanceRequest, timer: StageTimer) -> TurnOutcome:
+        """Busca, selecciona y redacta con URGENCIA EN CURSO.
+
+        Raises:
+            UrgentGuidanceSkippedError: Si no hay contenido útil y verificado que mostrar.
+            LanguageModelError: Si falla la redacción.
+        """
+        analysis = request.analysis or urgency_analysis(request)
+        query = urgency_query(request, analysis)
+        retrieval, _ = timer.measure(STAGE_RAG, lambda: self._search(query))
+        offered = orienting_evidence(retrieval)
+        if offered.status is not RetrievalStatus.SUFFICIENT:
+            raise UrgentGuidanceSkippedError(
+                f"sin evidencia suficiente (mejor similitud {offered.best_score:.2f})"
+            )
+        turn = self._urgency_turn(request)
+        selection = self._select(analysis, turn, offered, timer)
+        if selection is None or not selection.shown:
+            raise UrgentGuidanceSkippedError(selection_problem(selection))
+        applied = replace(selection, applied=True)
+        evidence = EvidenceTurn(analysis, (), retrieval, offered, None)
+        answer = self._selected_answer(evidence, turn, applied, timer)
+        if answer.trace is None or answer.trace.grounding is None or answer.trace.grounding.literal:
+            raise UrgentGuidanceSkippedError("la redacción no se verificó")
+        return with_urgent_follow_up(answer, applied, timer, query.text)
+
+    def _urgency_turn(self, request: UrgentGuidanceRequest) -> TurnInput:
+        """Turno de la orientación: la pregunta de qué hacer ahora, con el hilo hasta el aviso."""
+        limit = self._config.context_messages
+        recent = self._ports.repository.recent_messages(request.thread_id, limit)
+        earlier = tuple(recent[:-URGENT_NOTICE_MESSAGES])
+        return TurnInput(URGENT_GUIDANCE_QUESTION, earlier, urgent_reminder=True, no_questions=True)
+
+    def _guidance_request(
+        self, turn: TurnInput, outcome: TurnOutcome, result: TurnResult
+    ) -> UrgentGuidanceRequest | None:
+        """Pedido de orientación si hubo una urgencia inmediata por primera vez en el hilo."""
+        decision = next((d for d in outcome.decisions if d.is_immediate), None)
+        if decision is None or result.thread is None or not self._guides_urgencies():
+            return None
+        alerts = self._ports.repository.all_alerts(result.thread.id)
+        rule = decision.primary_rule.id
+        if sum(1 for alert in alerts if rule in alert.rule_ids) > 1:
+            return None
+        return UrgentGuidanceRequest(result.thread.id, turn.user_text, decision, outcome.analysis)
+
+    def _guides_urgencies(self) -> bool:
+        """True si está encendida la orientación y el selector decide la respuesta (ADR 0021)."""
+        guidance_on = self._config.urgent_guidance is UrgentGuidanceActivation.ACTIVE
+        return guidance_on and self._config.selection_activation is SelectionActivation.ACTIVE
 
     def _select(
         self,
@@ -860,6 +985,60 @@ def with_inquiry(outcome: TurnOutcome, inquiry: InquiryTrace | None) -> TurnOutc
     if inquiry is None or outcome.trace is None:
         return outcome
     return replace(outcome, trace=replace(outcome.trace, inquiry=inquiry))
+
+
+def selection_problem(selection: SelectionTrace | None) -> str:
+    """Por qué el selector no dejó frases visibles (para el registro, sin datos personales)."""
+    if selection is None:
+        return "sin registros que orienten"
+    if selection.verdict is None:
+        return f"falló el selector: {selection.failure}"
+    reviews = ", ".join(f"{r.label} {r.fit}: {r.unsaid}" for r in selection.reviews)
+    return f"sin frases visibles ({selection.verdict}; {reviews})"
+
+
+def urgency_analysis(request: UrgentGuidanceRequest) -> AnalysisTurn:
+    """Caso de una urgencia detectada por el filtro 1, que no consulta al agente.
+
+    Se arma con el mensaje y el signo de la regla: el selector necesita saber qué le pasa a
+    la persona, y así la orientación no espera la llamada de análisis.
+    """
+    sign = request.decision.primary_rule.sign
+    return AnalysisTurn(
+        ThreadAction.CONTINUE,
+        request.decision.domain,
+        sign,
+        (sign,),
+    )
+
+
+def urgency_query(request: UrgentGuidanceRequest, analysis: AnalysisTurn) -> EvidenceQuery:
+    """Búsqueda de qué hacer en esa urgencia, para todas las alarmas por igual.
+
+    Solo en los registros *Solucionar*: los *Indagar* del mismo tema ocupaban los puestos de la
+    búsqueda y, al descartarlos, no quedaba nada que orientara (sangrado, 2026-11-02).
+    """
+    sign = request.decision.primary_rule.sign
+    text = URGENT_GUIDANCE_QUERY.format(text=request.user_text, sign=sign)
+    return EvidenceQuery(text, (analysis.domain,), Focus.SOLVE)
+
+
+def with_urgent_follow_up(
+    answer: TurnOutcome, selection: SelectionTrace, timer: StageTimer, query_text: str
+) -> TurnOutcome:
+    """Arma el mensaje de orientación con su traza."""
+    if answer.trace is None:
+        return answer
+    trace = replace(
+        answer.trace,
+        selection=selection,
+        search_query=query_text,
+        timings=timer.timings,
+        model_usage=timer.usages,
+        urgent_accompaniment=True,
+        urgent_follow_up=True,
+    )
+    return replace(answer, reply=URGENT_GUIDANCE_TEMPLATE.format(text=answer.reply), trace=trace)
 
 
 def with_selection(outcome: TurnOutcome, selection: SelectionTrace | None) -> TurnOutcome:

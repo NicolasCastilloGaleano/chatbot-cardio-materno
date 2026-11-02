@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from cardio_materno.domain.conversation import Domain
-from cardio_materno.domain.knowledge import RetrievalResult
+from cardio_materno.domain.knowledge import Focus, RetrievalResult
 
 
 @dataclass(frozen=True)
@@ -14,10 +14,12 @@ class EvidenceQuery:
     Attributes:
         text: Texto de búsqueda (mensaje, resumen del hilo y síntomas).
         domains: Dominios donde buscar (vacío = todos).
+        focus: Enfoque de los registros donde buscar (None = todos).
     """
 
     text: str
     domains: tuple[Domain, ...] = ()
+    focus: Focus | None = None
 
 
 class KnowledgeRetriever(Protocol):
