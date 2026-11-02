@@ -50,6 +50,7 @@ class SelectionCase:
     forbidden: tuple[str, ...]
     urgent: bool = False
     required: tuple[str, ...] = ()
+    symptoms: tuple[str, ...] = ()
 
 
 CASES = [
@@ -62,6 +63,7 @@ CASES = [
         ("protege la cabeza", "golpearla", "sujetes", "introduzcas"),
         urgent=True,
         required=("traslado",),
+        symptoms=("Sangrado vaginal en el embarazo",),
     ),
     SelectionCase(
         "ardor con un registro de sudor frío",
@@ -70,6 +72,7 @@ CASES = [
         Domain.CARDIOVASCULAR,
         (REFLUX_WITH_COLD_SWEAT,),
         ("sudor frío", "este cambio"),
+        symptoms=("ardor en el pecho después de comer",),
     ),
     SelectionCase(
         "presión alta sin cifras con un registro de 190/125",
@@ -78,6 +81,7 @@ CASES = [
         Domain.CARDIOVASCULAR,
         (READING_190,),
         ("marcadamente elevada",),
+        symptoms=("presión arterial alta",),
     ),
 ]
 
@@ -108,7 +112,7 @@ def run(
     selector: EvidenceSelector, entries: list[KnowledgeEntry], case: SelectionCase
 ) -> SelectionTrace:
     """Corre el selector con la evidencia del caso y muestra lo que eligió."""
-    analysis = AnalysisTurn(ThreadAction.CONTINUE, case.domain, case.summary)
+    analysis = AnalysisTurn(ThreadAction.CONTINUE, case.domain, case.summary, case.symptoms)
     turn = TurnInput(case.message, urgent_reminder=case.urgent)
     trace = selector.select(analysis, turn, evidence(entries, case.entries), StageTimer())
     assert trace is not None and trace.verdict is not None, f"falló: {trace and trace.failure}"

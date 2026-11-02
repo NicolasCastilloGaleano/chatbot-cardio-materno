@@ -58,6 +58,9 @@ Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien
 
 Ninguna respuesta cayó en texto literal. Los turnos con selector tardaron de 87 a 106 s, salvo uno de 67 s con trabajo reciente aprovechado, y la selección, de 18 a 33 s. El redactor puede omitir un aviso reforzado: en una corrida del sangrado dejó fuera "sangrado abundante…", que la persona no dijo. Se debe revisar con el punto 1.
 
+## `pytest -m live` completo (2026-11-02)
+38 de 39. Pasaron las 35 pruebas anteriores y, con la regla de frases visibles, ardor, presión y DASH. Falló el sangrado con evidencia fija porque no quedó el traslado (`no_responde`, ambos registros `no`). Ninguna frase de la convulsión. Es una falla segura: queda el recordatorio. La prueba no pasaba los síntomas del caso, que en la web sí llegan; se corrigió y falta repetirla.
+
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
 
