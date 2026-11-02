@@ -14,6 +14,7 @@ EXIT_COMMANDS = frozenset({"salir", "exit", "quit"})
 USER_PROMPT = "\nTú: "
 ASSISTANT_LABEL = "Asistente: "
 THINKING_TEXT = "(pensando…)"
+GUIDANCE_THINKING_TEXT = "(buscando qué puedes hacer mientras llegas…)"
 ERROR_PREFIX = "⚠️  "
 WELCOME_TEXT = (
     "=== Asistente de teleorientación cardio-materno (prototipo técnico) ===\n"
@@ -94,6 +95,7 @@ class ConsoleChat:
             return
         self._show(result)
         if result.urgent_guidance is not None:
+            self._write(GUIDANCE_THINKING_TEXT)
             guidance = self._service.guide(result.urgent_guidance)
             if guidance is not None:
                 self._show(guidance)

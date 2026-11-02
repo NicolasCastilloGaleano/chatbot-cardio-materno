@@ -130,8 +130,12 @@ STAGE_RAG = "RAG"
 STAGE_REPLY = "respuesta"
 # Entrada del mensaje que sigue al aviso de una urgencia. Pendiente de revisión clínica.
 URGENT_GUIDANCE_TEMPLATE = "Mientras llegas: {text}"
-# Mensajes del turno de la urgencia (la persona y el aviso): ya no van en el contexto.
-URGENT_TURN_MESSAGES = 2
+# Lo que necesita la persona tras el aviso: guía la búsqueda y al selector (ADR 0021). Sin
+# esto, el mensaje "siento el pecho pesado" trajo una explicación de la angina.
+URGENT_GUIDANCE_QUESTION = "¿Qué hago ahora mientras llego al servicio de urgencias?"
+URGENT_GUIDANCE_QUERY = "qué hacer mientras llega a urgencias: {text}. {sign}"
+# El aviso, último mensaje del hilo: no va en el contexto.
+URGENT_NOTICE_MESSAGES = 1
 # Modos de la regla de indagación que se resuelven sin la evidencia del RAG (HU-11).
 MODES_WITHOUT_EVIDENCE = frozenset({TurnMode.INQUIRE, TurnMode.ABSTAIN, TurnMode.CLOSE})
 
@@ -578,7 +582,7 @@ class ConversationService:
     ) -> TurnOutcome | None:
         """Busca, selecciona y redacta con URGENCIA EN CURSO; None si no hay qué mostrar."""
         analysis = request.analysis or urgency_analysis(request)
-        query = build_evidence_query(analysis, request.user_text)
+        query = urgency_query(request, analysis)
         retrieval, _ = timer.measure(STAGE_RAG, lambda: self._search(query))
         offered = orienting_evidence(retrieval)
         if offered.status is not RetrievalStatus.SUFFICIENT:
@@ -595,11 +599,11 @@ class ConversationService:
         return with_urgent_follow_up(answer, applied, timer, query.text)
 
     def _urgency_turn(self, request: UrgentGuidanceRequest) -> TurnInput:
-        """Turno de la orientación: sin preguntas y con el hilo anterior a la urgencia."""
+        """Turno de la orientación: la pregunta de qué hacer ahora, con el hilo hasta el aviso."""
         limit = self._config.context_messages
         recent = self._ports.repository.recent_messages(request.thread_id, limit)
-        earlier = tuple(recent[:-URGENT_TURN_MESSAGES])
-        return TurnInput(request.user_text, earlier, urgent_reminder=True, no_questions=True)
+        earlier = tuple(recent[:-URGENT_NOTICE_MESSAGES])
+        return TurnInput(URGENT_GUIDANCE_QUESTION, earlier, urgent_reminder=True, no_questions=True)
 
     def _guidance_request(
         self, turn: TurnInput, outcome: TurnOutcome, result: TurnResult
@@ -989,8 +993,14 @@ def urgency_analysis(request: UrgentGuidanceRequest) -> AnalysisTurn:
         request.decision.domain,
         sign,
         (sign,),
-        search_query=f"{request.user_text}. {sign}",
     )
+
+
+def urgency_query(request: UrgentGuidanceRequest, analysis: AnalysisTurn) -> EvidenceQuery:
+    """Búsqueda de qué hacer en esa urgencia, para todas las alarmas por igual."""
+    sign = request.decision.primary_rule.sign
+    text = URGENT_GUIDANCE_QUERY.format(text=request.user_text, sign=sign)
+    return EvidenceQuery(text, (analysis.domain,))
 
 
 def with_urgent_follow_up(

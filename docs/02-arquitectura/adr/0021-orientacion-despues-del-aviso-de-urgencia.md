@@ -45,6 +45,8 @@ El servicio separa las dos partes: `send` devuelve el aviso e indica si hay orie
 
 Ajuste frente a la decisión 4: cuando no hay segundo mensaje no existe una traza donde guardar el motivo, así que se escribe en el registro de la aplicación, sin datos personales. B-032 debe tenerlo en cuenta.
 
+**Ajuste tras la consola (2026-11-02):** con "siento el pecho pesado" la orientación explicó qué es la angina, porque el selector recibía el síntoma y no una pregunta. Ahora busca y selecciona con la pregunta fija de qué hacer mientras llega, igual para todas las alarmas, y con URGENCIA EN CURSO solo sirven frases de acción. La consola muestra que sigue trabajando.
+
 **Paso 2:** la web, con el trabajo en segundo plano, y WhatsApp.
 
 ## Alternativas consideradas

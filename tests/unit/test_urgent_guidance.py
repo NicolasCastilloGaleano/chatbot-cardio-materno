@@ -4,11 +4,14 @@ from typing import Any
 
 from cardio_materno.adapters.inbound.console.console_chat import ASSISTANT_LABEL, ConsoleChat
 from cardio_materno.application.conversation_service import (
+    URGENT_GUIDANCE_QUESTION,
     URGENT_GUIDANCE_TEMPLATE,
     ConversationService,
     TurnResult,
     UrgentGuidanceActivation,
     UrgentGuidanceRequest,
+    urgency_analysis,
+    urgency_query,
 )
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence_selection import SelectionActivation
@@ -115,6 +118,20 @@ def test_the_case_comes_from_the_rule_when_there_was_no_analysis() -> None:
     context = "\n".join(message.content for message in agent.responder.calls[0])
     assert "URGENCIA EN CURSO" in context
     assert "reported_symptoms" in context
+    assert BLEEDING in context
+
+
+def test_the_selector_is_asked_what_to_do_now_and_not_about_the_symptom() -> None:
+    result, service, agent, _ = alarm_turn()
+    agent.current = selecting(agent_json(USEFUL), "responde", "E1.1")
+    request = request_of(result)
+
+    service.guide(request)
+
+    assert agent.responder.calls[0][-1].content == URGENT_GUIDANCE_QUESTION
+    query = urgency_query(request, urgency_analysis(request))
+    assert query.text.startswith("qué hacer mientras llega a urgencias")
+    assert BLEEDING in query.text and request.decision.primary_rule.sign in query.text
 
 
 def test_general_actions_of_a_partial_record_are_shown_in_an_urgency() -> None:

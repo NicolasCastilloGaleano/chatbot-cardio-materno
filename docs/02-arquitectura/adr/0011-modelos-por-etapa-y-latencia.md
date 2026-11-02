@@ -136,3 +136,11 @@ El selector es una tercera tarea de modelo y requiere juicio. Con evidencia fija
 ## Actualización 2026-11-02: tiempos con el selector (trazas del PC, por confirmar)
 Un turno con evidencia tarda cerca de 100 s. En las trazas, `mistral-small3.1:24b` genera unos 4 tokens por segundo y `qwen3:8b` unos 66. Cuando los modelos ya estaban cargados, el análisis leyó el prompt en 0,7 s frente a unos 14 s, y el RAG tardó 0,4 s frente a unos 7,7 s. Hipótesis: el modelo de 24B no cabe en los 8 GB de VRAM y corre en buena parte en la CPU, y en cada turno se descargan y recargan modelos. Falta confirmarlo con `ollama ps` y `nvidia-smi`.
 
+## Diagnóstico del 2026-11-02
+Medido en el PC (RTX 2080 de 8 GB, 125 GB de RAM):
+- `mistral-small3.1:24b` ocupa 15 GB y corre 67 % en CPU y 33 % en GPU (`ollama ps`). Confirma la hipótesis: es lo que más pesa, y es un límite del hardware.
+- `qwen3:8b` ocupa 5,6 GB y corre 100 % en GPU, pero al cargarlo sale mistral. Los dos juntos suman unos 21 GB.
+- El cambio de modelos también pesa: en la orientación de consola, la respuesta tardó 39,9 s, de los que leer y generar fueron 3 s. Un turno sin cambio tardó 67 s, frente a unos 100 s.
+
+Opciones por medir: `qwen3` en CPU para no sacar a mistral de la GPU, y un modelo intermedio en el selector. Una GPU con 24 GB alojaría los dos modelos; es decisión del equipo.
+
