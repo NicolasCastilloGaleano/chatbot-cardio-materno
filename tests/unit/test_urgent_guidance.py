@@ -18,6 +18,7 @@ from cardio_materno.application.conversation_service import (
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.domain.conversation import Role
+from cardio_materno.domain.knowledge import Focus, RetrievalResult, RetrievalStatus
 from tests.unit.fakes import (
     URGENT_MESSAGE,
     FakeRetriever,
@@ -134,6 +135,7 @@ def test_the_selector_is_asked_what_to_do_now_and_not_about_the_symptom() -> Non
     query = urgency_query(request, urgency_analysis(request))
     assert query.text.startswith("qué hacer mientras llega a urgencias")
     assert BLEEDING in query.text and request.decision.primary_rule.sign in query.text
+    assert query.focus is Focus.SOLVE
 
 
 def test_general_actions_of_a_partial_record_are_shown_in_an_urgency() -> None:
@@ -148,6 +150,16 @@ def test_nothing_is_sent_without_useful_content(caplog: pytest.LogCaptureFixture
     assert guided is None
     assert "sin frases visibles (no_responde" in caplog.text
     assert all(len(messages) == 2 for messages in repo.messages.values())
+
+
+def test_the_log_says_how_close_the_search_was(caplog: pytest.LogCaptureFixture) -> None:
+    retriever = FakeRetriever(RetrievalResult(RetrievalStatus.INSUFFICIENT, best_score=0.42))
+    service = make_service(
+        ScriptedAgent(), InMemoryThreadRepository(), config=ON, retriever=retriever
+    )
+
+    assert service.guide(request_of(service.send(BLEEDING))) is None
+    assert "sin evidencia suficiente (mejor similitud 0.42)" in caplog.text
 
 
 def test_a_draft_that_is_not_verified_is_not_sent() -> None:

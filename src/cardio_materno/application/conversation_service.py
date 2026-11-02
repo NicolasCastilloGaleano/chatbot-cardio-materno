@@ -590,7 +590,9 @@ class ConversationService:
         retrieval, _ = timer.measure(STAGE_RAG, lambda: self._search(query))
         offered = orienting_evidence(retrieval)
         if offered.status is not RetrievalStatus.SUFFICIENT:
-            raise UrgentGuidanceSkippedError("sin evidencia suficiente")
+            raise UrgentGuidanceSkippedError(
+                f"sin evidencia suficiente (mejor similitud {offered.best_score:.2f})"
+            )
         turn = self._urgency_turn(request)
         selection = self._select(analysis, turn, offered, timer)
         if selection is None or not selection.shown:
@@ -1011,10 +1013,14 @@ def urgency_analysis(request: UrgentGuidanceRequest) -> AnalysisTurn:
 
 
 def urgency_query(request: UrgentGuidanceRequest, analysis: AnalysisTurn) -> EvidenceQuery:
-    """Búsqueda de qué hacer en esa urgencia, para todas las alarmas por igual."""
+    """Búsqueda de qué hacer en esa urgencia, para todas las alarmas por igual.
+
+    Solo en los registros *Solucionar*: los *Indagar* del mismo tema ocupaban los puestos de la
+    búsqueda y, al descartarlos, no quedaba nada que orientara (sangrado, 2026-11-02).
+    """
     sign = request.decision.primary_rule.sign
     text = URGENT_GUIDANCE_QUERY.format(text=request.user_text, sign=sign)
-    return EvidenceQuery(text, (analysis.domain,))
+    return EvidenceQuery(text, (analysis.domain,), Focus.SOLVE)
 
 
 def with_urgent_follow_up(

@@ -47,6 +47,8 @@ Ajuste frente a la decisión 4: cuando no hay segundo mensaje no existe una traz
 
 **Ajuste tras la consola (2026-11-02):** con "siento el pecho pesado" la orientación explicó qué es la angina, porque el selector recibía el síntoma y no una pregunta. Ahora busca y selecciona con la pregunta fija de qué hacer mientras llega, igual para todas las alarmas, y con URGENCIA EN CURSO solo sirven frases de acción. La consola muestra que sigue trabajando.
 
+**Ajuste por el sangrado (2026-11-02):** en el PC, `estoy embarazada y estoy sangrando` terminó sin orientación por "sin evidencia suficiente". La base tiene 37 registros *Indagar* y 19 *Solucionar* que mencionan sangrado y embarazo, y `RAG_TOP_K` se aplica antes de descartar los *Indagar*, que pueden ocupar todos los puestos. Por eso la orientación busca solo en *Solucionar* (`EvidenceQuery.focus`), para todas las alarmas por igual, y el registro incluye la mejor similitud. Esa causa es la más probable, pero falta confirmarla en el PC. La búsqueda de los turnos normales no cambia.
+
 **Paso 2:** la web, con el trabajo en segundo plano, y WhatsApp.
 
 ## Alternativas consideradas

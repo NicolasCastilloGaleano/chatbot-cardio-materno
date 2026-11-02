@@ -87,11 +87,12 @@ class HybridRetriever:
         return vector
 
     def _allowed_ids(self, query: EvidenceQuery) -> set[str]:
-        """Registros de los dominios pedidos (todos si no se indica ninguno)."""
+        """Registros de los dominios y del enfoque pedidos (todos si no se indican)."""
         return {
             entry.id
             for entry in self._entries.values()
-            if not query.domains or entry.domain in query.domains
+            if (not query.domains or entry.domain in query.domains)
+            and (query.focus is None or entry.focus is query.focus)
         }
 
     def _lexical_rank(self, text: str, allowed: Collection[str]) -> list[str]:
