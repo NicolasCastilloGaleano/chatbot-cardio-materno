@@ -111,8 +111,9 @@ def run(
     analysis = AnalysisTurn(ThreadAction.CONTINUE, case.domain, case.summary)
     turn = TurnInput(case.message, urgent_reminder=case.urgent)
     trace = selector.select(analysis, turn, evidence(entries, case.entries), StageTimer())
-    assert trace is not None and trace.verdict is not None, "falló la llamada del selector"
-    print(f"{case.message} → {trace.verdict}: {chosen_texts(trace)}")
+    assert trace is not None and trace.verdict is not None, f"falló: {trace and trace.failure}"
+    reviews = [(review.label, str(review.fit), review.unsaid) for review in trace.reviews]
+    print(f"{case.message} → {trace.verdict} {reviews}: {chosen_texts(trace)}")
     return trace
 
 

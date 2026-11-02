@@ -49,7 +49,7 @@ SELECTION_DEBUG_TEMPLATE = (
     "[selector observado: {verdict} · elegidas: {selected}"
     " · avisos que agregaría: {added} · avisos por fuera: {omitted}]"
 )
-SELECTION_FAILED_TEXT = "[selector observado: falló; el turno siguió el flujo actual]"
+SELECTION_FAILED_TEMPLATE = "[selector observado: falló ({cause}); el turno siguió el flujo actual]"
 INQUIRY_OBSERVED_TEXT = " observada"
 INQUIRY_APPLIED_TEXT = " aplicada"
 URGENT_ACCOMPANIMENT_DEBUG_TEXT = (
@@ -110,7 +110,7 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
 def format_selection_debug(selection: SelectionTrace) -> str:
     """Veredicto del selector de evidencia y avisos que no eligió (HU-13)."""
     if selection.verdict is None:
-        return SELECTION_FAILED_TEXT
+        return SELECTION_FAILED_TEMPLATE.format(cause=selection.failure or NONE_TEXT)
     return SELECTION_DEBUG_TEMPLATE.format(
         verdict=selection.verdict,
         selected=", ".join((*selection.selected, *selection.context)) or NONE_TEXT,

@@ -6,7 +6,9 @@ con un veredicto. Como elige ids, no puede inventar texto. La evidencia nunca ll
 llamada de análisis (ADR 0008).
 
 Paso 1.1: el selector solo **observa**. Su resultado va a la traza y el turno se resuelve
-como antes. Si la llamada falla, la persona no lo nota.
+como antes. Si la llamada falla, la persona no lo nota. El selector primero evalúa cada
+registro frente al caso; el código descarta las frases de los registros que evaluó como
+ajenos.
 
 Una frase que continúa la anterior ("Eso no es normal") arrastra la anterior del mismo
 registro. La traza también registra qué avisos de atención se agregarían y cuáles quedarían
@@ -31,7 +33,13 @@ from cardio_materno.domain.grounding import (
     without_questions,
 )
 from cardio_materno.domain.knowledge import EvidenceItem, Focus
-from cardio_materno.domain.trace import OfferedSentence, SelectionTrace, SelectionVerdict
+from cardio_materno.domain.trace import (
+    OfferedSentence,
+    RecordFit,
+    RecordReview,
+    SelectionTrace,
+    SelectionVerdict,
+)
 
 STAGE_SELECTION = "selección"
 SENTENCE_ID_TEMPLATE = "{label}.{position}"
@@ -58,10 +66,12 @@ class Selection:
     Attributes:
         verdict: Si la evidencia responde a la consulta.
         ids: Frases elegidas, en orden de importancia (vacío con `no_responde`).
+        reviews: Evaluación de cada registro frente al caso.
     """
 
     verdict: SelectionVerdict
     ids: tuple[str, ...] = ()
+    reviews: tuple[RecordReview, ...] = ()
 
 
 def number_sentences(items: Sequence[EvidenceItem]) -> tuple[OfferedSentence, ...]:
@@ -108,21 +118,34 @@ def selection_schema(sentence_ids: Sequence[str], max_sentences: int) -> dict[st
         max_sentences: Máximo de frases que puede elegir.
     """
     verdicts = [str(verdict) for verdict in SelectionVerdict]
+    labels = list(dict.fromkeys(record_of(sentence_id) for sentence_id in sentence_ids))
+    review = {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string", "enum": labels},
+            "fit": {"type": "string", "enum": [str(fit) for fit in RecordFit]},
+            "unsaid": {"type": "string"},
+        },
+        "required": ["label", "fit", "unsaid"],
+    }
     selected = {"type": "array", "items": {"type": "string", "enum": list(sentence_ids)}}
     return {
         "type": "object",
         "properties": {
+            "records": {"type": "array", "items": review},
             "verdict": {"type": "string", "enum": verdicts},
             "selected": selected | {"maxItems": max_sentences},
         },
-        "required": ["verdict", "selected"],
+        "required": ["records", "verdict", "selected"],
     }
 
 
 def parse_selection(data: dict[str, Any], sentence_ids: Sequence[str]) -> Selection:
     """Valida la respuesta del selector.
 
-    Con `no_responde` se ignoran los ids, y un veredicto sin ids cuenta como `no_responde`.
+    Las frases de un registro que el selector evaluó como ajeno al caso no cuentan: la
+    regla la aplica el código. Con `no_responde` se ignoran los ids, y un veredicto sin
+    ids cuenta como `no_responde`.
 
     Args:
         data: JSON que devolvió el modelo.
@@ -139,10 +162,29 @@ def parse_selection(data: dict[str, Any], sentence_ids: Sequence[str]) -> Select
     except ValueError as error:
         detail = f"veredicto inválido: {data.get('verdict')}"
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail)) from error
-    ids = _selected_ids(data.get("selected"), sentence_ids)
+    reviews = _record_reviews(data.get("records", []))
+    ids = _without_rejected(_selected_ids(data.get("selected"), sentence_ids), reviews)
     if verdict is SelectionVerdict.NO_ANSWER or not ids:
-        return Selection(SelectionVerdict.NO_ANSWER)
-    return Selection(verdict, ids)
+        return Selection(SelectionVerdict.NO_ANSWER, reviews=reviews)
+    return Selection(verdict, ids, reviews)
+
+
+def _record_reviews(raw: Any) -> tuple[RecordReview, ...]:
+    """Evaluaciones de los registros, validadas."""
+    try:
+        return tuple(
+            RecordReview(str(item["label"]), RecordFit(item["fit"]), str(item.get("unsaid", "")))
+            for item in raw
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        detail = f"evaluación de registro inválida: {error}"
+        raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail)) from error
+
+
+def _without_rejected(ids: tuple[str, ...], reviews: Sequence[RecordReview]) -> tuple[str, ...]:
+    """Quita las frases de los registros que el selector evaluó como ajenos al caso."""
+    rejected = {review.label for review in reviews if review.fit is RecordFit.NO}
+    return tuple(sentence_id for sentence_id in ids if record_of(sentence_id) not in rejected)
 
 
 def _selected_ids(raw: Any, sentence_ids: Sequence[str]) -> tuple[str, ...]:
@@ -219,6 +261,7 @@ def selection_trace(selection: Selection, offered: tuple[OfferedSentence, ...]) 
         context=tuple(sentence_id for sentence_id in shown if sentence_id not in selection.ids),
         added_notices=added,
         omitted_notices=omitted,
+        reviews=selection.reviews,
     )
 
 
@@ -263,8 +306,8 @@ class EvidenceSelector:
             selection = timer.measure(
                 STAGE_SELECTION, lambda: self._call(analysis, turn, items, offered)
             )
-        except LanguageModelError:
-            return SelectionTrace(offered=offered)
+        except LanguageModelError as error:
+            return SelectionTrace(offered=offered, failure=str(error))
         timer.record_usage(STAGE_SELECTION, self._model.last_usage())
         return selection_trace(selection, offered)
 

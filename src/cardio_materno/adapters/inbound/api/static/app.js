@@ -525,10 +525,11 @@ function inquirySection(inquiry) {
 
 function selectionSections(selection) {
   const title = selection.applied ? "Selector de evidencia (HU-13, aplicado)" : "Selector de evidencia (HU-13, observado: no cambió la respuesta)";
-  if (!selection.verdict) return [section(title, "La llamada del selector falló: el turno siguió el flujo actual.")];
+  if (!selection.verdict) return [section(title, `La llamada del selector falló: el turno siguió el flujo actual. ${selection.failure || ""}`)];
   const texts = new Map(selection.offered.map((sentence) => [sentence.id, sentence.text]));
   const quoted = (ids) => ids.map((id) => `${id}: ${texts.get(id) || ""}`);
   const sections = [section(title, metricGrid([["Veredicto", selection.verdict], ["Frases elegidas", `${selection.selected.length} de ${selection.offered.length}`]]))];
+  if (selection.reviews?.length) sections.push(section("Evaluación de los registros", tags(selection.reviews.map((r) => `${r.label}: ${r.fit}${r.unsaid ? ` · supone: ${r.unsaid}` : ""}`))));
   if (selection.selected.length) sections.push(section("Frases elegidas", tags(quoted(selection.selected))));
   if (selection.context.length) sections.push(section("Frases agregadas por contexto", tags(quoted(selection.context))));
   if (selection.added_notices.length) sections.push(section("Avisos que el refuerzo agregaría", tags(quoted(selection.added_notices), true)));

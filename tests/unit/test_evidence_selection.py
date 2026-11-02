@@ -37,6 +37,8 @@ from cardio_materno.domain.grounding import continues_previous
 from cardio_materno.domain.knowledge import EvidenceItem, Focus, KnowledgeEntry
 from cardio_materno.domain.trace import (
     OfferedSentence,
+    RecordFit,
+    RecordReview,
     ReplyTrace,
     SelectionTrace,
     SelectionVerdict,
@@ -107,7 +109,8 @@ def test_schema_limits_the_ids_and_how_many_can_be_chosen() -> None:
         ("En ese caso, consulta.", True),
         ("Ahí debes ir.", True),
         ("Esa presión es elevada.", True),
-        ("Estos alimentos ayudan.", False),
+        ("Estos alimentos ayudan.", True),
+        ("Estudia las opciones.", False),
         ("Si tiene fiebre, consulta.", False),
     ],
 )
@@ -154,6 +157,49 @@ def test_no_ids_or_no_answer_counts_as_no_answer(data: dict[str, Any]) -> None:
     ],
 )
 def test_invalid_selection_is_a_model_error(data: dict[str, Any]) -> None:
+    with pytest.raises(LanguageModelError):
+        parse_selection(data, ["E1.1"])
+
+
+def test_the_code_discards_sentences_of_a_rejected_record() -> None:
+    data = {
+        "records": [
+            {"label": "E1", "fit": "no", "unsaid": "convulsión"},
+            {"label": "E2", "fit": "en_parte", "unsaid": ""},
+        ],
+        "verdict": "responde",
+        "selected": ["E1.1", "E2.1"],
+    }
+
+    selection = parse_selection(data, ["E1.1", "E2.1"])
+
+    assert selection.ids == ("E2.1",)
+    assert selection.reviews[0].fit is RecordFit.NO
+
+
+def test_if_every_chosen_record_is_rejected_nothing_answers() -> None:
+    data = {
+        "records": [{"label": "E1", "fit": "no", "unsaid": ""}],
+        "verdict": "responde",
+        "selected": ["E1.1"],
+    }
+
+    selection = parse_selection(data, ["E1.1"])
+
+    assert selection.verdict is SelectionVerdict.NO_ANSWER and selection.ids == ()
+
+
+def test_schema_asks_to_review_the_records_before_choosing() -> None:
+    schema = selection_schema(["E1.1", "E2.1"], 5)
+
+    assert next(iter(schema["properties"])) == "records"
+    review = schema["properties"]["records"]["items"]["properties"]
+    assert review["label"]["enum"] == ["E1", "E2"]
+
+
+def test_invalid_record_review_is_a_model_error() -> None:
+    data = {"records": [{"label": "E1", "fit": "tal vez"}], "verdict": "responde", "selected": []}
+
     with pytest.raises(LanguageModelError):
         parse_selection(data, ["E1.1"])
 
@@ -206,6 +252,7 @@ def test_if_the_selector_fails_the_person_does_not_notice() -> None:
     assert result.trace is not None and result.trace.selection is not None
     assert result.trace.selection.verdict is None
     assert "selección" in [t.stage for t in result.trace.timings]
+    assert result.trace.selection.failure == "sin modelo"
 
 
 def test_turned_off_there_is_no_selector_call() -> None:
@@ -287,6 +334,7 @@ SELECTION = SelectionTrace(
     selected=("E1.1",),
     added_notices=("E1.2",),
     omitted_notices=("E2.1",),
+    reviews=(RecordReview("E1", RecordFit.PARTLY, "cifra"),),
 )
 
 
@@ -300,8 +348,9 @@ def test_selection_survives_the_trace_codec_and_old_traces_have_none() -> None:
 def test_selection_is_shown_in_the_panel_the_console_and_the_export() -> None:
     assert selection_to_dict(SELECTION)["omitted_notices"] == ["E2.1"]
     assert "parcial" in format_selection_debug(SELECTION)
-    assert "falló" in format_selection_debug(SelectionTrace(offered=()))
+    assert "sin modelo" in format_selection_debug(SelectionTrace((), failure="sin modelo"))
     lines = selection_lines(SELECTION)
     assert "elegida E1.1: Texto uno." in lines
+    assert "registro E1: en_parte · supone: cifra" in lines
     assert "aviso que agregaría E1.2: Busca urgencias." in lines
     assert "aviso por fuera E2.1: Llama al 123." in lines

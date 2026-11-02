@@ -86,6 +86,18 @@ Las tres veces dijo `responde`, y no distinguió el tema de la situación. Se aj
 - **Decisión (2026-11-01, Santiago Silva; pendiente de la revisión con el líder):** el selector usa por defecto el modelo y la configuración del análisis. `OLLAMA_SELECTION_MODEL` permite indicar otro, con sus `OLLAMA_SELECTION_*`. Reemplaza al modelo de respuesta en la decisión 2. Si el selector usa el mismo adaptador del análisis, Ollama no recarga el modelo entre las dos llamadas.
 - **Ajuste del prompt:** con URGENCIA EN CURSO, si el registro es de esa misma urgencia, se eligen las acciones generales aunque describa un caso más grave. La prueba en vivo exige que en el sangrado salga el traslado.
 
+## Cinco corridas con el modelo del análisis (2026-11-01)
+| Caso | Resultado | Lectura |
+|---|---|---|
+| Sangrado con convulsión | ❌ 5/5 `no_responde` | Nunca eligió la convulsión, pero tampoco el traslado. Seguro, pero no ayuda |
+| Ardor | ✅ 5/5 `no_responde` | Corregido |
+| Presión alta | ❌ 4 veces `parcial` con "marcadamente elevada"; 1 fallo de la llamada, sin causa registrada | Sigue tomando un registro de 190/125 |
+| DASH | ✅ 5/5 | Estable |
+
+Cada corrida de 4 llamadas tardó 29 a 39 s, carga del modelo incluida. Todas las 35 pruebas en vivo anteriores siguieron pasando con `qwen3:8b` y el selector observando.
+
+**Ajuste:** las frases con demostrativo al inicio son 64 de 4.557 (1,4 %) y casi todas dependen de la frase anterior ("Estas medidas…"), así que no se creó una regla para excluirlas: `este`, `esta`, `estos` y `estas` pasan a ser marcadores de continuación. El selector ahora evalúa cada registro antes de elegir: `records` con `fit` (`si`, `en_parte`, `no`) y `unsaid` (datos que supone y la persona no dio). El código descarta las frases de los registros con `fit` = `no`. Con URGENCIA EN CURSO, un registro de esa misma urgencia no puede ser `no`. La traza guarda la evaluación y la causa de los fallos.
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 

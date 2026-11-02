@@ -8,6 +8,8 @@ from cardio_materno.domain.trace import (
     InquiryTrace,
     ModelUsage,
     OfferedSentence,
+    RecordFit,
+    RecordReview,
     ReplyTrace,
     RetrievalStatus,
     SelectionTrace,
@@ -83,6 +85,10 @@ def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
         "added_notices": list(selection.added_notices),
         "omitted_notices": list(selection.omitted_notices),
         "applied": selection.applied,
+        "reviews": [
+            {"label": r.label, "fit": str(r.fit), "unsaid": r.unsaid} for r in selection.reviews
+        ],
+        "failure": selection.failure,
     }
 
 
@@ -97,6 +103,11 @@ def selection_from_dict(data: dict[str, Any]) -> SelectionTrace:
         added_notices=tuple(data.get("added_notices", [])),
         omitted_notices=tuple(data.get("omitted_notices", [])),
         applied=bool(data.get("applied", False)),
+        reviews=tuple(
+            RecordReview(r["label"], RecordFit(r["fit"]), r.get("unsaid", ""))
+            for r in data.get("reviews", [])
+        ),
+        failure=data.get("failure", ""),
     )
 
 

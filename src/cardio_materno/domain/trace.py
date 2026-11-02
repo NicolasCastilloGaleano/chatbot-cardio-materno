@@ -33,6 +33,29 @@ class SelectionVerdict(StrEnum):
     NO_ANSWER = "no_responde"
 
 
+class RecordFit(StrEnum):
+    """Si un registro corresponde a la situación de la persona, según el selector."""
+
+    YES = "si"
+    PARTLY = "en_parte"
+    NO = "no"
+
+
+@dataclass(frozen=True)
+class RecordReview:
+    """Evaluación de un registro frente al caso, antes de elegir sus frases (HU-13).
+
+    Attributes:
+        label: Etiqueta del registro (E1, E2…).
+        fit: Si corresponde a la situación de la persona.
+        unsaid: Datos que el registro supone y la persona no dio ("" si no hay).
+    """
+
+    label: str
+    fit: RecordFit
+    unsaid: str = ""
+
+
 @dataclass(frozen=True)
 class OfferedSentence:
     """Frase de un registro ofrecida al selector de evidencia (HU-13).
@@ -58,6 +81,8 @@ class SelectionTrace:
         added_notices: Avisos de atención de los registros elegidos que el selector no eligió.
         omitted_notices: Avisos de atención de los registros que no eligió.
         applied: True si el resultado decidió la respuesta; False si solo se observó.
+        reviews: Evaluación de cada registro frente al caso.
+        failure: Causa, si la llamada falló.
     """
 
     offered: tuple[OfferedSentence, ...]
@@ -67,6 +92,8 @@ class SelectionTrace:
     added_notices: tuple[str, ...] = ()
     omitted_notices: tuple[str, ...] = ()
     applied: bool = False
+    reviews: tuple[RecordReview, ...] = ()
+    failure: str = ""
 
 
 @dataclass(frozen=True)

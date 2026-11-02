@@ -212,9 +212,14 @@ def selection_lines(selection: SelectionTrace) -> list[str]:
     """Veredicto del selector y texto de las frases elegidas y de los avisos (HU-13)."""
     state = "aplicado" if selection.applied else "observado"
     if selection.verdict is None:
-        return [f"selector {state}: falló; el turno siguió el flujo actual"]
+        cause = selection.failure or "sin causa registrada"
+        return [f"selector {state}: falló ({cause}); el turno siguió el flujo actual"]
     total = len(selection.offered)
     lines = [f"selector {state}: {selection.verdict} · {len(selection.selected)} de {total} frases"]
+    lines += [
+        f"registro {r.label}: {r.fit}" + (f" · supone: {r.unsaid}" if r.unsaid else "")
+        for r in selection.reviews
+    ]
     texts = {sentence.id: sentence.text for sentence in selection.offered}
     groups = (
         ("elegida", selection.selected),

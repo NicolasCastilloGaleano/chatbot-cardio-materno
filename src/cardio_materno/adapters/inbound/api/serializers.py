@@ -205,6 +205,10 @@ def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
         "added_notices": list(selection.added_notices),
         "omitted_notices": list(selection.omitted_notices),
         "applied": selection.applied,
+        "reviews": [
+            {"label": r.label, "fit": str(r.fit), "unsaid": r.unsaid} for r in selection.reviews
+        ],
+        "failure": selection.failure,
     }
 
 
