@@ -64,7 +64,7 @@ Ninguna respuesta cayó en texto literal. Los turnos con selector tardaron de 87
 **Evidencia fija con los síntomas del caso (5 corridas):** 4 de 4 las cinco veces, sin fallos de llamada. Sangrado: convulsión `no`, sangrado `en_parte`, y sale el traslado. Ardor: `no_responde`. Presión: `parcial`, sin frases visibles por la regla de `en_parte`. DASH: `responde`. El selector depende de que el análisis le entregue los síntomas.
 
 ## Decisión del equipo (2026-11-02)
-Se adoptaron las recomendaciones del documento de decisiones:
+Se adoptaron las recomendaciones del documento de decisiones, con participación del equipo clínico según confirmó Santiago Silva:
 - **Riesgo de `main`:** se prioriza fusionar el selector en modo activo.
 - **Modelo del selector:** `mistral-small3.1:24b`.
 - **Activación:** `activo` por defecto. `observar` y `apagado` siguen disponibles.
