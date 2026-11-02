@@ -163,3 +163,5 @@ El turno baja unos 20 s y queda más estable. El primer turno, con los modelos a
 
 **Corrida completa (2026-11-02):** `pytest -m live` pasó 39 de 39 con `qwen3-cpu`, unos 29 minutos después de reiniciar Ollama, y el fallo de gramática no apareció. Eso respalda la calidad con `qwen3-cpu`, pero no prueba que la recarga recupere el fallo, que sigue sin verificarse con el error real.
 
+**`mistral-nemo:12b` como selector (2026-11-02):** en tres corridas de `tests/live/test_live_selection.py` pasó 2 de 4 en cada una. Las corridas tardaron 10 y 11 s, y la primera 34 s, frente a varios minutos con mistral-small. El caso del sangrado con un registro de convulsión falló las tres veces, y los otros fallos fueron la pregunta sobre comida (dos veces) y la presión alta sin cifras (una). Se descarta: el selector sigue con `mistral-small3.1:24b`, y la orientación de urgencia sigue en unos 60 s mientras no cambie el hardware.
+
