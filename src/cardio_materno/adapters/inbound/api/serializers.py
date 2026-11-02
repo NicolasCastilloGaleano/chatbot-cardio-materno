@@ -17,6 +17,7 @@ from cardio_materno.domain.trace import (
     InquiryTrace,
     ModelUsage,
     ReplyTrace,
+    SelectionTrace,
 )
 from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
@@ -169,6 +170,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "about_health": trace.about_health,
         "urgent_accompaniment": trace.urgent_accompaniment,
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
+        "selection": selection_to_dict(trace.selection) if trace.selection else None,
     }
 
 
@@ -190,6 +192,19 @@ def evidence_to_dict(ref: EvidenceRef, entries: Entries) -> dict[str, Any]:
         "category": ref.category,
         "question": entry.question if entry else MISSING_ENTRY_TEXT,
         "answer": entry.answer if entry else "",
+    }
+
+
+def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
+    """Serializa lo que hizo el selector de evidencia (HU-13)."""
+    return {
+        "offered": [{"id": s.id, "text": s.text} for s in selection.offered],
+        "verdict": str(selection.verdict) if selection.verdict else None,
+        "selected": list(selection.selected),
+        "context": list(selection.context),
+        "added_notices": list(selection.added_notices),
+        "omitted_notices": list(selection.omitted_notices),
+        "applied": selection.applied,
     }
 
 

@@ -92,6 +92,9 @@ def apply_policy_overrides(policy: EvidencePolicy, overrides: PolicyOverrides) -
         inquiry_max_turns=pick(overrides.inquiry_max_turns, policy.inquiry_max_turns),
         inquiry_max_stalled=pick(overrides.inquiry_max_stalled, policy.inquiry_max_stalled),
         inquiry_max_sentences=pick(overrides.inquiry_max_sentences, policy.inquiry_max_sentences),
+        selection_max_sentences=pick(
+            overrides.selection_max_sentences, policy.selection_max_sentences
+        ),
     )
 
 

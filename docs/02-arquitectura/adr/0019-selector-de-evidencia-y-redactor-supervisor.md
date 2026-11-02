@@ -47,6 +47,11 @@ Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *So
 
 Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien en `observar`, no se construye el redactor. El resultado se revisa con el líder del proyecto antes de seguir con las demás etapas.
 
+## Decisiones y avance (2026-11-01)
+- **Puntos 2 a 5:** propuestas aprobadas por el usuario (Santiago Silva). Pendiente la revisión con el líder del proyecto.
+- **Punto 1:** sigue abierto. Lo decide el equipo clínico con lo medido en `observar`.
+- **Paso 1.1, implementado** en `feat/hu-13-selector-redactor`: numeración, selector y su prompt, frases de contexto, revisión de avisos, traza y auditoría. `EVIDENCE_SELECTION_MODE` admite por ahora `apagado` y `observar`; `activo` se rechaza al arrancar hasta el paso 1.2. El colaborador extraído es `EvidenceSelector`: el resto del flujo con evidencia sale del servicio en el paso 1.2, que es el que lo cambia. Falta la verificación en el PC ([guion](../../08-despliegue/prueba-selector-observar.md)).
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 

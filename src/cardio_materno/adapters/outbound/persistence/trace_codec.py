@@ -7,8 +7,11 @@ from cardio_materno.domain.trace import (
     GroundingCheck,
     InquiryTrace,
     ModelUsage,
+    OfferedSentence,
     ReplyTrace,
     RetrievalStatus,
+    SelectionTrace,
+    SelectionVerdict,
     StageTiming,
     TurnMode,
 )
@@ -38,6 +41,7 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "about_health": trace.about_health,
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
         "urgent_accompaniment": trace.urgent_accompaniment,
+        "selection": selection_to_dict(trace.selection) if trace.selection else None,
     }
 
 
@@ -65,6 +69,34 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         about_health=bool(data.get("about_health", True)),
         model_usage=tuple(usage_from_dict(item) for item in data.get("model_usage", [])),
         urgent_accompaniment=bool(data.get("urgent_accompaniment", False)),
+        selection=selection_from_dict(data["selection"]) if data.get("selection") else None,
+    )
+
+
+def selection_to_dict(selection: SelectionTrace) -> dict[str, Any]:
+    """Serializa lo que hizo el selector de evidencia (HU-13)."""
+    return {
+        "offered": [{"id": s.id, "text": s.text} for s in selection.offered],
+        "verdict": str(selection.verdict) if selection.verdict else None,
+        "selected": list(selection.selected),
+        "context": list(selection.context),
+        "added_notices": list(selection.added_notices),
+        "omitted_notices": list(selection.omitted_notices),
+        "applied": selection.applied,
+    }
+
+
+def selection_from_dict(data: dict[str, Any]) -> SelectionTrace:
+    """Reconstruye lo que hizo el selector de evidencia."""
+    verdict = data.get("verdict")
+    return SelectionTrace(
+        offered=tuple(OfferedSentence(s["id"], s["text"]) for s in data.get("offered", [])),
+        verdict=SelectionVerdict(verdict) if verdict else None,
+        selected=tuple(data.get("selected", [])),
+        context=tuple(data.get("context", [])),
+        added_notices=tuple(data.get("added_notices", [])),
+        omitted_notices=tuple(data.get("omitted_notices", [])),
+        applied=bool(data.get("applied", False)),
     )
 
 

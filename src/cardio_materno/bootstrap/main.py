@@ -47,6 +47,7 @@ PROMPTS_DIR = PACKAGE_DIR / "prompts"
 ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v8.md"
 REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v4.md"
 INQUIRY_PROMPT_FILE = PROMPTS_DIR / "inquiry_prompt_v1.md"
+SELECTION_PROMPT_FILE = PROMPTS_DIR / "evidence_selection_prompt_v1.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
@@ -108,6 +109,9 @@ def build_conversation(
         inquiry=rag.policy.inquiry,
         inquiry_activation=settings.inquiry_activation,
         inquiry_prompt=_read(INQUIRY_PROMPT_FILE),
+        selection_activation=settings.selection_activation,
+        selection_prompt=_read(SELECTION_PROMPT_FILE),
+        selection_max_sentences=rag.policy.selection_max_sentences,
     )
     return ports, config
 

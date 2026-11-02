@@ -34,8 +34,11 @@ from cardio_materno.domain.conversation import (
 from cardio_materno.domain.trace import (
     EvidenceRef,
     InquiryTrace,
+    OfferedSentence,
     ReplyTrace,
     RetrievalStatus,
+    SelectionTrace,
+    SelectionVerdict,
     StageTiming,
     TurnMode,
 )
@@ -141,6 +144,11 @@ def test_trace_round_trip_only_for_assistant_messages(repo: ThreadRepository) ->
         domain_fallback=True,
         inquiry=InquiryTrace(TurnMode.INQUIRE, 1, 0, 0.55, 0.02, 2, "Embarazo", None, True),
         about_health=False,
+        selection=SelectionTrace(
+            offered=(OfferedSentence("E1.1", "Texto."),),
+            verdict=SelectionVerdict.ANSWERS,
+            selected=("E1.1",),
+        ),
     )
     repo.append_message(ChatMessage(Role.USER, "me sale agüita", "t1", NOW))
     repo.append_message(ChatMessage(Role.ASSISTANT, "r", "t1", NOW, trace))

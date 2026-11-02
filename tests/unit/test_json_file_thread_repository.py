@@ -119,6 +119,7 @@ def test_trace_round_trip_only_for_assistant_messages(tmp_path: Path) -> None:
         "about_health": True,
         "model_usage": [],
         "urgent_accompaniment": False,
+        "selection": None,
     }
     assert messages[1].trace == trace
     assert messages[0].trace is None

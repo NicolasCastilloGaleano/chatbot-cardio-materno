@@ -25,6 +25,50 @@ class TurnMode(StrEnum):
     CLOSE = "cerrar"
 
 
+class SelectionVerdict(StrEnum):
+    """Si la evidencia atiende la consulta, según el selector (HU-13, ADR 0019)."""
+
+    ANSWERS = "responde"
+    PARTIAL = "parcial"
+    NO_ANSWER = "no_responde"
+
+
+@dataclass(frozen=True)
+class OfferedSentence:
+    """Frase de un registro ofrecida al selector de evidencia (HU-13).
+
+    Attributes:
+        id: Identificador de la frase (`E2.3`: tercera frase del registro E2).
+        text: Texto de la frase, tal como está en el registro.
+    """
+
+    id: str
+    text: str
+
+
+@dataclass(frozen=True)
+class SelectionTrace:
+    """Lo que hizo el selector de evidencia en un turno (HU-13, ADR 0019).
+
+    Attributes:
+        offered: Frases ofrecidas.
+        verdict: Veredicto del selector (None si la llamada falló).
+        selected: Ids que eligió, en orden de importancia.
+        context: Ids agregados porque una frase elegida depende de ellos.
+        added_notices: Avisos de atención de los registros elegidos que el selector no eligió.
+        omitted_notices: Avisos de atención de los registros que no eligió.
+        applied: True si el resultado decidió la respuesta; False si solo se observó.
+    """
+
+    offered: tuple[OfferedSentence, ...]
+    verdict: SelectionVerdict | None = None
+    selected: tuple[str, ...] = ()
+    context: tuple[str, ...] = ()
+    added_notices: tuple[str, ...] = ()
+    omitted_notices: tuple[str, ...] = ()
+    applied: bool = False
+
+
 @dataclass(frozen=True)
 class InquiryTrace:
     """Decisión de la regla de indagación en un turno (HU-11, ADR 0017).
@@ -158,6 +202,7 @@ class ReplyTrace:
         model_usage: Lectura del prompt y generación de cada llamada al modelo, por etapa.
         urgent_accompaniment: True si el turno acompañó una urgencia inmediata ya avisada:
             sin indagar y sin preguntas (B-030).
+        selection: Lo que hizo el selector de evidencia (HU-13); None si no corrió.
     """
 
     reported_symptoms: tuple[str, ...] = ()
@@ -178,6 +223,7 @@ class ReplyTrace:
     about_health: bool = True
     model_usage: tuple[ModelUsage, ...] = ()
     urgent_accompaniment: bool = False
+    selection: SelectionTrace | None = None
 
     @property
     def uncited(self) -> bool:

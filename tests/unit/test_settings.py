@@ -229,6 +229,23 @@ def test_evidence_thresholds_from_env_override_the_policy_file(tmp_path: Path) -
     assert (policy.min_similarity, policy.top_k, policy.min_support) == (0.5, 4, 0.6)
 
 
+def test_selection_mode_defaults_to_observe_and_rejects_active_for_now(tmp_path: Path) -> None:
+    assert load_conversation_settings({}, tmp_path).selection_activation == "observar"
+    off = load_conversation_settings({"EVIDENCE_SELECTION_MODE": "apagado"}, tmp_path)
+    assert off.selection_activation == "apagado"
+    with pytest.raises(ConfigurationError, match="EVIDENCE_SELECTION_MODE"):
+        load_conversation_settings({"EVIDENCE_SELECTION_MODE": "activo"}, tmp_path)
+
+
+def test_selection_max_sentences_from_env_reaches_the_policy(tmp_path: Path) -> None:
+    overrides = load_rag_settings(
+        {"EVIDENCE_SELECTION_MAX_SENTENCES": "3"}, tmp_path
+    ).policy_overrides
+
+    assert apply_policy_overrides(EvidencePolicy(), overrides).selection_max_sentences == 3
+    assert EvidencePolicy().selection_max_sentences == 5
+
+
 def test_literal_min_overlap_from_env_reaches_the_grounding_policy(tmp_path: Path) -> None:
     overrides = load_rag_settings({"GROUNDING_LITERAL_MIN_OVERLAP": "2"}, tmp_path).policy_overrides
     policy = apply_policy_overrides(EvidencePolicy(), overrides)

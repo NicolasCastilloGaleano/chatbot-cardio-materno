@@ -27,6 +27,8 @@ QUESTION_MARK = "?"
 PLACEHOLDER_PATTERN = re.compile(r"\[[^\]]*\]")
 SPACES_PATTERN = re.compile(r"\s{2,}")
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+# Inicio de una frase que solo se entiende con la anterior (texto sin tildes, ADR 0019).
+CONTINUATION_PATTERN = re.compile(r"^(eso|esto|ahi|por eso|en ese caso|entonces)\b")
 # Avisos de atención (texto sin tildes): una frase del registro con alguno se muestra siempre
 # en el texto literal, para no ocultar una remisión (B-028). Pendiente de revisión clínica.
 ATTENTION_MARKERS = (
@@ -202,6 +204,11 @@ def has_question(sentences: Iterable[str]) -> bool:
 def split_sentences(text: str) -> tuple[str, ...]:
     """Frases de un texto, cortadas después de un punto, un cierre de pregunta o exclamación."""
     return tuple(part.strip() for part in SENTENCE_BOUNDARY.split(text) if part.strip())
+
+
+def continues_previous(sentence: str) -> bool:
+    """True si la frase empieza con un marcador de continuación ("Eso", "En ese caso")."""
+    return CONTINUATION_PATTERN.match(normalize_text(sentence)) is not None
 
 
 def has_attention_notice(sentence: str) -> bool:

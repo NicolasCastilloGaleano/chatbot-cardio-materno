@@ -13,6 +13,8 @@ Flujo de cada turno (ADR 0007 y 0008):
    nunca se abre un hilo.
 5. **RAG:** se busca evidencia con la consulta reformulada por el análisis. Sin evidencia
    suficiente no se llama al LLM: se muestra un mensaje fijo de abstención (ADR 0010).
+   Con `EVIDENCE_SELECTION_MODE=observar`, antes de redactar corre el selector de evidencia
+   (HU-13, ADR 0019): su resultado solo va a la traza y la respuesta no cambia.
 6. **Llamada de respuesta (con evidencia):** redacta frase por frase, citando el registro que
    respalda cada una. Un verificador determinista comprueba el respaldo; si una frase citada
    no está respaldada, se muestra el texto literal del registro (ADR 0010).
@@ -56,6 +58,10 @@ from cardio_materno.application.evidence import (
     format_candidates_context,
     format_evidence_context,
 )
+from cardio_materno.application.evidence_selection import (
+    EvidenceSelector,
+    SelectionActivation,
+)
 from cardio_materno.application.grounded_reply import (
     CLOSING_TEXT,
     abstention_text,
@@ -98,6 +104,7 @@ from cardio_materno.domain.trace import (
     InquiryTrace,
     ModelUsage,
     ReplyTrace,
+    SelectionTrace,
     StageTiming,
     TurnMode,
 )
@@ -105,6 +112,7 @@ from cardio_materno.domain.trace import (
 # Mensajes del hilo actual que se envían como contexto (3 turnos de pregunta y respuesta).
 DEFAULT_CONTEXT_MESSAGES = 6
 DEFAULT_EVIDENCE_ITEM_CHARS = 700
+DEFAULT_SELECTION_MAX_SENTENCES = 5
 ALARM_SUMMARY_TEMPLATE = "Alerta: {sign}."
 STAGE_ANALYSIS = "análisis"
 STAGE_RAG = "RAG"
@@ -171,6 +179,9 @@ class ConversationConfig:
         inquiry_activation: Cómo participa la regla de indagación: `observar` solo registra
             el modo en la traza; `activo` deja que la regla decida el turno (fase 3).
         inquiry_prompt: Instrucciones del turno de indagación (HU-11, fase 3).
+        selection_activation: Cómo participa el selector de evidencia (HU-13).
+        selection_prompt: Instrucciones del selector de evidencia.
+        selection_max_sentences: Máximo de frases que elige el selector.
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -185,6 +196,9 @@ class ConversationConfig:
     inquiry: InquiryPolicy = field(default_factory=InquiryPolicy)
     inquiry_activation: InquiryActivation = InquiryActivation.OFF
     inquiry_prompt: str = ""
+    selection_activation: SelectionActivation = SelectionActivation.OFF
+    selection_prompt: str = ""
+    selection_max_sentences: int = DEFAULT_SELECTION_MAX_SENTENCES
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -254,6 +268,13 @@ class ConversationService:
         self._active_thread_id = active_thread_id
         self._sign_codes = config.alarm_policy.codes
         self._analysis_schema = analysis_schema(self._sign_codes)
+        self._selector = (
+            None
+            if config.selection_activation is SelectionActivation.OFF
+            else EvidenceSelector(
+                ports.responder, config.selection_prompt, config.selection_max_sentences
+            )
+        )
 
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje del usuario y devuelve la respuesta.
@@ -372,9 +393,23 @@ class ConversationService:
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
             answering = replace(turn, no_questions=orients)
+            selection = self._select(analysis, answering, offered, timer)
             outcome = self._grounded_answer(analysis, answering, decisions, offered, timer)
+            outcome = with_selection(outcome, selection)
         outcome = with_urgent_accompaniment(with_inquiry(outcome, inquiry), turn)
         return with_search_query(outcome, query.text, widened)
+
+    def _select(
+        self,
+        analysis: AnalysisTurn,
+        turn: TurnInput,
+        offered: RetrievalResult,
+        timer: StageTimer,
+    ) -> SelectionTrace | None:
+        """Corre el selector de evidencia, si está encendido (HU-13)."""
+        if self._selector is None:
+            return None
+        return self._selector.select(analysis, turn, offered.items, timer)
 
     def _inquiry(
         self,
@@ -720,6 +755,13 @@ def with_inquiry(outcome: TurnOutcome, inquiry: InquiryTrace | None) -> TurnOutc
     if inquiry is None or outcome.trace is None:
         return outcome
     return replace(outcome, trace=replace(outcome.trace, inquiry=inquiry))
+
+
+def with_selection(outcome: TurnOutcome, selection: SelectionTrace | None) -> TurnOutcome:
+    """Agrega a la traza lo que hizo el selector de evidencia (HU-13), si corrió."""
+    if selection is None or outcome.trace is None:
+        return outcome
+    return replace(outcome, trace=replace(outcome.trace, selection=selection))
 
 
 def with_search_query(outcome: TurnOutcome, query_text: str, widened: bool = False) -> TurnOutcome:

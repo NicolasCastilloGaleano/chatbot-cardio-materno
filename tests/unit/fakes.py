@@ -81,6 +81,11 @@ def signing(turn: dict[str, Any], *codes: str) -> dict[str, Any]:
     return turn | {"reported_signs": list(codes)}
 
 
+def selecting(turn: dict[str, Any], verdict: str, *ids: str) -> dict[str, Any]:
+    """Guion del selector de evidencia para el turno (HU-13)."""
+    return turn | {"selection": {"verdict": verdict, "selected": list(ids)}}
+
+
 def citing(turn: dict[str, Any], *labels: str) -> dict[str, Any]:
     """Guion de turno cuya respuesta cita las etiquetas de evidencia dadas."""
     return turn | {"evidence_ids": list(labels)}
@@ -138,6 +143,13 @@ class ScriptedAgent:
         reply = self.current.get("reply", "")
         return reply if isinstance(reply, str) else ""
 
+    def _selection(self) -> dict[str, Any]:
+        """Respuesta guionizada del selector; por defecto, que nada responde."""
+        selection = self.current.get("selection", {"verdict": "no_responde", "selected": []})
+        if isinstance(selection, Exception):
+            raise selection
+        return dict(selection)
+
     def reply(self, schema: dict[str, Any]) -> dict[str, Any]:
         """Respuesta simple (saludos) o frase por frase (con evidencia), según el esquema.
 
@@ -145,6 +157,8 @@ class ScriptedAgent:
         `evidence_ids` o, si no hay, la primera etiqueta ofrecida. `sentences` en el guion
         reemplaza esa frase.
         """
+        if "verdict" in schema["properties"]:
+            return self._selection()
         if isinstance(self.current["reply"], Exception):
             raise self.current["reply"]
         if "sentences" not in schema["properties"]:
