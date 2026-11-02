@@ -229,7 +229,7 @@ class EvidenceSelector:
         """Crea el selector.
 
         Args:
-            model: Modelo de la llamada de respuesta.
+            model: Modelo del selector (por defecto, el del análisis).
             prompt: Instrucciones del selector.
             max_sentences: Máximo de frases que puede elegir.
         """

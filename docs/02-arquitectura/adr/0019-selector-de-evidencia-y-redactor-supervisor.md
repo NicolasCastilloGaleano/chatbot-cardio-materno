@@ -17,7 +17,7 @@ Hoy `_draft` hace dos trabajos en una llamada: elegir qué usar y redactar. Deci
 Quien coordina es **el código determinista**, no un LLM. Los agentes son especialistas. Las alarmas, el riesgo y las rutas siguen siendo reglas (ADR 0004), y ninguna afirmación de salud se muestra sin respaldo verificable (ADR 0010).
 
 1. **Numerar frases (determinista, `application/evidence_selection.py`).** Cada registro *Solucionar* ofrecido se parte con `split_sentences` en frases con id (`E2.3`). Las preguntas no se ofrecen (`without_questions`). La evidencia nunca llega a la llamada de análisis (ADR 0008).
-2. **Agente selector** (`evidence_selection_prompt_v1.md`, modelo de respuesta). Recibe la pregunta, el CASO y las frases numeradas. Devuelve:
+2. **Agente selector** (`evidence_selection_prompt_v1.md`, modelo del análisis por defecto; ver "Mediciones del selector"). Recibe la pregunta, el CASO y las frases numeradas. Devuelve:
    - `verdict`: `responde`, `parcial` o `no_responde`;
    - `selected`: ids en orden de importancia, limitados por `enum` en el esquema.
 
@@ -83,7 +83,8 @@ Las tres veces dijo `responde`, y no distinguió el tema de la situación. Se aj
 - **La medición con 3 frases no fue válida:** la prueba tenía fijo el máximo en 5 e ignoró la variable. Se corrigió para usar la política.
 - **Exceso de rigor en el sangrado:** con mistral no elige nada, porque el registro habla de un sangrado abundante. Es seguro (queda el recordatorio), pero pierde "pide ayuda para el traslado". Hay que revisar el prompt para ese caso.
 - **Costo:** 171,6 s para 4 llamadas, con carga del modelo incluida; hace falta medir el tiempo por turno. Como el análisis ya usa ese modelo, el selector iría justo después sin otro cambio de modelo.
-- **Por decidir:** el plan indicaba el modelo de respuesta. Usar el de análisis es una decisión de modelos (ADR 0011).
+- **Decisión (2026-11-01, Santiago Silva; pendiente de la revisión con el líder):** el selector usa por defecto el modelo y la configuración del análisis. `OLLAMA_SELECTION_MODEL` permite indicar otro, con sus `OLLAMA_SELECTION_*`. Reemplaza al modelo de respuesta en la decisión 2. Si el selector usa el mismo adaptador del análisis, Ollama no recarga el modelo entre las dos llamadas.
+- **Ajuste del prompt:** con URGENCIA EN CURSO, si el registro es de esa misma urgencia, se eligen las acciones generales aunque describa un caso más grave. La prueba en vivo exige que en el sangrado salga el traslado.
 
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:

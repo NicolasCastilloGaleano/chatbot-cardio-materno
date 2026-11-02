@@ -28,6 +28,7 @@ from cardio_materno.application.conversation_service import (
     ConversationService,
 )
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.bootstrap.rag_setup import RagSetup, setup_rag
 from cardio_materno.bootstrap.settings import (
@@ -38,6 +39,7 @@ from cardio_materno.bootstrap.settings import (
     load_ollama_settings,
     load_rag_settings,
     load_stage_settings,
+    selection_model_variable,
 )
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
@@ -98,7 +100,8 @@ def build_conversation(
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
-    ports = ConversationPorts(analyzer, responder, repository, rag.retriever)
+    selector = _selection_model(settings, analyzer)
+    ports = ConversationPorts(analyzer, responder, repository, rag.retriever, selector)
     config = ConversationConfig(
         analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),
         reply_prompt=_read(REPLY_PROMPT_FILE),
@@ -114,6 +117,18 @@ def build_conversation(
         selection_max_sentences=rag.policy.selection_max_sentences,
     )
     return ports, config
+
+
+def _selection_model(
+    settings: ConversationSettings, analyzer: OllamaLanguageModel
+) -> OllamaLanguageModel | None:
+    """Modelo del selector de evidencia: el del análisis, salvo que `.env` indique otro."""
+    if settings.selection_activation is SelectionActivation.OFF:
+        return None
+    variable = selection_model_variable(os.environ)
+    if variable == ANALYSIS_MODEL_VARIABLE:
+        return analyzer
+    return _connect("selección", load_stage_settings(os.environ, variable))
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:

@@ -156,12 +156,14 @@ class ConversationPorts:
         responder: Modelo de la llamada de respuesta.
         repository: Repositorio de hilos.
         retriever: Buscador de evidencia (nulo si el RAG está desactivado).
+        selector: Modelo del selector de evidencia (HU-13); None usa el de respuesta.
     """
 
     analyzer: LanguageModel
     responder: LanguageModel
     repository: ThreadRepository
     retriever: KnowledgeRetriever = field(default_factory=UnavailableRetriever)
+    selector: LanguageModel | None = None
 
 
 @dataclass(frozen=True)
@@ -272,7 +274,9 @@ class ConversationService:
             None
             if config.selection_activation is SelectionActivation.OFF
             else EvidenceSelector(
-                ports.responder, config.selection_prompt, config.selection_max_sentences
+                ports.selector or ports.responder,
+                config.selection_prompt,
+                config.selection_max_sentences,
             )
         )
 

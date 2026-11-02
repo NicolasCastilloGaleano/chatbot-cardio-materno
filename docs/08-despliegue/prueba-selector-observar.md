@@ -7,7 +7,7 @@ Rama `feat/hu-13-selector-redactor`. Con `EVIDENCE_SELECTION_MODE=observar`, ant
 Este guion decide si se construye el redactor (paso 1.2). La línea base está en el [ADR 0019](../02-arquitectura/adr/0019-selector-de-evidencia-y-redactor-supervisor.md).
 
 ## 1. Preparación
-- `.env` con `EVIDENCE_SELECTION_MODE=observar` (es el valor por defecto) e `INQUIRY_MODE=activo`.
+- `.env` con `EVIDENCE_SELECTION_MODE=observar` (es el valor por defecto), `OLLAMA_SELECTION_MODEL` vacío (usa el modelo del análisis) e `INQUIRY_MODE=activo`.
 - Las líneas `KB_*` de la base v2, comentadas.
 - `git fetch`, `git checkout feat/hu-13-selector-redactor`, `git pull` y reiniciar `python run_web.py`.
 - Para revisar: la auditoría web (sección "Selector de evidencia") o `python scripts/export_traces.py --since "AAAA-MM-DD HH:MM" > selector-observar.md`.
@@ -30,6 +30,8 @@ La búsqueda cambia entre corridas: el caso 1 puede no traer el registro de conv
 ```bash
 pytest -m live -s tests/live/test_live_selection.py
 ```
+
+Se repite 5 veces. En el caso del sangrado debe salir el traslado y ninguna frase de la convulsión.
 
 ## 3. Qué anotar para el equipo clínico
 En cada caso con selector, la traza muestra dos listas (ADR 0019, punto 1):

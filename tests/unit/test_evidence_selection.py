@@ -14,6 +14,11 @@ from cardio_materno.adapters.outbound.persistence.trace_codec import (
 )
 from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
 from cardio_materno.application.alarm_policy import URGENT_ACCOMPANIMENT_CONTEXT
+from cardio_materno.application.conversation_service import (
+    ConversationConfig,
+    ConversationPorts,
+    ConversationService,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence_selection import (
     EvidenceSelector,
@@ -39,7 +44,9 @@ from cardio_materno.domain.trace import (
 from tests.unit.fakes import (
     BackingRetriever,
     FakeRetriever,
+    InMemoryThreadRepository,
     ScriptedAgent,
+    ScriptedStage,
     agent_json,
     evidence_result,
     knowledge_entry,
@@ -238,6 +245,21 @@ def test_conversational_turns_do_not_call_the_selector() -> None:
     result = make_service(agent, config=OBSERVE, retriever=BackingRetriever(agent)).send("hola")
 
     assert result.trace is not None and result.trace.selection is None
+
+
+def test_the_selector_can_use_its_own_model() -> None:
+    agent = ScriptedAgent(selecting(agent_json("Evita las comidas pesadas."), "responde", "E1.2"))
+    own_model = ScriptedStage(agent, "reply")
+    retriever = FakeRetriever(evidence_result(knowledge_entry(answer=REFLUX)))
+    ports = ConversationPorts(
+        agent.analyzer, agent.responder, InMemoryThreadRepository(), retriever, own_model
+    )
+    config = ConversationConfig("ANALYSIS", "REPLY", **OBSERVE)
+
+    ConversationService(ports, config).send("ardor")
+
+    assert own_model.calls[0][0].content == "SELECTOR"
+    assert [call[0].content for call in agent.responder.calls] == ["REPLY"]
 
 
 def test_the_selector_receives_the_urgency_context_when_accompanying() -> None:

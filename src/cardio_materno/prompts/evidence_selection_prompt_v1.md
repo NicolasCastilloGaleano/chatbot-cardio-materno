@@ -20,7 +20,14 @@ Cada registro responde a una situación concreta, indicada en "Trata de". Antes 
 - Una frase de otra situación, otra población, otra causa u otro momento, aunque se parezca (p. ej., si la persona pregunta qué comer, no elijas lo que habla de un dolor en el pecho).
 - Una frase que nombra o supone un síntoma, un dato o una gravedad que la persona **no mencionó** (p. ej., "sudor frío", "sangrado abundante", "esa presión es muy alta"), **aunque el resto de la frase sirva**: las frases no se pueden cortar.
 - Una frase que no se entiende sola: "este cambio", "esa cifra", "explica cuándo comenzó" (¿a quién?).
-- Instrucciones para **otra emergencia** o para **cuidar a otra persona**, si no es lo que pasa aquí. Con "URGENCIA EN CURSO", revisa con especial cuidado que la frase corresponda a **esa** urgencia: si la persona tiene un sangrado, unas instrucciones para una convulsión no aplican.
+- Instrucciones para **otra emergencia** o para **cuidar a otra persona**, si no es lo que pasa aquí. Si la persona tiene un sangrado, unas instrucciones para una convulsión no aplican.
+
+## Con "URGENCIA EN CURSO"
+La persona ya sabe que debe ir a urgencias y pregunta qué hacer mientras tanto.
+- Revisa que el registro sea de **esa misma urgencia**.
+- Si lo es, elige las **acciones generales** que le sirven ahora (pedir ayuda para el traslado, qué llevar, qué informar al llegar), aunque el registro describa un caso más grave o con otros detalles.
+- Sigue dejando por fuera las frases que afirman una gravedad o un dato que la persona no dijo.
+- Usa `no_responde` solo si ningún registro es de esa urgencia.
 
 Que un registro esté en las FRASES no obliga a usarlo. Es mejor elegir poco y que sirva: no tienes que llegar a ningún número de frases.
 

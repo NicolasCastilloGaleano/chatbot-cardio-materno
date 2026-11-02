@@ -12,7 +12,9 @@ from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
 from cardio_materno.bootstrap.rag_setup import apply_policy_overrides
 from cardio_materno.bootstrap.settings import (
+    ANALYSIS_MODEL_VARIABLE,
     DEFAULT_OLLAMA_MODEL,
+    SELECTION_MODEL_VARIABLE,
     ConfigurationError,
     WebSettings,
     load_conversation_settings,
@@ -21,6 +23,7 @@ from cardio_materno.bootstrap.settings import (
     load_stage_settings,
     load_web_settings,
     load_whatsapp_settings,
+    selection_model_variable,
 )
 
 
@@ -235,6 +238,16 @@ def test_selection_mode_defaults_to_observe_and_rejects_active_for_now(tmp_path:
     assert off.selection_activation == "apagado"
     with pytest.raises(ConfigurationError, match="EVIDENCE_SELECTION_MODE"):
         load_conversation_settings({"EVIDENCE_SELECTION_MODE": "activo"}, tmp_path)
+
+
+def test_selector_uses_the_analysis_model_unless_it_has_its_own() -> None:
+    assert selection_model_variable({}) == ANALYSIS_MODEL_VARIABLE
+    assert selection_model_variable({"OLLAMA_SELECTION_MODEL": " "}) == ANALYSIS_MODEL_VARIABLE
+    own = {"OLLAMA_SELECTION_MODEL": "qwen3:8b", "OLLAMA_SELECTION_NUM_PREDICT": "100"}
+
+    assert selection_model_variable(own) == SELECTION_MODEL_VARIABLE
+    settings = load_stage_settings(own, SELECTION_MODEL_VARIABLE)
+    assert (settings.model, settings.num_predict) == ("qwen3:8b", 100)
 
 
 def test_selection_max_sentences_from_env_reaches_the_policy(tmp_path: Path) -> None:

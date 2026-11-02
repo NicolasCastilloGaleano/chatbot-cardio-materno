@@ -20,9 +20,9 @@ from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.application.turn_context import TurnInput
 from cardio_materno.bootstrap.main import PROJECT_ROOT, SELECTION_PROMPT_FILE
 from cardio_materno.bootstrap.settings import (
-    REPLY_MODEL_VARIABLE,
     load_rag_settings,
     load_stage_settings,
+    selection_model_variable,
 )
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
@@ -49,6 +49,7 @@ class SelectionCase:
     entries: tuple[str, ...]
     forbidden: tuple[str, ...]
     urgent: bool = False
+    required: tuple[str, ...] = ()
 
 
 CASES = [
@@ -60,6 +61,7 @@ CASES = [
         (CONVULSION, BLEEDING),
         ("protege la cabeza", "golpearla", "sujetes", "introduzcas"),
         urgent=True,
+        required=("traslado",),
     ),
     SelectionCase(
         "ardor con un registro de sudor frío",
@@ -83,7 +85,8 @@ CASES = [
 @pytest.fixture(scope="module")
 def selector(evidence_policy: EvidencePolicy) -> EvidenceSelector:
     """Selector con el modelo y el prompt reales."""
-    model = OllamaLanguageModel(load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
+    settings = load_stage_settings(os.environ, selection_model_variable(os.environ))
+    model = OllamaLanguageModel(settings)
     model.verify_ready()
     prompt = SELECTION_PROMPT_FILE.read_text(encoding="utf-8").strip()
     return EvidenceSelector(model, prompt, evidence_policy.selection_max_sentences)
@@ -127,6 +130,7 @@ def test_selector_leaves_out_what_does_not_apply(
 
     chosen = " ".join(chosen_texts(trace)).lower()
     assert not [word for word in case.forbidden if word in chosen]
+    assert not [word for word in case.required if word not in chosen]
 
 
 def test_selector_answers_a_direct_question_about_food(

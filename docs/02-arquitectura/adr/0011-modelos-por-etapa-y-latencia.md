@@ -130,3 +130,5 @@ En el guion de la HU-11, la llamada de análisis llenó el contexto de 4096 toke
 
 **Medición con 6144 (2026-10-28):** `ollama ps` muestra el mismo reparto (67 % CPU / 33 % GPU, 15 GB) y el análisis sigue en 50-61 s. El contexto no es la causa de la lentitud: el modelo de 24B no cabe en la GPU de este equipo. Se fija 6144, que da margen sobre los ~3900 tokens del análisis con menos memoria que 8192. La lentitud se estudia aparte: separar el tiempo de lectura del prompt del de generación, comparar con `main` (v6) y evaluar reducir el prompt del análisis o un modelo de análisis más pequeño.
 
+## Actualización 2026-11-01: modelo del selector de evidencia (HU-13, ADR 0019 propuesto)
+El selector es una tercera tarea de modelo y requiere juicio. Con evidencia fija, `qwen3:8b` pasó 2 de 4 casos en 5 corridas estables y `mistral-small3.1:24b` pasó 4 de 4 en una corrida. Por eso, salvo que `OLLAMA_SELECTION_MODEL` indique otro, usa el modelo del análisis. Suma tiempo a los turnos con evidencia: se debe medir por turno en el PC.
