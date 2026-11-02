@@ -88,6 +88,7 @@ class GroundingPolicy:
         literal_min_overlap: Raíces que una frase del texto literal debe compartir con la
             consulta para mostrarse (B-028).
         max_inquiry_sentences: Máximo de frases de un turno de indagación (HU-11).
+        max_questions_with_answer: Máximo de preguntas que acompañan una respuesta (HU-13).
         allow_questions: False para quitar las preguntas de lo que se muestra (acompañamiento
             de una urgencia ya avisada, B-030).
     """
@@ -99,6 +100,7 @@ class GroundingPolicy:
     stem_chars: int = 5
     literal_min_overlap: int = 1
     max_inquiry_sentences: int = 3
+    max_questions_with_answer: int = 1
     allow_questions: bool = True
 
 

@@ -505,7 +505,7 @@ function traceSections(trace, thread) {
   return sections;
 }
 
-const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", abstenerse: "Abstenerse (pedir detalles)", cerrar: "Cerrar" };
+const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", responder_e_indagar: "Responder e indagar", abstenerse: "Abstenerse (pedir detalles)", cerrar: "Cerrar" };
 
 function inquirySection(inquiry) {
   const progress = inquiry.progress == null ? "—" : inquiry.progress ? "Sí" : "No";

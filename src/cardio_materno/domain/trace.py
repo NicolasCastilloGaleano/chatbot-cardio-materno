@@ -21,6 +21,7 @@ class TurnMode(StrEnum):
 
     ANSWER = "responder"
     INQUIRE = "indagar"
+    ANSWER_AND_INQUIRE = "responder_e_indagar"
     ABSTAIN = "abstenerse"
     CLOSE = "cerrar"
 

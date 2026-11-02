@@ -80,13 +80,17 @@ from cardio_materno.application.grounded_reply import (
 from cardio_materno.application.inquiry_policy import (
     InquiryActivation,
     InquiryPolicy,
+    InquiryState,
     TurnIntent,
+    answer_only,
+    answers_while_inquiring,
     evaluate_inquiry,
+    mode_after_answer,
     mode_without_answer,
     previous_state,
     search_signals,
 )
-from cardio_materno.application.inquiry_turn import compose_inquiry
+from cardio_materno.application.inquiry_turn import compose_inquiry, verified_question
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -116,6 +120,7 @@ from cardio_materno.domain.trace import (
     ModelUsage,
     ReplyTrace,
     SelectionTrace,
+    SelectionVerdict,
     StageTiming,
     TurnMode,
 )
@@ -138,6 +143,12 @@ URGENT_GUIDANCE_QUERY = "qué hacer mientras llega a urgencias: {text}. {sign}"
 URGENT_NOTICE_MESSAGES = 1
 # Modos de la regla de indagación que se resuelven sin la evidencia del RAG (HU-11).
 MODES_WITHOUT_EVIDENCE = frozenset({TurnMode.INQUIRE, TurnMode.ABSTAIN, TurnMode.CLOSE})
+
+# Lo que recibe el turno de indagación cuando acompaña una respuesta (HU-13, paso 1.3).
+ANSWERED_CONTEXT = (
+    "YA LE DISTE ESTA ORIENTACIÓN EN ESTE MISMO MENSAJE (no la repitas). Haz solo una pregunta, "
+    "la que más ayude a afinar el caso:\n{answer}"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -488,9 +499,10 @@ class ConversationService:
         retrieval, widened = timer.measure(STAGE_RAG, lambda: self._search(query))
         inquiry = self._inquiry(analysis, turn, decisions, retrieval)
         mode = inquiry.mode if inquiry is not None and inquiry.applied else None
-        orients = turn.urgent_reminder or mode is TurnMode.ANSWER
+        combines = self._combines(inquiry)
+        orients = turn.urgent_reminder or mode is TurnMode.ANSWER or combines
         offered = orienting_evidence(retrieval) if orients else retrieval
-        if mode in MODES_WITHOUT_EVIDENCE:
+        if mode in MODES_WITHOUT_EVIDENCE and not combines:
             outcome = self._decided_without_evidence(mode, analysis, turn, retrieval, timer)
         elif offered.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, offered, (), timer.timings)
@@ -507,20 +519,69 @@ class ConversationService:
         self, evidence: EvidenceTurn, turn: TurnInput, timer: StageTimer
     ) -> tuple[TurnOutcome, InquiryTrace | None]:
         """Turno que va a mostrar evidencia: con el selector activo, sale de lo que deja ver."""
-        analysis, decisions, offered = evidence.analysis, evidence.decisions, evidence.offered
-        selection = self._select(analysis, turn, offered, timer)
+        selection = self._select(evidence.analysis, turn, evidence.offered, timer)
         active = self._config.selection_activation is SelectionActivation.ACTIVE
         if selection is None or selection.verdict is None or not active:
-            outcome = self._grounded_answer(analysis, turn, decisions, offered, timer)
-            return with_selection(outcome, selection), evidence.inquiry
-        applied = replace(selection, applied=True)
-        if applied.shown:
-            return (
-                with_selection(self._selected_answer(evidence, turn, applied, timer), applied),
-                evidence.inquiry,
+            return with_selection(self._unselected(evidence, turn, timer), selection), (
+                evidence.inquiry
             )
-        outcome, inquiry = self._nothing_to_show(evidence, turn, timer)
+        applied = replace(selection, applied=True)
+        if not applied.shown:
+            outcome, inquiry = self._nothing_to_show(evidence, turn, timer)
+            return with_selection(outcome, applied), inquiry
+        answer = self._selected_answer(evidence, turn, applied, timer)
+        outcome, inquiry = self._with_question(evidence, turn, answer, selection.verdict, timer)
         return with_selection(outcome, applied), inquiry
+
+    def _unselected(
+        self, evidence: EvidenceTurn, turn: TurnInput, timer: StageTimer
+    ) -> TurnOutcome:
+        """Sin resultado del selector: la regla, si iba a indagar, o la respuesta de siempre."""
+        analysis, decisions = evidence.analysis, evidence.decisions
+        if self._combines(evidence.inquiry):
+            return self._inquire(analysis, turn, evidence.retrieval, timer)
+        return self._grounded_answer(analysis, turn, decisions, evidence.offered, timer)
+
+    def _combines(self, inquiry: InquiryTrace | None) -> bool:
+        """True si un turno de indagación puede mostrar además una respuesta (HU-13, paso 1.3)."""
+        selecting = self._config.selection_activation is SelectionActivation.ACTIVE
+        return selecting and answers_while_inquiring(inquiry)
+
+    def _with_question(
+        self,
+        evidence: EvidenceTurn,
+        turn: TurnInput,
+        answer: TurnOutcome,
+        verdict: SelectionVerdict,
+        timer: StageTimer,
+    ) -> tuple[TurnOutcome, InquiryTrace | None]:
+        """Agrega una pregunta a la respuesta si la regla lo decide (HU-13, paso 1.3)."""
+        inquiry = evidence.inquiry
+        if inquiry is None or not inquiry.applied:
+            return answer, inquiry
+        state = thread_state(evidence.analysis, turn)
+        final = mode_after_answer(inquiry, verdict, state, self._config.inquiry)
+        if final.mode is not TurnMode.ANSWER_AND_INQUIRE:
+            return answer, final
+        question = self._question(evidence, turn, answer.reply, timer)
+        if not question:
+            return answer, answer_only(final, state)
+        return with_question(answer, question, timer), final
+
+    def _question(
+        self, evidence: EvidenceTurn, turn: TurnInput, answer: str, timer: StageTimer
+    ) -> str:
+        """Pregunta verificada para afinar el caso; vacía si falla, y queda solo la respuesta."""
+        analysis, retrieval = evidence.analysis, evidence.retrieval
+        try:
+            draft = timer.measure(
+                STAGE_REPLY, lambda: self._ask_after_answer(analysis, turn, retrieval, answer)
+            )
+            timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
+        except LanguageModelError as error:
+            logger.warning("Pregunta junto a la respuesta omitida: %s", error)
+            return ""
+        return verified_question(draft, user_texts(turn), self._config.grounding)
 
     def _selected_answer(
         self,
@@ -573,9 +634,7 @@ class ConversationService:
             text = no_evidence_text(turn, retrieval)
             reply = compose_reply(decisions, None) if decisions else text
             return TurnOutcome(reply, decisions, trace, analysis), inquiry
-        continues = analysis.thread_action is ThreadAction.CONTINUE
-        state = previous_state(turn.recent if continues else ())
-        final = mode_without_answer(inquiry, state, self._config.inquiry)
+        final = mode_without_answer(inquiry, thread_state(analysis, turn), self._config.inquiry)
         return self._decided_without_evidence(final.mode, analysis, turn, retrieval, timer), final
 
     def _urgent_guidance(self, request: UrgentGuidanceRequest, timer: StageTimer) -> TurnOutcome:
@@ -661,8 +720,7 @@ class ConversationService:
         blocked = decisions or turn.urgent_reminder or not analysis.about_health
         if off or unavailable or blocked:
             return None
-        continues = analysis.thread_action is ThreadAction.CONTINUE
-        state = previous_state(turn.recent if continues else ())
+        state = thread_state(analysis, turn)
         signals = search_signals(retrieval.candidates, retrieval.best_score, retrieval.items)
         intent = TurnIntent(analysis.wants_guidance, is_informational(analysis))
         applied = self._config.inquiry_activation is InquiryActivation.ACTIVE
@@ -689,8 +747,7 @@ class ConversationService:
         """Turno de indagación: preguntas del agente, verificadas (HU-11, ADR 0017)."""
         draft = timer.measure(STAGE_REPLY, lambda: self._ask(analysis, turn, retrieval))
         timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
-        said = [m.content for m in turn.recent if m.role is Role.USER] + [turn.user_text]
-        asked = compose_inquiry(draft, said, self._config.grounding)
+        asked = compose_inquiry(draft, user_texts(turn), self._config.grounding)
         trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings, asked.check)
         return TurnOutcome(asked.text, (), trace, analysis)
 
@@ -702,6 +759,19 @@ class ConversationService:
         candidates = format_candidates_context(retrieval.candidates, chars)
         context = reply_context(self._config.inquiry_prompt, analysis, turn, candidates)
         schema = inquiry_schema(self._config.grounding.max_inquiry_sentences)
+        return parse_inquiry(self._ports.responder.complete_json(context, schema))
+
+    def _ask_after_answer(
+        self, analysis: AnalysisTurn, turn: TurnInput, retrieval: RetrievalResult, answer: str
+    ) -> tuple[str, ...]:
+        """Llamada de indagación que sabe qué se respondió, para no repetirlo."""
+        chars = self._config.evidence_item_chars
+        candidates = format_candidates_context(retrieval.candidates, chars)
+        answered = ANSWERED_CONTEXT.format(answer=answer)
+        context = reply_context(
+            self._config.inquiry_prompt, analysis, turn, f"{answered}\n\n{candidates}"
+        )
+        schema = inquiry_schema(self._config.grounding.max_questions_with_answer)
         return parse_inquiry(self._ports.responder.complete_json(context, schema))
 
     def _search(self, query: EvidenceQuery) -> tuple[RetrievalResult, bool]:
@@ -1039,6 +1109,23 @@ def with_urgent_follow_up(
         urgent_follow_up=True,
     )
     return replace(answer, reply=URGENT_GUIDANCE_TEMPLATE.format(text=answer.reply), trace=trace)
+
+
+def thread_state(analysis: AnalysisTurn, turn: TurnInput) -> InquiryState:
+    """Estado de la indagación del hilo; un tema nuevo empieza de cero."""
+    continues = analysis.thread_action is ThreadAction.CONTINUE
+    return previous_state(turn.recent if continues else ())
+
+
+def user_texts(turn: TurnInput) -> list[str]:
+    """Mensajes de la persona en el hilo, con el del turno."""
+    return [m.content for m in turn.recent if m.role is Role.USER] + [turn.user_text]
+
+
+def with_question(outcome: TurnOutcome, question: str, timer: StageTimer) -> TurnOutcome:
+    """Agrega la pregunta verificada a la respuesta y actualiza los tiempos de la traza."""
+    trace = outcome.trace and replace(outcome.trace, timings=timer.timings)
+    return replace(outcome, reply=f"{outcome.reply}{REPLY_SEPARATOR}{question}", trace=trace)
 
 
 def with_selection(outcome: TurnOutcome, selection: SelectionTrace | None) -> TurnOutcome:

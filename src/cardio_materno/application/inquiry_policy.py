@@ -17,7 +17,7 @@ from enum import StrEnum
 
 from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.knowledge import EvidenceItem, Focus
-from cardio_materno.domain.trace import InquiryTrace, TurnMode
+from cardio_materno.domain.trace import InquiryTrace, SelectionVerdict, TurnMode
 
 
 class InquiryActivation(StrEnum):
@@ -111,8 +111,8 @@ class InquiryState:
 
     @property
     def inquiring(self) -> bool:
-        """True si la última respuesta fue un turno de indagación."""
-        return self.last_mode is TurnMode.INQUIRE
+        """True si la última respuesta hizo preguntas: indagó o respondió e indagó."""
+        return self.last_mode in (TurnMode.INQUIRE, TurnMode.ANSWER_AND_INQUIRE)
 
 
 def search_signals(
@@ -249,6 +249,50 @@ def mode_without_answer(
     return replace(decided, mode=TurnMode.INQUIRE, turn=previous_turns + 1)
 
 
+def answers_while_inquiring(inquiry: InquiryTrace | None) -> bool:
+    """True si la regla decidió indagar y hay un registro que orienta sobre el umbral (HU-13)."""
+    return (
+        inquiry is not None
+        and inquiry.applied
+        and inquiry.mode is TurnMode.INQUIRE
+        and inquiry.has_answer
+    )
+
+
+def mode_after_answer(
+    inquiry: InquiryTrace,
+    verdict: SelectionVerdict,
+    state: InquiryState,
+    policy: InquiryPolicy,
+) -> InquiryTrace:
+    """Decisión final de un turno que muestra frases seleccionadas (HU-13, paso 1.3).
+
+    Args:
+        inquiry: Decisión de la regla.
+        verdict: Veredicto del selector.
+        state: Estado de la indagación según la última respuesta del hilo.
+        policy: Umbrales de la regla.
+
+    Returns:
+        Responder e indagar si la regla iba a indagar, o si iba a responder, el selector dijo
+        `parcial`, la persona reporta síntomas sin pedido directo y quedan turnos. Si no, la
+        misma decisión. Cuenta como turno de indagación.
+    """
+    decided = replace(inquiry, rule_mode=inquiry.mode, mode=TurnMode.ANSWER_AND_INQUIRE)
+    if inquiry.mode is TurnMode.INQUIRE:
+        return decided
+    exhausted = state.inquiring and is_exhausted(state, inquiry.stalled, policy)
+    direct = inquiry.wants_guidance or inquiry.informational
+    if verdict is not SelectionVerdict.PARTIAL or direct or exhausted:
+        return inquiry
+    return replace(decided, turn=(state.turn if state.inquiring else 0) + 1)
+
+
+def answer_only(inquiry: InquiryTrace, state: InquiryState) -> InquiryTrace:
+    """Sin una pregunta verificada, el turno solo respondió: no cuenta como indagación."""
+    return replace(inquiry, mode=TurnMode.ANSWER, turn=state.turn if state.inquiring else 0)
+
+
 def is_clear_evidence(signals: InquirySignals, policy: InquiryPolicy) -> bool:
     """True si el mejor registro supera el umbral para responder y se distingue o coincide."""
     distinct = signals.margin >= policy.min_margin or signals.agreement >= policy.min_agreement
@@ -267,5 +311,5 @@ def is_exhausted(state: InquiryState, stalled: int, policy: InquiryPolicy) -> bo
 
 def no_answer_mode(state: InquiryState, exhausted: bool) -> TurnMode:
     """Sin respuesta posible: abstención que pide detalles o, si ya se preguntó, cierre."""
-    asked = exhausted or state.last_mode in (TurnMode.INQUIRE, TurnMode.ABSTAIN)
+    asked = exhausted or state.inquiring or state.last_mode is TurnMode.ABSTAIN
     return TurnMode.CLOSE if asked else TurnMode.ABSTAIN

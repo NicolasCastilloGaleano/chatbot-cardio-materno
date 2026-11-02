@@ -36,7 +36,7 @@ Quien coordina es **el código determinista**, no un LLM. Los agentes son especi
 11. **Auditoría:** `SelectionTrace` guarda el veredicto, los ids, las frases ofrecidas y seleccionadas, los avisos agregados y omitidos y si se aplicó (`applied`). Se ve en la web, la consola y `scripts/export_traces.py`. Sin almacenamiento nuevo: viaja en la traza, como en el ADR 0017.
 
 ### Cuándo corre el selector
-Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *Solucionar*. No corre con una urgencia inmediata nueva, ni en turnos conversacionales, fuera de alcance, de indagación, de abstención o de cierre. Sí corre con una alarma prioritaria nueva y con una urgencia recordada (B-030), con el contexto URGENCIA EN CURSO.
+Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *Solucionar*. No corre con una urgencia inmediata nueva, ni en turnos conversacionales, fuera de alcance, de abstención o de cierre. En un turno de indagación corre solo si hay un registro *Solucionar* sobre el umbral y `INQUIRY_MODE` y `EVIDENCE_SELECTION_MODE` están en `activo` (paso 1.3). Sí corre con una alarma prioritaria nueva y con una urgencia recordada (B-030), con el contexto URGENCIA EN CURSO.
 
 ### Entrega por pasos
 | Paso | Qué entrega | Cambia lo que ve la persona |
@@ -75,6 +75,11 @@ La base y las reglas de alarma siguen sin validación clínica: esta decisión n
 
 ## Cierre del paso 1.2 (2026-11-02)
 Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pytest -m live` 38 de 39 (la falla se corrigió y el selector pasó en 5 corridas) y el caso de la comida, que ya usa 3 frases (selección de 36,5 s). La sección del selector se ve bien en el panel. Con la decisión del equipo, `activo` pasa a ser el valor por defecto.
+
+## Implementación del paso 1.3 (2026-11-02)
+`inquiry_policy.py::mode_after_answer` da el modo final después de mostrar frases. Si la regla iba a indagar y hay un registro *Solucionar* sobre el umbral, corre el selector. Con frases visibles, cualquier veredicto da responder e indagar; sin frases visibles o si el selector falla, el turno solo indaga. Si la regla iba a responder, solo `parcial` agrega la pregunta, y únicamente sin pedido directo, con síntomas y con turnos disponibles.
+
+La pregunta sale de una llamada aparte, con el prompt de indagación v1 y un contexto que le dice qué ya se respondió. Pasa por `verify_inquiry` y nunca usa la pregunta fija. Si no queda ninguna o la llamada falla, se muestra solo la respuesta y el turno no cuenta como indagación. Costo esperado: los turnos que antes solo preguntaban suman selección, redacción y pregunta; hay que medirlo en el PC.
 
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
