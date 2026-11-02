@@ -98,6 +98,18 @@ Cada corrida de 4 llamadas tardó 29 a 39 s, carga del modelo incluida. Todas la
 
 **Ajuste:** las frases con demostrativo al inicio son 64 de 4.557 (1,4 %) y casi todas dependen de la frase anterior ("Estas medidas…"), así que no se creó una regla para excluirlas: `este`, `esta`, `estos` y `estas` pasan a ser marcadores de continuación. El selector ahora evalúa cada registro antes de elegir: `records` con `fit` (`si`, `en_parte`, `no`) y `unsaid` (datos que supone y la persona no dio). El código descarta las frases de los registros con `fit` = `no`. Con URGENCIA EN CURSO, un registro de esa misma urgencia no puede ser `no`. La traza guarda la evaluación y la causa de los fallos.
 
+## Cinco corridas con evaluación de registros (2026-11-02)
+| Caso | Evaluación | Resultado |
+|---|---|---|
+| Sangrado con convulsión | E1 `no` (convulsión), E2 `no` (sangrado abundante, dolor, 32 semanas) | ❌ 5/5 `no_responde`: seguro, sin el traslado. Marcó `no` el registro de la misma urgencia, pese al prompt |
+| Ardor | `no` (sudor frío) | ✅ 5/5 |
+| Presión alta | `en_parte` (cifra de 190/125) | ❌ 5/5: detecta el dato, pero elige "marcadamente elevada" |
+| DASH | `si` | ✅ 5/5 |
+
+Sin fallos de llamada en 20 llamadas. Cada corrida tardó de 61 a 72 s, carga incluida: la evaluación casi dobla el tiempo de la corrida anterior.
+
+**Lectura:** `unsaid` identifica bien los datos no dichos y es estable. Las dos fallas vienen de pruebas con la evidencia más desfavorable (un registro específico, sin alternativa). No se sigue afinando el prompt con ellas: la decisión se toma con el guion en la web, con la evidencia que trae la búsqueda real. Las dos pruebas en vivo siguen en rojo a propósito hasta entonces.
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 
