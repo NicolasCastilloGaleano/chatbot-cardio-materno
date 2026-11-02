@@ -39,6 +39,7 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-031 | Selector de evidencia y redactor supervisor: un agente elige por id las frases que responden a la pregunta y da un veredicto, otro redacta con ellas, y el modo responder e indagar. Pedido del líder del proyecto | HU-13 | Alta | — | 🔄 Paso 1.1 verificado; paso 1.2 por verificar en el PC (ADR 0019 propuesto) |
 | B-032 | Registro de vacíos para el equipo clínico: la traza marca los turnos sin contenido útil y `scripts/report_gaps.py` los agrupa por consulta y categoría, sin datos personales | HU-13 | Media | — | ⏳ Después de B-031 |
 | B-033 | Separar el análisis en extractor clínico e intérprete, sin perder detecciones del filtro 2 | HU-14 (por especificar) | Media | — | ⏳ Después de B-032, con medición previa |
+| B-034 | Orientación en el primer aviso de una urgencia: además del mensaje fijo, algo que la persona pueda hacer en el momento, sin que tenga que preguntar y sin textos fijos por alarma. Propuesta en el ADR 0019 | HU-03 / HU-04 | Por priorizar | — | 📝 Por decidir (P4) |
 
 ## Notas de ítems
 

@@ -47,6 +47,34 @@ Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *So
 
 Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien en `observar`, no se construye el redactor. El resultado se revisa con el líder del proyecto antes de seguir con las demás etapas.
 
+## Guion en modo activo (2026-11-02)
+| Caso | Resultado |
+|---|---|
+| Sangrado, 3 veces | ✅ Recordatorio y traslado, 3/3 frases respaldadas, sin convulsión. Ojo: en estas corridas la búsqueda no trajo ese registro, así que lo que lo descarta sigue probado solo una vez en la web y con evidencia fija |
+| Ardor | ✅ Dos preguntas para distinguir (turno 1 de indagación), sin urgencias ni sudor frío |
+| Presión alta | ✅ Solo el mensaje fijo |
+| Comida | ⚠️ DASH correcto, pero el redactor usó 1 de 4 frases visibles. Se ajustó `reply_prompt_v5.md` para que las use |
+| Brazo y pecho pesado | ✅ Sin cambios |
+
+Ninguna respuesta cayó en texto literal. Un turno con evidencia tarda de 95 a 105 s, y la selección, de 18 a 33 s. El redactor puede omitir un aviso reforzado: en una corrida del sangrado dejó fuera "sangrado abundante…", que la persona no dijo. Se debe revisar con el punto 1.
+
+## Propuesta: orientación en el primer aviso de una urgencia (B-034, por decidir)
+**Pedido del usuario (2026-11-02):** en una emergencia, la persona no debería tener que preguntar "¿qué hago mientras llego?": la primera respuesta debe traer algo que pueda hacer en el momento, y la solución debe ser general, sin textos fijos por alarma.
+
+Hoy, una urgencia inmediata solo muestra el mensaje fijo (ADR 0007), y el acompañamiento (B-030) solo existe cuando la persona vuelve a escribir.
+
+**Solución general propuesta:** reutilizar el acompañamiento para el primer aviso. El mensaje fijo sigue siendo determinista y sale primero; el código busca, selecciona y redacta con URGENCIA EN CURSO, sin ramas por alarma.
+
+| Opción | Ventaja | Costo |
+|---|---|---|
+| **Dos mensajes (recomendada):** el mensaje fijo sale de inmediato y la orientación llega sola después | No retrasa el aviso | La web, la consola y WhatsApp deben mostrar un segundo mensaje sin que la persona escriba |
+| Un solo mensaje | Lo pedido literalmente | La persona esperaría decenas de segundos antes de ver "ve a urgencias" |
+
+**Límites:**
+- Solo se puede decir lo que está en la base (ADR 0010). Si un registro no trae qué hacer en el momento, ningún agente lo inventa: eso va al equipo clínico (B-032).
+- Con filtro 1, hoy no hay análisis. La búsqueda y el CASO saldrían del mensaje de la persona, o habría que correr el análisis para esa segunda parte.
+- Modifica el ADR 0007 (`urgencia_inmediata` sin respuesta del LLM), por lo que es una decisión del equipo clínico (P4).
+
 ## Paso 1.2 (2026-11-02)
 - **Aprobados por el usuario (Santiago Silva):** el paso 1.1 con su resultado en la web y la regla de `en_parte`. Pendiente la revisión con el líder.
 - **Implementado detrás de `EVIDENCE_SELECTION_MODE=activo`:** frases visibles (`visible_ids`), redactor (`reply_prompt_v5.md`), verificación contra las frases visibles sin la pregunta del registro, literal de esas frases (`with_selected_literal`) y decisión final (`mode_without_answer`). La traza guarda el modo que eligió la regla (`rule_mode`).
