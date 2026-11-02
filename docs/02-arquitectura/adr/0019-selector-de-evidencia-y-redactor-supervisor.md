@@ -63,6 +63,16 @@ Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien
 
 Las tres veces dijo `responde`, y no distinguió el tema de la situación. Se ajustó el prompt (comparar el registro con el caso; frases que suponen datos no dichos o no se entienden solas; veredicto exigente), se agregaron `esa`, `ese`, `esas` y `esos` a los marcadores de continuación y se creó `tests/live/test_live_selection.py`, con la evidencia fija para no depender de la búsqueda. **Límite:** muchas frases mezclan una parte útil con un dato no dicho, y no se pueden cortar sin cambiar la base; eso va a los vacíos del contenido (B-032).
 
+## Prueba con evidencia fija (2026-11-01): 2 de 4, una sola corrida
+| Caso | Veredicto | Resultado |
+|---|---|---|
+| Sangrado con un registro de convulsión | `responde` | ✅ Eligió solo frases del sangrado, sin "sangrado abundante" |
+| Comida con el registro de DASH | `responde` | ✅ Empezó por DASH |
+| Ardor con un registro de sudor frío | `responde` | ❌ 5 frases, incluidas "busca atención de urgencias" y "sudor frío" |
+| Presión alta sin cifras con un registro de 190/125 | `responde` | ❌ 5 frases, incluida "marcadamente elevada" (y la anterior, por contexto) |
+
+**Lectura:** el selector distingue entre registros de temas distintos, pero no rechaza un registro parecido cuando es el único ofrecido: llena el máximo de frases y dice `responde`. Son las situaciones que más necesitan `parcial` o `no_responde`. Una corrida no demuestra que el caso del sangrado sea estable. Siguen, sin cambiar código, tres mediciones: repetir la prueba, probar el modelo del análisis y bajar el máximo de frases. Si no bastan, se propone que el selector primero declare, por registro, qué datos supone que la persona no dio.
+
 ## Línea base (2026-11-01, `main` en `79fa39a`)
 Seis casos en el PC de pruebas, antes de cualquier cambio:
 
