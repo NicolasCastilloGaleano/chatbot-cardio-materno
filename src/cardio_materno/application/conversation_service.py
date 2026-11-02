@@ -145,6 +145,10 @@ Clock = Callable[[], datetime]
 IdGenerator = Callable[[], str]
 
 
+class UrgentGuidanceSkippedError(Exception):
+    """No hay orientación útil y verificada después del aviso: no se envía nada (ADR 0021)."""
+
+
 class UrgentGuidanceActivation(StrEnum):
     """Si se orienta después del aviso de una urgencia (`URGENT_GUIDANCE_MODE`, ADR 0021)."""
 
@@ -386,11 +390,8 @@ class ConversationService:
             return None
         try:
             outcome = self._urgent_guidance(request, StageTimer(self._config.timer))
-        except LanguageModelError as error:
+        except (LanguageModelError, UrgentGuidanceSkippedError) as error:
             logger.warning("Orientación de urgencia omitida: %s", error)
-            return None
-        if outcome is None or outcome.trace is None:
-            logger.info("Orientación de urgencia omitida: sin contenido verificado")
             return None
         message = ChatMessage(
             Role.ASSISTANT, outcome.reply, thread.id, self._config.clock(), outcome.trace
@@ -577,25 +578,28 @@ class ConversationService:
         final = mode_without_answer(inquiry, state, self._config.inquiry)
         return self._decided_without_evidence(final.mode, analysis, turn, retrieval, timer), final
 
-    def _urgent_guidance(
-        self, request: UrgentGuidanceRequest, timer: StageTimer
-    ) -> TurnOutcome | None:
-        """Busca, selecciona y redacta con URGENCIA EN CURSO; None si no hay qué mostrar."""
+    def _urgent_guidance(self, request: UrgentGuidanceRequest, timer: StageTimer) -> TurnOutcome:
+        """Busca, selecciona y redacta con URGENCIA EN CURSO.
+
+        Raises:
+            UrgentGuidanceSkippedError: Si no hay contenido útil y verificado que mostrar.
+            LanguageModelError: Si falla la redacción.
+        """
         analysis = request.analysis or urgency_analysis(request)
         query = urgency_query(request, analysis)
         retrieval, _ = timer.measure(STAGE_RAG, lambda: self._search(query))
         offered = orienting_evidence(retrieval)
         if offered.status is not RetrievalStatus.SUFFICIENT:
-            return None
+            raise UrgentGuidanceSkippedError("sin evidencia suficiente")
         turn = self._urgency_turn(request)
         selection = self._select(analysis, turn, offered, timer)
-        if selection is None or selection.verdict is None or not selection.shown:
-            return None
+        if selection is None or not selection.shown:
+            raise UrgentGuidanceSkippedError(selection_problem(selection))
         applied = replace(selection, applied=True)
         evidence = EvidenceTurn(analysis, (), retrieval, offered, None)
         answer = self._selected_answer(evidence, turn, applied, timer)
         if answer.trace is None or answer.trace.grounding is None or answer.trace.grounding.literal:
-            return None
+            raise UrgentGuidanceSkippedError("la redacción no se verificó")
         return with_urgent_follow_up(answer, applied, timer, query.text)
 
     def _urgency_turn(self, request: UrgentGuidanceRequest) -> TurnInput:
@@ -979,6 +983,16 @@ def with_inquiry(outcome: TurnOutcome, inquiry: InquiryTrace | None) -> TurnOutc
     if inquiry is None or outcome.trace is None:
         return outcome
     return replace(outcome, trace=replace(outcome.trace, inquiry=inquiry))
+
+
+def selection_problem(selection: SelectionTrace | None) -> str:
+    """Por qué el selector no dejó frases visibles (para el registro, sin datos personales)."""
+    if selection is None:
+        return "sin registros que orienten"
+    if selection.verdict is None:
+        return f"falló el selector: {selection.failure}"
+    reviews = ", ".join(f"{r.label} {r.fit}: {r.unsaid}" for r in selection.reviews)
+    return f"sin frases visibles ({selection.verdict}; {reviews})"
 
 
 def urgency_analysis(request: UrgentGuidanceRequest) -> AnalysisTurn:

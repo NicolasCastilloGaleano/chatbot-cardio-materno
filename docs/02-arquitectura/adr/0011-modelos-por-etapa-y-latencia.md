@@ -144,3 +144,16 @@ Medido en el PC (RTX 2080 de 8 GB, 125 GB de RAM):
 
 Opciones por medir: `qwen3` en CPU para no sacar a mistral de la GPU, y un modelo intermedio en el selector. Una GPU con 24 GB alojaría los dos modelos; es decisión del equipo.
 
+### Prueba con `qwen3` en CPU (2026-11-02)
+Copia del modelo con `PARAMETER num_gpu 0` (`qwen3-cpu`), con mistral fijo en la GPU. Tres turnos con evidencia en la web:
+
+| Etapa | Con cambio de modelos | `qwen3-cpu`, modelos ya cargados |
+|---|---|---|
+| Análisis | 48 a 56 s | 30 s |
+| RAG | 7 a 8 s | 0,4 a 0,5 s |
+| Selección | 18 a 37 s | 29 a 32 s |
+| Respuesta | 7 a 9 s | 16 a 23 s |
+| Turno | 87 a 106 s | 75 a 85 s |
+
+El turno baja unos 20 s y queda más estable. El primer turno, con los modelos aún por cargar, tardó unos 100 s. Una tercera corrida se hizo con `OLLAMA_REPLY_MODEL=qwen3:8b` en `.env`, pero generó a 8 tokens por segundo, velocidad de CPU: el servidor seguramente seguía con la copia.
+

@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import pytest
+
 from cardio_materno.adapters.inbound.console.console_chat import ASSISTANT_LABEL, ConsoleChat
 from cardio_materno.application.conversation_service import (
     URGENT_GUIDANCE_QUESTION,
@@ -140,10 +142,11 @@ def test_general_actions_of_a_partial_record_are_shown_in_an_urgency() -> None:
     assert guided is not None and USEFUL in guided.reply
 
 
-def test_nothing_is_sent_without_useful_content() -> None:
+def test_nothing_is_sent_without_useful_content(caplog: pytest.LogCaptureFixture) -> None:
     guided, _, repo = guide(selecting(agent_json("x"), "no_responde"))
 
     assert guided is None
+    assert "sin frases visibles (no_responde" in caplog.text
     assert all(len(messages) == 2 for messages in repo.messages.values())
 
 
