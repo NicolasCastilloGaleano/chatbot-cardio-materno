@@ -63,6 +63,9 @@ Ninguna respuesta cayó en texto literal. Los turnos con selector tardaron de 87
 
 **Evidencia fija con los síntomas del caso (5 corridas):** 4 de 4 las cinco veces, sin fallos de llamada. Sangrado: convulsión `no`, sangrado `en_parte`, y sale el traslado. Ardor: `no_responde`. Presión: `parcial`, sin frases visibles por la regla de `en_parte`. DASH: `responde`. El selector depende de que el análisis le entregue los síntomas.
 
+## Cierre del paso 1.2 (2026-11-02)
+Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pytest -m live` 38 de 39 (la falla se corrigió y el selector pasó en 5 corridas) y el caso de la comida, que ya usa 3 frases (selección de 36,5 s). La sección del selector se ve bien en el panel. `activo` sigue sin ser el valor por defecto: falta la decisión clínica sobre los avisos.
+
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
 
