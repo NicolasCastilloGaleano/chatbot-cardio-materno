@@ -36,6 +36,7 @@ from cardio_materno.domain.trace import (  # noqa: E402
     InquiryTrace,
     ModelUsage,
     ReplyTrace,
+    SelectionTrace,
 )
 
 DEFAULT_DATABASE = "data/cardio_materno.db"
@@ -150,6 +151,8 @@ def trace_lines(trace: ReplyTrace) -> list[str]:
         lines.extend(search_lines(trace))
     if trace.grounding is not None:
         lines.append(grounding_line(trace.grounding))
+    if trace.selection is not None:
+        lines.extend(selection_lines(trace.selection))
     if trace.inquiry is not None:
         lines.append(inquiry_line(trace.inquiry))
     return lines + timing_lines(trace)
@@ -203,6 +206,31 @@ def grounding_line(check: GroundingCheck) -> str:
     if check.dropped:
         line += " · descartadas: " + " / ".join(check.dropped)
     return line
+
+
+def selection_lines(selection: SelectionTrace) -> list[str]:
+    """Veredicto del selector y texto de las frases elegidas y de los avisos (HU-13)."""
+    state = "aplicado" if selection.applied else "observado"
+    if selection.verdict is None:
+        cause = selection.failure or "sin causa registrada"
+        return [f"selector {state}: falló ({cause}); el turno siguió el flujo actual"]
+    total = len(selection.offered)
+    lines = [f"selector {state}: {selection.verdict} · {len(selection.selected)} de {total} frases"]
+    lines += [
+        f"registro {r.label}: {r.fit}" + (f" · supone: {r.unsaid}" if r.unsaid else "")
+        for r in selection.reviews
+    ]
+    texts = {sentence.id: sentence.text for sentence in selection.offered}
+    groups = (
+        ("elegida", selection.selected),
+        ("por contexto", selection.context),
+        ("visible", selection.shown),
+        ("aviso que agregaría", selection.added_notices),
+        ("aviso por fuera", selection.omitted_notices),
+    )
+    for name, ids in groups:
+        lines.extend(f"{name} {sentence_id}: {texts[sentence_id]}" for sentence_id in ids)
+    return lines
 
 
 def inquiry_line(inquiry: InquiryTrace) -> str:

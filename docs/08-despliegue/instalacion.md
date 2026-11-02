@@ -213,6 +213,9 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `GROUNDING_MAX_FREE_WORDS` | (archivo: `20`) | Palabras máximas de una frase sin cita |
 | `GROUNDING_LITERAL_MIN_OVERLAP` | (archivo: `1`) | Raíces que una frase del texto literal debe compartir con la consulta para mostrarse; los avisos de atención se muestran siempre (B-028) |
 | `INQUIRY_MODE` | `activo` | Indagación de la HU-11: `apagado` (no se calcula), `observar` (se registra en la traza qué haría la regla, sin cambiar la respuesta) o `activo` (la regla decide el turno) |
+| `EVIDENCE_SELECTION_MODE` | `activo` | Selector de evidencia de la HU-13: `apagado` (sin la llamada), `observar` (corre y su resultado solo va a la traza, sin cambiar la respuesta) o `activo` (la respuesta sale de las frases elegidas). Suma una llamada al modelo en los turnos con evidencia |
+| `OLLAMA_SELECTION_MODEL` | (vacío = el del análisis) | Modelo del selector. Con un valor propio se pueden fijar `OLLAMA_SELECTION_TEMPERATURE`, `_NUM_CTX`, `_TIMEOUT_SECONDS`, `_THINK` y `_NUM_PREDICT` (por defecto, `300`) |
+| `EVIDENCE_SELECTION_MAX_SENTENCES` | (política: `5`) | Máximo de frases que elige el selector |
 | `INQUIRY_FLOOR` | (archivo: `0.40`) | Similitud mínima de un candidato que orienta la indagación de la HU-11; los candidatos nunca son evidencia |
 | `INQUIRY_ANSWER_THRESHOLD` | (archivo: `0.68`) | Similitud con la que la evidencia es clara para responder sin indagar. Distinto de `RAG_MIN_SIMILARITY` (0,50), que decide qué cuenta como evidencia: entre 0,50 y este valor la regla indaga primero. 0,60 → 0,68 por decisión del equipo (2026-10-28) |
 | `INQUIRY_MIN_MARGIN` | (archivo: `0.03`) | Ventaja mínima del primer candidato sobre el segundo para responder |

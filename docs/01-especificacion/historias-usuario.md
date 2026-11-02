@@ -272,6 +272,25 @@ Escenario: El recordatorio nunca se pierde
   Cuando el mensaje es fuera de alcance, conversacional o termina en abstención
   Entonces el recordatorio también aparece al comienzo de la respuesta
 
+Escenario: Orientación después del aviso de urgencia (B-034, [ADR 0021](../02-arquitectura/adr/0021-orientacion-despues-del-aviso-de-urgencia.md), propuesto)
+  Dado que URGENT_GUIDANCE_MODE y EVIDENCE_SELECTION_MODE son "activo"
+  Cuando mi mensaje activa una urgencia inmediata nueva
+  Entonces el mensaje fijo sale primero, con el mismo tiempo de hoy
+  Y sin que yo escriba nada, recibo un segundo mensaje con lo que puedo hacer en el momento
+  Y ese mensaje sale solo de frases elegidas por el selector y verificadas, sin preguntas
+  Y no hay textos ni reglas distintas por alarma
+
+Escenario: Sin contenido útil no hay segundo mensaje (B-034, propuesto)
+  Dado que hubo una urgencia inmediata nueva
+  Cuando el selector dice "no_responde", no hay frases visibles, la verificación no pasa o falla una llamada
+  Entonces no recibo un segundo mensaje ni un error
+  Y el aviso de urgencia ya quedó entregado
+  Y la traza registra por qué no hubo orientación
+
+Escenario: Sin el selector activo no hay orientación automática (B-034, propuesto)
+  Cuando EVIDENCE_SELECTION_MODE no es "activo" o URGENT_GUIDANCE_MODE es "apagado"
+  Entonces la urgencia se resuelve como hoy, solo con el mensaje fijo
+
 Escenario: Acompañamiento de una urgencia ya avisada (B-030, ADR 0018, 2026-10-28; aplica también a la HU-04)
   Dado un hilo con una urgencia inmediata ya avisada que el filtro 2 vuelve a encontrar
   Cuando escribo "¿qué hago mientras llego?" o "¿voy directamente a urgencias?"
@@ -719,3 +738,121 @@ Criterios de utilidad, que se miden en el PC con `pytest -m live` y el guion:
 Las metas las decide el equipo.
 
 Estado: ✅ Aprobada como especificación (2026-10-27, Nicolas Castillo Galeano), con los registros *Indagar* como insumo opcional. Los umbrales son propuestas que se calibran en modo `observar`; las metas de utilidad se mantienen; el texto del cierre espera la revisión clínica. B-025, B-027 y B-028 ya están en `main`. ✅ Fase 2 (modo `observar`) verificada en el PC y fusionada a `main` el 2026-10-28; umbral para responder calibrado en 0,68. ✅ Fase 3 (`activo`) verificada en el PC el 2026-10-31 (en vivo 35/35, guion de 9 casos) y fusionada a `main`, con `INQUIRY_MODE=activo` por defecto. Métricas en vivo: 5 indagaciones, 4 resueltas (todas en alarma), 0 perdidas, 1,2 turnos. Pendiente: revisión clínica del cierre
+
+---
+
+### HU-13: Respuesta pertinente con selector de evidencia y redactor supervisor
+**Como** gestante, cuidador o persona con un problema del corazón o la presión, **quiero** que el asistente responda específicamente lo que pregunto, con lo que puedo hacer ahora, **para** recibir una orientación que me sirva y no solo frases respaldadas que no aplican a mi caso.
+
+Notas técnicas ([ADR 0019](../02-arquitectura/adr/0019-selector-de-evidencia-y-redactor-supervisor.md), propuesto): hoy una sola llamada elige la evidencia y redacta. Se separan en dos agentes con una tarea cada uno, coordinados por código determinista:
+- el **selector** elige por id las frases que responden a la pregunta y aplican al caso, y da un veredicto (`responde`, `parcial`, `no_responde`). Como elige ids, no puede inventar texto;
+- el **redactor supervisor** recibe solo esas frases y escribe la respuesta: primero la respuesta directa, luego lo aplicable en el momento y la remisión al final.
+
+La verificación del ADR 0010 no cambia de regla. Las alarmas se evalúan antes y el selector nunca las ve ni las quita (ADR 0004). `EVIDENCE_SELECTION_MODE` admite `apagado`, `observar` y `activo`. Los escenarios marcados *(por decidir)* dependen de los puntos abiertos del ADR 0019.
+
+```gherkin
+Escenario: Modo de observación antes de activar (paso 1.1)
+  Dado que EVIDENCE_SELECTION_MODE es "observar"
+  Cuando un turno va a mostrar evidencia con al menos un registro "Solucionar"
+  Entonces el asistente responde exactamente como antes de esta historia
+  Y la traza registra el veredicto, las frases ofrecidas y las seleccionadas, los avisos omitidos y que no se aplicó
+  Y con "apagado" no se hace la llamada del selector
+
+Escenario: El selector solo elige frases de la base (paso 1.1)
+  Dado que la evidencia tiene registros "Solucionar"
+  Cuando se numeran sus frases
+  Entonces cada frase tiene un id como "E2.3" y las preguntas de los registros no se ofrecen
+  Y el esquema limita "selected" a esos ids
+  Y un id que no existe o un JSON inválido cuentan como fallo del selector
+
+Escenario: Si el selector falla, la persona no lo nota (paso 1.1)
+  Cuando la llamada del selector falla
+  Entonces el turno se resuelve con el flujo actual, sin error para la persona
+  Y la traza registra el fallo
+
+Escenario: El selector no corre donde no hay evidencia que mostrar (paso 1.1)
+  Cuando el turno es una urgencia inmediata nueva, conversacional, fuera de alcance, de indagación, de abstención o de cierre
+  O la evidencia no tiene registros "Solucionar"
+  Entonces no se llama al selector
+
+Escenario: Una frase que depende de la anterior no queda suelta (paso 1.1, por decidir)
+  Cuando el selector elige una frase que empieza con un marcador de continuación ("eso", "en ese caso")
+  Entonces también se incluye la frase anterior del mismo registro
+
+Escenario: La respuesta atiende primero lo que pregunto (paso 1.2)
+  Dado que EVIDENCE_SELECTION_MODE es "activo"
+  Y el selector dijo "responde" con las frases elegidas
+  Cuando el redactor escribe la respuesta
+  Entonces primero responde la pregunta, luego dice lo aplicable en el momento y al final la remisión, en lenguaje claro
+  Y solo usa las frases seleccionadas, cada frase de salud con su cita
+  Y la verificación del ADR 0010 se hace contra las frases seleccionadas
+
+Escenario: Lo que no aplica no aparece (paso 1.2)
+  Dado que pregunto por un dolor en el brazo y la evidencia ofrecida incluye un registro sobre la aorta
+  Cuando el selector no elige ese registro
+  Entonces la respuesta no menciona la aorta ni síntomas que no conté
+
+Escenario: Un aviso de atención no se pierde (paso 1.2, por decidir con el equipo clínico)
+  Cuando el selector elige un registro que tiene un aviso de atención
+  Entonces el aviso se agrega a las frases seleccionadas, aunque el selector no lo haya elegido
+  Y la regla para los avisos de los registros no elegidos se decide con lo medido en modo observar
+
+Escenario: Si la redacción no se verifica (paso 1.2)
+  Cuando una frase citada no está respaldada por las frases seleccionadas
+  Entonces se muestra el texto literal de las frases seleccionadas y reforzadas, sin preguntas
+  Y esas frases salen de todos los registros elegidos, en el orden del selector
+
+Escenario: Un registro que supone datos que no di no se muestra (paso 1.2)
+  Dado que EVIDENCE_SELECTION_MODE es "activo"
+  Cuando el selector evalúa un registro como "en_parte", porque supone datos que no di
+  Entonces sus frases no se muestran
+  Y el turno sigue como si la evidencia no respondiera
+  Y con una urgencia en curso sí se muestran las acciones generales que eligió, sin agregar sus avisos
+
+Escenario: Un registro ajeno se descarta aunque se haya elegido (paso 1.2)
+  Cuando el selector evalúa un registro como "no"
+  Entonces el código descarta sus frases
+
+Escenario: La evidencia no responde (paso 1.2)
+  Dado que INQUIRY_MODE y EVIDENCE_SELECTION_MODE son "activo"
+  Cuando el selector dice "no_responde" o no selecciona ninguna frase
+  Entonces no se muestra esa evidencia
+  Y si reporto síntomas, no hice un pedido directo y quedan turnos de indagación, el asistente indaga
+  Y si no, se abstiene o cierra con el mensaje honesto
+
+Escenario: Las alarmas siguen primero (paso 1.2)
+  Dado que hay una alarma prioritaria nueva
+  Cuando el selector dice "no_responde"
+  Entonces se muestra solo el mensaje fijo de la alarma
+  Y si dice "responde" o "parcial", el mensaje fijo va con la respuesta, sin preguntas
+
+Escenario: Acompañar una urgencia recordada (paso 1.2)
+  Dado que se recuerda una urgencia inmediata (B-030)
+  Cuando corre el selector
+  Entonces selector y redactor reciben el contexto URGENCIA EN CURSO
+  Y si dice "no_responde", queda solo el recordatorio
+  Y nunca se hace una pregunta
+
+Escenario: Responder e indagar (paso 1.3)
+  Dado que INQUIRY_MODE y EVIDENCE_SELECTION_MODE son "activo"
+  Y hay un registro "Solucionar" con similitud de 0,50 o más
+  Y reporto síntomas, sin pedido directo, y quedan turnos de indagación
+  Cuando la evidencia no es clara para responder o el selector dice "parcial"
+  Entonces el asistente muestra la respuesta verificada y una sola pregunta para afinar el caso
+  Y el turno cuenta como turno de indagación
+  Y si la pregunta no pasa la verificación o falla su llamada, se muestra solo la respuesta
+
+Escenario: Con pedido directo no se pregunta (paso 1.3)
+  Cuando escribo "¿qué hago?" o hago una pregunta de información
+  Y el selector dice "parcial"
+  Entonces el asistente responde sin hacer preguntas
+
+Escenario: Auditoría de la selección
+  Cuando reviso un chat en la interfaz de auditoría, en la consola o en la exportación de trazas
+  Entonces veo el veredicto, las frases ofrecidas y seleccionadas, los avisos agregados y omitidos y si se aplicó
+```
+Compuertas, que se verifican en el PC:
+- **Paso 1.1:** en `observar`, comparar con la línea base del ADR 0019 qué habría elegido el selector en ardor con reflujo, presión alta, DASH y sangrado (en brazo y pecho pesado no corre). Es obligatorio que en "¿qué hago mientras llego?" con sangrado no elija las instrucciones de una convulsión. Si no elige bien, no se construye el redactor.
+- **Pasos 1.2 y 1.3:** con `activo`, `pytest -m live` completo, un guion nuevo y sin regresiones en alarmas. Si sale bien, `activo` pasa a ser el valor por defecto y se fusiona.
+
+Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 verificado en el PC ([guion](../08-despliegue/prueba-selector-observar.md)). Paso 1.2 verificado en el PC ([guion](../08-despliegue/prueba-selector-activo.md)) y activo por defecto por decisión del equipo (2026-11-02). Falta el paso 1.3.

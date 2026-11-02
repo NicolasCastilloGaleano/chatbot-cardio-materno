@@ -12,7 +12,9 @@ from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.bootstrap.env_file import load_env_file, parse_env_line
 from cardio_materno.bootstrap.rag_setup import apply_policy_overrides
 from cardio_materno.bootstrap.settings import (
+    ANALYSIS_MODEL_VARIABLE,
     DEFAULT_OLLAMA_MODEL,
+    SELECTION_MODEL_VARIABLE,
     ConfigurationError,
     WebSettings,
     load_conversation_settings,
@@ -21,6 +23,7 @@ from cardio_materno.bootstrap.settings import (
     load_stage_settings,
     load_web_settings,
     load_whatsapp_settings,
+    selection_model_variable,
 )
 
 
@@ -227,6 +230,33 @@ def test_evidence_thresholds_from_env_override_the_policy_file(tmp_path: Path) -
 
     assert (overrides.min_similarity, overrides.top_k, overrides.min_support) == (0.5, 4, None)
     assert (policy.min_similarity, policy.top_k, policy.min_support) == (0.5, 4, 0.6)
+
+
+def test_selection_mode_defaults_to_active(tmp_path: Path) -> None:
+    assert load_conversation_settings({}, tmp_path).selection_activation == "activo"
+    observed = load_conversation_settings({"EVIDENCE_SELECTION_MODE": "observar"}, tmp_path)
+    assert observed.selection_activation == "observar"
+    with pytest.raises(ConfigurationError, match="EVIDENCE_SELECTION_MODE"):
+        load_conversation_settings({"EVIDENCE_SELECTION_MODE": "otro"}, tmp_path)
+
+
+def test_selector_uses_the_analysis_model_unless_it_has_its_own() -> None:
+    assert selection_model_variable({}) == ANALYSIS_MODEL_VARIABLE
+    assert selection_model_variable({"OLLAMA_SELECTION_MODEL": " "}) == ANALYSIS_MODEL_VARIABLE
+    own = {"OLLAMA_SELECTION_MODEL": "qwen3:8b", "OLLAMA_SELECTION_NUM_PREDICT": "100"}
+
+    assert selection_model_variable(own) == SELECTION_MODEL_VARIABLE
+    settings = load_stage_settings(own, SELECTION_MODEL_VARIABLE)
+    assert (settings.model, settings.num_predict) == ("qwen3:8b", 100)
+
+
+def test_selection_max_sentences_from_env_reaches_the_policy(tmp_path: Path) -> None:
+    overrides = load_rag_settings(
+        {"EVIDENCE_SELECTION_MAX_SENTENCES": "3"}, tmp_path
+    ).policy_overrides
+
+    assert apply_policy_overrides(EvidencePolicy(), overrides).selection_max_sentences == 3
+    assert EvidencePolicy().selection_max_sentences == 5
 
 
 def test_literal_min_overlap_from_env_reaches_the_grounding_policy(tmp_path: Path) -> None:

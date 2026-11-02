@@ -2,9 +2,11 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from enum import StrEnum
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
+from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.inquiry_policy import InquiryActivation
 
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
@@ -18,6 +20,8 @@ DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
 DEFAULT_INQUIRY_MODE = "activo"
+SELECTION_MODE_VARIABLE = "EVIDENCE_SELECTION_MODE"
+DEFAULT_SELECTION_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
 DEFAULT_KEEP_ALIVE = "30m"
 DEFAULT_EMBED_MODEL = "qwen3-embedding:8b"
@@ -30,10 +34,12 @@ DEFAULT_EMBED_NUM_GPU = "0"
 AUTO_VALUE = "auto"
 ANALYSIS_MODEL_VARIABLE = "OLLAMA_ANALYSIS_MODEL"
 REPLY_MODEL_VARIABLE = "OLLAMA_REPLY_MODEL"
+SELECTION_MODEL_VARIABLE = "OLLAMA_SELECTION_MODEL"
 # Prefijo de las variables de cada etapa: OLLAMA_ANALYSIS_TEMPERATURE, OLLAMA_REPLY_MODEL…
 STAGE_PREFIXES = {
     ANALYSIS_MODEL_VARIABLE: "OLLAMA_ANALYSIS_",
     REPLY_MODEL_VARIABLE: "OLLAMA_REPLY_",
+    SELECTION_MODEL_VARIABLE: "OLLAMA_SELECTION_",
 }
 # Variables que cada etapa puede definir; si la de la etapa está vacía, se usa la general
 # OLLAMA_<CAMPO> (p. ej., OLLAMA_REPLY_TEMPERATURE vacía → OLLAMA_TEMPERATURE).
@@ -42,7 +48,11 @@ GLOBAL_PREFIX = "OLLAMA_"
 NUM_PREDICT_FIELD = "NUM_PREDICT"
 # Límite de tokens por defecto de cada etapa. Holgado: el JSON del análisis suele ocupar
 # 150-250 tokens y la respuesta (~90 palabras en frases) unos 250.
-STAGE_NUM_PREDICT_DEFAULTS = {ANALYSIS_MODEL_VARIABLE: "600", REPLY_MODEL_VARIABLE: "500"}
+STAGE_NUM_PREDICT_DEFAULTS = {
+    ANALYSIS_MODEL_VARIABLE: "600",
+    REPLY_MODEL_VARIABLE: "500",
+    SELECTION_MODEL_VARIABLE: "300",
+}
 NUM_CTX_FIELD = "NUM_CTX"
 # Contexto por defecto de una etapa si su variable está vacía (antes que OLLAMA_NUM_CTX). El
 # análisis lleva el catálogo de signos, el hilo y su JSON: con 4096 tokens Ollama lo cortaba
@@ -95,6 +105,7 @@ class ConversationSettings:
         threads_dir: Carpeta de los archivos JSON de los hilos.
         alarm_rules_file: Catálogo de reglas de alarma (ADR 0007).
         inquiry_activation: `INQUIRY_MODE`, cómo participa la regla de indagación (HU-11).
+        selection_activation: `EVIDENCE_SELECTION_MODE`, cómo participa el selector (HU-13).
     """
 
     context_messages: int
@@ -102,6 +113,7 @@ class ConversationSettings:
     threads_dir: Path
     alarm_rules_file: Path
     inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
+    selection_activation: SelectionActivation = SelectionActivation.ACTIVE
 
 
 @dataclass(frozen=True)
@@ -125,6 +137,8 @@ class PolicyOverrides:
         inquiry_max_turns: `INQUIRY_MAX_TURNS`, máximo de turnos de indagación seguidos.
         inquiry_max_stalled: `INQUIRY_MAX_STALLED`, turnos de indagación seguidos sin avance.
         inquiry_max_sentences: `INQUIRY_MAX_SENTENCES`, frases de un turno de indagación.
+        selection_max_sentences: `EVIDENCE_SELECTION_MAX_SENTENCES`, frases que elige el
+            selector de evidencia (HU-13).
     """
 
     min_similarity: float | None = None
@@ -142,6 +156,7 @@ class PolicyOverrides:
     inquiry_max_turns: int | None = None
     inquiry_max_stalled: int | None = None
     inquiry_max_sentences: int | None = None
+    selection_max_sentences: int | None = None
 
 
 @dataclass(frozen=True)
@@ -220,6 +235,7 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         inquiry_max_turns=_get_optional_positive_int(env, "INQUIRY_MAX_TURNS"),
         inquiry_max_stalled=_get_optional_positive_int(env, "INQUIRY_MAX_STALLED"),
         inquiry_max_sentences=_get_optional_positive_int(env, "INQUIRY_MAX_SENTENCES"),
+        selection_max_sentences=_get_optional_positive_int(env, "EVIDENCE_SELECTION_MAX_SENTENCES"),
     )
 
 
@@ -245,6 +261,23 @@ def load_stage_settings(env: Mapping[str, str], model_variable: str) -> OllamaSe
     num_predict = _get_int_or_auto(env, prefix + NUM_PREDICT_FIELD, predict_default)
     num_ctx = _stage_num_ctx(env, prefix, model_variable, base.num_ctx)
     return replace(base, num_predict=num_predict, num_ctx=num_ctx)
+
+
+def selection_model_variable(env: Mapping[str, str]) -> str:
+    """Etapa cuyo modelo usa el selector de evidencia (HU-13, ADR 0019).
+
+    Con `OLLAMA_SELECTION_MODEL` vacía, el selector usa el modelo del análisis, con su misma
+    configuración: en la medición del 2026-11-01 fue el que supo decir `no_responde`, y así
+    Ollama no recarga el modelo entre las dos llamadas.
+
+    Args:
+        env: Variables de entorno.
+
+    Returns:
+        La variable del modelo de la etapa que debe usar el selector.
+    """
+    own_model = env.get(SELECTION_MODEL_VARIABLE, "").strip()
+    return SELECTION_MODEL_VARIABLE if own_model else ANALYSIS_MODEL_VARIABLE
 
 
 def _stage_num_ctx(env: Mapping[str, str], prefix: str, model_variable: str, general: int) -> int:
@@ -437,23 +470,30 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
         in TRUE_VALUES,
         threads_dir=threads_dir,
         alarm_rules_file=alarm_rules_file,
-        inquiry_activation=_get_inquiry_activation(env),
+        inquiry_activation=_get_activation(
+            env, INQUIRY_MODE_VARIABLE, DEFAULT_INQUIRY_MODE, InquiryActivation
+        ),
+        selection_activation=_get_activation(
+            env, SELECTION_MODE_VARIABLE, DEFAULT_SELECTION_MODE, SelectionActivation
+        ),
     )
 
 
-def _get_inquiry_activation(env: Mapping[str, str]) -> InquiryActivation:
-    """Lee `INQUIRY_MODE` (apagado, observar o activo).
+def _get_activation[E: StrEnum](
+    env: Mapping[str, str], variable: str, default: str, modes: type[E]
+) -> E:
+    """Lee un modo de activación (`INQUIRY_MODE`, `EVIDENCE_SELECTION_MODE`).
 
     Raises:
         ConfigurationError: Si el valor no es uno de los permitidos.
     """
-    raw = _get(env, INQUIRY_MODE_VARIABLE, DEFAULT_INQUIRY_MODE).strip().lower()
+    raw = _get(env, variable, default).strip().lower()
     try:
-        return InquiryActivation(raw)
+        return modes(raw)
     except ValueError as error:
-        allowed = ", ".join(mode.value for mode in InquiryActivation)
+        allowed = ", ".join(mode.value for mode in modes)
         raise ConfigurationError(
-            f"{INQUIRY_MODE_VARIABLE} debe ser uno de: {allowed}; se recibió '{raw}'."
+            f"{variable} debe ser uno de: {allowed}; se recibió '{raw}'."
         ) from error
 
 

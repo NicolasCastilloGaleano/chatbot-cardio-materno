@@ -52,6 +52,7 @@ class EvidencePolicy:
         inquiry_max_turns: Máximo de turnos de indagación seguidos.
         inquiry_max_stalled: Turnos de indagación seguidos sin avance que la detienen.
         inquiry_max_sentences: Máximo de frases de un turno de indagación.
+        selection_max_sentences: Máximo de frases que elige el selector (HU-13).
     """
 
     top_k: int = 3
@@ -74,6 +75,7 @@ class EvidencePolicy:
     inquiry_max_turns: int = 3
     inquiry_max_stalled: int = 2
     inquiry_max_sentences: int = 3
+    selection_max_sentences: int = 5
 
     @property
     def grounding(self) -> GroundingPolicy:

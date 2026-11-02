@@ -151,6 +151,23 @@ def literal_reply(
     return GroundedReply(literal_text(shown) if shown else "", (label,), full_check)
 
 
+def with_selected_literal(reply: GroundedReply, sentences: Sequence[str]) -> GroundedReply:
+    """Si la redacción no se verificó, muestra las frases seleccionadas (ADR 0019).
+
+    Args:
+        reply: Resultado de la verificación contra las frases seleccionadas.
+        sentences: Frases seleccionadas, en su orden.
+
+    Returns:
+        La misma respuesta o, con texto literal, esas frases, de todos los registros elegidos.
+    """
+    if not reply.check.literal:
+        return reply
+    total = len(sentences)
+    check = replace(reply.check, literal_shown=total, literal_total=total)
+    return replace(reply, text=literal_text(sentences), check=check)
+
+
 def is_question(sentence: DraftSentence) -> bool:
     """True si la frase redactada es una pregunta."""
     return not without_questions([sentence.text])

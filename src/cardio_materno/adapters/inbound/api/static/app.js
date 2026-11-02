@@ -496,6 +496,7 @@ function traceSections(trace, thread) {
     section("Registros recuperados", evidenceList(trace)),
     ...groundingSections(trace.grounding),
   );
+  if (trace.selection) sections.push(...selectionSections(trace.selection));
   if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
   if (trace.urgent_accompaniment) sections.push(section("Acompañamiento de la urgencia (B-030)", "Se recordó una urgencia ya avisada: el turno no indagó y se quitaron las preguntas de la respuesta."));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
@@ -520,6 +521,21 @@ function inquirySection(inquiry) {
     ["Pregunta de información", inquiry.informational ? "Sí" : "No"],
     ["Hay registro que orienta", inquiry.has_answer ? "Sí" : "No"],
   ]));
+}
+
+function selectionSections(selection) {
+  const title = selection.applied ? "Selector de evidencia (HU-13, aplicado: decidió la respuesta)" : "Selector de evidencia (HU-13, observado: no cambió la respuesta)";
+  if (!selection.verdict) return [section(title, `La llamada del selector falló: el turno siguió el flujo actual. ${selection.failure || ""}`)];
+  const texts = new Map(selection.offered.map((sentence) => [sentence.id, sentence.text]));
+  const quoted = (ids) => ids.map((id) => `${id}: ${texts.get(id) || ""}`);
+  const sections = [section(title, metricGrid([["Veredicto", selection.verdict], ["Frases elegidas", `${selection.selected.length} de ${selection.offered.length}`]]))];
+  if (selection.reviews?.length) sections.push(section("Evaluación de los registros", tags(selection.reviews.map((r) => `${r.label}: ${r.fit}${r.unsaid ? ` · supone: ${r.unsaid}` : ""}`))));
+  if (selection.selected.length) sections.push(section("Frases elegidas", tags(quoted(selection.selected))));
+  if (selection.context.length) sections.push(section("Frases agregadas por contexto", tags(quoted(selection.context))));
+  sections.push(section(selection.applied ? "Frases que se usaron" : "Frases que se usarían en modo activo", selection.shown?.length ? tags(quoted(selection.shown)) : "Ninguna: no hay frases visibles."));
+  if (selection.added_notices.length) sections.push(section("Avisos que el refuerzo agregaría", tags(quoted(selection.added_notices), true)));
+  if (selection.omitted_notices.length) sections.push(section("Avisos que quedarían por fuera", tags(quoted(selection.omitted_notices), true)));
+  return sections;
 }
 
 function groundingSections(check) {
