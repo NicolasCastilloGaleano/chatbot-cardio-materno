@@ -58,7 +58,9 @@ Cada paso se verifica en el PC antes del siguiente. Si el selector no elige bien
 
 Ninguna respuesta cayó en texto literal. Un turno con evidencia tarda de 95 a 105 s, y la selección, de 18 a 33 s. El redactor puede omitir un aviso reforzado: en una corrida del sangrado dejó fuera "sangrado abundante…", que la persona no dijo. Se debe revisar con el punto 1.
 
-## Propuesta: orientación en el primer aviso de una urgencia (B-034, por decidir)
+## Propuesta: orientación en el primer aviso de una urgencia (B-034)
+El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
+
 **Pedido del usuario (2026-11-02):** en una emergencia, la persona no debería tener que preguntar "¿qué hago mientras llego?": la primera respuesta debe traer algo que pueda hacer en el momento, y la solución debe ser general, sin textos fijos por alarma.
 
 Hoy, una urgencia inmediata solo muestra el mensaje fijo (ADR 0007), y el acompañamiento (B-030) solo existe cuando la persona vuelve a escribir.

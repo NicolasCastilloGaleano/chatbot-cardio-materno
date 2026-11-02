@@ -272,6 +272,25 @@ Escenario: El recordatorio nunca se pierde
   Cuando el mensaje es fuera de alcance, conversacional o termina en abstención
   Entonces el recordatorio también aparece al comienzo de la respuesta
 
+Escenario: Orientación después del aviso de urgencia (B-034, [ADR 0021](../02-arquitectura/adr/0021-orientacion-despues-del-aviso-de-urgencia.md), propuesto)
+  Dado que URGENT_GUIDANCE_MODE y EVIDENCE_SELECTION_MODE son "activo"
+  Cuando mi mensaje activa una urgencia inmediata nueva
+  Entonces el mensaje fijo sale primero, con el mismo tiempo de hoy
+  Y sin que yo escriba nada, recibo un segundo mensaje con lo que puedo hacer en el momento
+  Y ese mensaje sale solo de frases elegidas por el selector y verificadas, sin preguntas
+  Y no hay textos ni reglas distintas por alarma
+
+Escenario: Sin contenido útil no hay segundo mensaje (B-034, propuesto)
+  Dado que hubo una urgencia inmediata nueva
+  Cuando el selector dice "no_responde", no hay frases visibles, la verificación no pasa o falla una llamada
+  Entonces no recibo un segundo mensaje ni un error
+  Y el aviso de urgencia ya quedó entregado
+  Y la traza registra por qué no hubo orientación
+
+Escenario: Sin el selector activo no hay orientación automática (B-034, propuesto)
+  Cuando EVIDENCE_SELECTION_MODE no es "activo" o URGENT_GUIDANCE_MODE es "apagado"
+  Entonces la urgencia se resuelve como hoy, solo con el mensaje fijo
+
 Escenario: Acompañamiento de una urgencia ya avisada (B-030, ADR 0018, 2026-10-28; aplica también a la HU-04)
   Dado un hilo con una urgencia inmediata ya avisada que el filtro 2 vuelve a encontrar
   Cuando escribo "¿qué hago mientras llego?" o "¿voy directamente a urgencias?"
