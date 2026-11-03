@@ -81,6 +81,13 @@ Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pyte
 
 La pregunta sale de una llamada aparte, con el prompt de indagación v1 y un contexto que le dice qué ya se respondió. Pasa por `verify_inquiry` y nunca usa la pregunta fija. Si no queda ninguna o la llamada falla, se muestra solo la respuesta y el turno no cuenta como indagación. Costo esperado: los turnos que antes solo preguntaban suman selección, redacción y pregunta; hay que medirlo en el PC.
 
+## Primer guion del paso 1.3 (2026-11-02)
+En la web, las alarmas se comportaron bien: presión alta y sangrado sin preguntas. Pero el modo responder e indagar **no se activó en ningún caso**, así que el paso 1.3 sigue sin verificar. Ardor: el selector rechazó el único registro que orienta (`no`) y la regla indagó. Brazo y estómago: `sin registro que oriente`. Comida: un solo registro *Solucionar* ofrecido, rechazado, y abstención. Hay que medir si los registros *Indagar* ocupan los puestos de la búsqueda (como en el sangrado, ADR 0021) o si la base no tiene esos registros.
+
+Defecto visto: en el ardor, el turno 2 repitió la misma pregunta al recibir `desde ayer`. La búsqueda fue idéntica y `made_progress` contó avance por la misma categoría.
+
+`pytest -m live`: 38 de 39. Falló el sangrado con evidencia fija: el selector evaluó los dos registros como `no`, sin frases de convulsión. Es una falla segura e intermitente (antes 5 de 5), en un camino que el paso 1.3 no tocó.
+
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
 
