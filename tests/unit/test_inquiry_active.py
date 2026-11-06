@@ -148,14 +148,15 @@ def test_the_next_inquiry_does_not_repeat_the_same_questions() -> None:
     assert asked in result.trace.grounding.dropped
 
 
-def test_if_every_question_repeats_the_fixed_question_is_used() -> None:
-    asked = "¿El ardor sube hacia la garganta?"
-    first = reporting("r", thread_action="nuevo") | {"questions": [asked]}
-    second = reporting("r") | {"questions": ["¿El ardor te sube hacia la garganta?"]}
+def test_if_every_question_repeats_only_the_first_is_asked_again() -> None:
+    asked = ["¿El ardor sube hacia la garganta?", "¿Aparece también al caminar?"]
+    first = reporting("r", thread_action="nuevo") | {"questions": asked}
+    second = reporting("r") | {"questions": ["¿El ardor te sube hacia la garganta?", asked[1]]}
 
     _, result = send_all(ACTIVE, FakeRetriever(promising(0.55)), first, second)
 
-    assert result.reply == INQUIRY_FALLBACK_QUESTION
+    assert result.reply == "¿El ardor te sube hacia la garganta?"
+    assert INQUIRY_FALLBACK_QUESTION not in result.reply
 
 
 def test_answers_only_use_solving_records_and_drop_questions() -> None:
