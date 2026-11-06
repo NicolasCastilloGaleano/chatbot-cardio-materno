@@ -19,11 +19,7 @@ from cardio_materno.application.evidence_selection import EvidenceSelector, show
 from cardio_materno.application.stage_timer import StageTimer
 from cardio_materno.application.turn_context import TurnInput
 from cardio_materno.bootstrap.main import PROJECT_ROOT, SELECTION_PROMPT_FILE
-from cardio_materno.bootstrap.settings import (
-    load_rag_settings,
-    load_stage_settings,
-    selection_model_variable,
-)
+from cardio_materno.bootstrap.settings import load_rag_settings, load_selection_settings
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
 from cardio_materno.domain.trace import SelectionTrace, SelectionVerdict
@@ -89,8 +85,7 @@ CASES = [
 @pytest.fixture(scope="module")
 def selector(evidence_policy: EvidencePolicy) -> EvidenceSelector:
     """Selector con el modelo y el prompt reales."""
-    settings = load_stage_settings(os.environ, selection_model_variable(os.environ))
-    model = OllamaLanguageModel(settings)
+    model = OllamaLanguageModel(load_selection_settings(os.environ))
     model.verify_ready()
     prompt = SELECTION_PROMPT_FILE.read_text(encoding="utf-8").strip()
     return EvidenceSelector(model, prompt, evidence_policy.selection_max_sentences)

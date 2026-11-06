@@ -216,7 +216,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `GROUNDING_LITERAL_MIN_OVERLAP` | (archivo: `1`) | Raíces que una frase del texto literal debe compartir con la consulta para mostrarse; los avisos de atención se muestran siempre (B-028) |
 | `INQUIRY_MODE` | `activo` | Indagación de la HU-11: `apagado` (no se calcula), `observar` (se registra en la traza qué haría la regla, sin cambiar la respuesta) o `activo` (la regla decide el turno) |
 | `EVIDENCE_SELECTION_MODE` | `activo` | Selector de evidencia de la HU-13: `apagado` (sin la llamada), `observar` (corre y su resultado solo va a la traza, sin cambiar la respuesta) o `activo` (la respuesta sale de las frases elegidas). Suma una llamada al modelo en los turnos con evidencia |
-| `OLLAMA_SELECTION_MODEL` | (vacío = el del análisis) | Modelo del selector. Con un valor propio se pueden fijar `OLLAMA_SELECTION_TEMPERATURE`, `_NUM_CTX`, `_TIMEOUT_SECONDS`, `_THINK` y `_NUM_PREDICT` (por defecto, `300`) |
+| `OLLAMA_SELECTION_MODEL` | (vacío = el del análisis) | Modelo del selector. Con un valor propio se pueden fijar `_NUM_CTX`, `_TIMEOUT_SECONDS`, `_THINK` y `_NUM_PREDICT` (por defecto, `300`) |
+| `OLLAMA_SELECTION_TEMPERATURE` | `0` | Temperatura del selector, aunque use el modelo del análisis. Con `0,3` el mismo caso de urgencia se decidía distinto entre corridas |
 | `EVIDENCE_SELECTION_MAX_SENTENCES` | (política: `5`) | Máximo de frases que elige el selector |
 | `URGENT_GUIDANCE_MODE` | `apagado` | Orientación automática después del aviso de una urgencia (B-034, ADR 0021): `apagado` o `activo`. Requiere el selector activo. Por ahora solo en la consola |
 | `INQUIRY_FLOOR` | (archivo: `0.40`) | Similitud mínima de un candidato que orienta la indagación de la HU-11; los candidatos nunca son evidencia |

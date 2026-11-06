@@ -98,6 +98,16 @@ El modo responder e indagar no se activó porque esos casos no tienen un registr
 
 Arreglos: una pregunta que repite una de la última respuesta del hilo se descarta (`repeats_question`, 80 % de raíces compartidas). En el guion del 2026-11-06, al descartarlas todas, la pregunta fija pidió "desde cuándo" justo después de "me arde desde ayer": ahora, si todas repiten, se vuelve a hacer solo la primera. Y la abstención ante una pregunta de información ya no pide síntomas (`NO_INFORMATION_TEXT`).
 
+## Temperatura del selector (2026-11-06)
+La prueba del sangrado con un registro de convulsión falló dos corridas seguidas: el selector marcó el registro del sangrado como `no`, contra la regla de su prompt para una urgencia en curso. Medido en el PC, cinco corridas de `tests/live/test_live_selection.py` cada una:
+
+| Temperatura | Pasó | Decisión con el registro del sangrado |
+|---|---|---|
+| 0,3 (la del análisis) | 3 de 5 | `en_parte` tres veces, `no` dos |
+| 0 | 5 de 5 | `en_parte` las cinco, con el traslado visible |
+
+El selector usa ahora temperatura 0 por defecto (`OLLAMA_SELECTION_TEMPERATURE`), con el modelo y el contexto del análisis, así que Ollama no recarga el modelo. El prompt no cambia. Con el cambio, `pytest -m live` pasó 39 de 39.
+
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
 

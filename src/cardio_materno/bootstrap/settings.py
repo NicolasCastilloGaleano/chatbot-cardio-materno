@@ -14,6 +14,10 @@ DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "mistral-small3.1:24b"
 DEFAULT_TIMEOUT_SECONDS = "180"
 DEFAULT_TEMPERATURE = "0.3"
+# El selector decide si un registro aplica: con 0,3 el mismo caso pasó 3 de 5 veces y con 0,
+# 5 de 5 con la misma decisión (2026-11-06). Se puede cambiar con OLLAMA_SELECTION_TEMPERATURE.
+SELECTION_TEMPERATURE_VARIABLE = "OLLAMA_SELECTION_TEMPERATURE"
+DEFAULT_SELECTION_TEMPERATURE = "0"
 DEFAULT_NUM_CTX = "4096"
 DEFAULT_THREAD_CONTEXT_MESSAGES = "6"
 DEFAULT_SHOW_THREAD_DEBUG = "true"
@@ -289,6 +293,27 @@ def selection_model_variable(env: Mapping[str, str]) -> str:
     """
     own_model = env.get(SELECTION_MODEL_VARIABLE, "").strip()
     return SELECTION_MODEL_VARIABLE if own_model else ANALYSIS_MODEL_VARIABLE
+
+
+def load_selection_settings(env: Mapping[str, str]) -> OllamaSettings:
+    """Configuración del selector de evidencia (HU-13, ADR 0019).
+
+    Es la del modelo que usa (el del análisis, salvo `OLLAMA_SELECTION_MODEL`), con
+    temperatura 0 si `OLLAMA_SELECTION_TEMPERATURE` está vacía. Con el modelo del análisis,
+    el contexto es el mismo, así que Ollama no recarga el modelo entre las dos llamadas.
+
+    Args:
+        env: Variables de entorno.
+
+    Returns:
+        La configuración de Ollama para el selector.
+
+    Raises:
+        ConfigurationError: Si un valor numérico no es válido.
+    """
+    settings = load_stage_settings(env, selection_model_variable(env))
+    temperature = _get_float(env, SELECTION_TEMPERATURE_VARIABLE, DEFAULT_SELECTION_TEMPERATURE)
+    return replace(settings, temperature=temperature)
 
 
 def _stage_num_ctx(env: Mapping[str, str], prefix: str, model_variable: str, general: int) -> int:

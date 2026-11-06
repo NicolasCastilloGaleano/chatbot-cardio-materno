@@ -38,8 +38,8 @@ from cardio_materno.bootstrap.settings import (
     ConversationSettings,
     load_ollama_settings,
     load_rag_settings,
+    load_selection_settings,
     load_stage_settings,
-    selection_model_variable,
 )
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
@@ -101,7 +101,7 @@ def build_conversation(
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
-    selector = _selection_model(settings, analyzer)
+    selector = _selection_model(settings)
     ports = ConversationPorts(analyzer, responder, repository, rag.retriever, selector)
     config = ConversationConfig(
         analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),
@@ -122,16 +122,11 @@ def build_conversation(
     return ports, config
 
 
-def _selection_model(
-    settings: ConversationSettings, analyzer: OllamaLanguageModel
-) -> OllamaLanguageModel | None:
-    """Modelo del selector de evidencia: el del análisis, salvo que `.env` indique otro."""
+def _selection_model(settings: ConversationSettings) -> OllamaLanguageModel | None:
+    """Adaptador del selector, con su propia temperatura (`load_selection_settings`)."""
     if settings.selection_activation is SelectionActivation.OFF:
         return None
-    variable = selection_model_variable(os.environ)
-    if variable == ANALYSIS_MODEL_VARIABLE:
-        return analyzer
-    return _connect("selección", load_stage_settings(os.environ, variable))
+    return _connect("selección", load_selection_settings(os.environ))
 
 
 def _connect(stage: str, settings: OllamaSettings) -> OllamaLanguageModel:
