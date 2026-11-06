@@ -9,7 +9,12 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from cardio_materno.application.grounded_reply import SENTENCE_SEPARATOR, GroundedReply
-from cardio_materno.domain.grounding import GroundingPolicy, has_question, verify_inquiry
+from cardio_materno.domain.grounding import (
+    GroundingPolicy,
+    has_question,
+    repeats_question,
+    verify_inquiry,
+)
 from cardio_materno.domain.trace import GroundingCheck
 
 # Pregunta fija cuando ninguna pregunta del agente pasa la verificación.
@@ -17,7 +22,10 @@ INQUIRY_FALLBACK_QUESTION = "¿Me puedes contar qué sientes, desde cuándo y a 
 
 
 def verified_question(
-    draft: Sequence[str], user_texts: Sequence[str], policy: GroundingPolicy
+    draft: Sequence[str],
+    user_texts: Sequence[str],
+    policy: GroundingPolicy,
+    asked: Sequence[str] = (),
 ) -> str:
     """Pregunta que acompaña una respuesta (HU-13); vacía si ninguna pasa la verificación.
 
@@ -25,19 +33,23 @@ def verified_question(
         draft: Frases que redactó el agente.
         user_texts: Mensajes de la persona en el hilo (para aceptar los números que dijo).
         policy: Parámetros de la verificación.
+        asked: Preguntas de la última respuesta del hilo, que no se repiten.
 
     Returns:
         Las preguntas aceptadas, hasta el máximo. Nunca usa la pregunta fija: la persona ya
         recibió una respuesta.
     """
     limit = replace(policy, max_inquiry_sentences=policy.max_questions_with_answer)
-    questions = [sentence for sentence in draft if has_question([sentence])]
+    questions = [s for s in draft if has_question([s]) and not repeats_question(s, asked, policy)]
     kept, _ = verify_inquiry(questions, user_texts, limit)
     return SENTENCE_SEPARATOR.join(kept)
 
 
 def compose_inquiry(
-    draft: Sequence[str], user_texts: Sequence[str], policy: GroundingPolicy
+    draft: Sequence[str],
+    user_texts: Sequence[str],
+    policy: GroundingPolicy,
+    asked: Sequence[str] = (),
 ) -> GroundedReply:
     """Verifica las preguntas del agente y arma el turno de indagación.
 
@@ -45,12 +57,16 @@ def compose_inquiry(
         draft: Frases que redactó el agente.
         user_texts: Mensajes de la persona en el hilo (para aceptar los números que dijo).
         policy: Parámetros de la verificación.
+        asked: Preguntas de la última respuesta del hilo: una pregunta que las repite se
+            descarta.
 
     Returns:
         Las frases aceptadas o, si no queda ninguna pregunta, las de cortesía aceptadas y la
         pregunta fija. Nunca cita evidencia; la verificación queda en `check`.
     """
-    kept, dropped = verify_inquiry(draft, user_texts, policy)
-    check = GroundingCheck(len(kept), len(draft), False, dropped)
+    repeated = tuple(s for s in draft if repeats_question(s, asked, policy))
+    fresh = [s for s in draft if s not in repeated]
+    kept, dropped = verify_inquiry(fresh, user_texts, policy)
+    check = GroundingCheck(len(kept), len(draft), False, (*repeated, *dropped))
     shown = kept if has_question(kept) else (*kept, INQUIRY_FALLBACK_QUESTION)
     return GroundedReply(SENTENCE_SEPARATOR.join(shown), (), check)

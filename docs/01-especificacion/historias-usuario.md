@@ -104,6 +104,7 @@ Escenario: Respuesta respaldada por evidencia
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
   Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Y solo pide detalles de síntomas si el mensaje no es una pregunta de información (paso 1.3 de la HU-13, 2026-11-05)
   Y desde el 2026-10-26 ese mensaje termina pidiendo más detalles ("qué sientes, desde cuándo y a quién le pasa"), sin afirmaciones de salud
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo

@@ -111,7 +111,12 @@ from cardio_materno.domain.conversation import (
     open_thread,
     update_thread,
 )
-from cardio_materno.domain.grounding import GroundingPolicy, unstated_details
+from cardio_materno.domain.grounding import (
+    GroundingPolicy,
+    has_question,
+    split_sentences,
+    unstated_details,
+)
 from cardio_materno.domain.knowledge import Focus, RetrievalResult, RetrievalStatus
 from cardio_materno.domain.trace import (
     EvidenceRef,
@@ -506,7 +511,8 @@ class ConversationService:
             outcome = self._decided_without_evidence(mode, analysis, turn, retrieval, timer)
         elif offered.status is not RetrievalStatus.SUFFICIENT:
             trace = build_trace(analysis, offered, (), timer.timings)
-            reply = compose_reply(decisions, None) if decisions else no_evidence_text(turn, offered)
+            text = no_evidence_text(turn, offered, analysis)
+            reply = compose_reply(decisions, None) if decisions else text
             outcome = TurnOutcome(reply, decisions, trace, analysis)
         else:
             answering = replace(turn, no_questions=orients)
@@ -631,7 +637,7 @@ class ConversationService:
         inquiry = evidence.inquiry
         if decisions or turn.urgent_reminder or inquiry is None or not inquiry.applied:
             trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings)
-            text = no_evidence_text(turn, retrieval)
+            text = no_evidence_text(turn, retrieval, analysis)
             reply = compose_reply(decisions, None) if decisions else text
             return TurnOutcome(reply, decisions, trace, analysis), inquiry
         final = mode_without_answer(inquiry, thread_state(analysis, turn), self._config.inquiry)
@@ -737,7 +743,9 @@ class ConversationService:
         """Turno que la regla resuelve sin la evidencia: indagar, abstenerse o cerrar."""
         if mode is TurnMode.INQUIRE:
             return self._inquire(analysis, turn, retrieval, timer)
-        text = CLOSING_TEXT if mode is TurnMode.CLOSE else abstention_text(retrieval.status)
+        asks_details = not analysis.asks_information
+        abstention = abstention_text(retrieval.status, asks_details)
+        text = CLOSING_TEXT if mode is TurnMode.CLOSE else abstention
         trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings)
         return TurnOutcome(text, (), trace, analysis)
 
@@ -747,7 +755,8 @@ class ConversationService:
         """Turno de indagación: preguntas del agente, verificadas (HU-11, ADR 0017)."""
         draft = timer.measure(STAGE_REPLY, lambda: self._ask(analysis, turn, retrieval))
         timer.record_usage(STAGE_REPLY, self._ports.responder.last_usage())
-        asked = compose_inquiry(draft, user_texts(turn), self._config.grounding)
+        policy = self._config.grounding
+        asked = compose_inquiry(draft, user_texts(turn), policy, asked_questions(turn))
         trace = build_trace(analysis, without_evidence(retrieval), (), timer.timings, asked.check)
         return TurnOutcome(asked.text, (), trace, analysis)
 
@@ -815,7 +824,7 @@ class ConversationService:
             draft, retrieval.items, turn.user_text, policy, query_text
         )
         trace = build_trace(analysis, retrieval, grounded.cited, timer.timings, grounded.check)
-        text = grounded.text or no_evidence_text(turn, retrieval)
+        text = grounded.text or no_evidence_text(turn, retrieval, analysis)
         return TurnOutcome(compose_reply(decisions, text), decisions, trace, analysis)
 
     def _analyze(self, current: ConversationThread | None, turn: TurnInput) -> AnalysisTurn:
@@ -1023,12 +1032,15 @@ def orienting_evidence(retrieval: RetrievalResult) -> RetrievalResult:
     return replace(retrieval, items=(), status=RetrievalStatus.INSUFFICIENT)
 
 
-def no_evidence_text(turn: TurnInput, retrieval: RetrievalResult) -> str:
+def no_evidence_text(turn: TurnInput, retrieval: RetrievalResult, analysis: AnalysisTurn) -> str:
     """Respuesta sin evidencia: la abstención o, con una urgencia recordada, nada.
 
-    Con una urgencia recordada solo va el recordatorio, sin pedir detalles (B-030).
+    Con una urgencia recordada solo va el recordatorio, sin pedir detalles (B-030). Ante una
+    pregunta de información tampoco se piden detalles de síntomas.
     """
-    return "" if turn.urgent_reminder else abstention_text(retrieval.status)
+    if turn.urgent_reminder:
+        return ""
+    return abstention_text(retrieval.status, not analysis.asks_information)
 
 
 def with_urgent_accompaniment(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:
@@ -1115,6 +1127,13 @@ def thread_state(analysis: AnalysisTurn, turn: TurnInput) -> InquiryState:
     """Estado de la indagación del hilo; un tema nuevo empieza de cero."""
     continues = analysis.thread_action is ThreadAction.CONTINUE
     return previous_state(turn.recent if continues else ())
+
+
+def asked_questions(turn: TurnInput) -> tuple[str, ...]:
+    """Preguntas de la última respuesta del asistente en el hilo, para no repetirlas."""
+    replies = [m.content for m in turn.recent if m.role is Role.ASSISTANT]
+    sentences = split_sentences(replies[-1]) if replies else ()
+    return tuple(s for s in sentences if has_question([s]))
 
 
 def user_texts(turn: TurnInput) -> list[str]:

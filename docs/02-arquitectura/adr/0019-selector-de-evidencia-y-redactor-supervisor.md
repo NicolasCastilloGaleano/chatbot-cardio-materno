@@ -88,6 +88,16 @@ Defecto visto: en el ardor, el turno 2 repitió la misma pregunta al recibir `de
 
 `pytest -m live`: 38 de 39. Falló el sangrado con evidencia fija: el selector evaluó los dos registros como `no`, sin frases de convulsión. Es una falla segura e intermitente (antes 5 de 5), en un camino que el paso 1.3 no tocó.
 
+## Medición de la búsqueda y arreglos (2026-11-05)
+Con el buscador real y los 12 primeros resultados, la hipótesis de que los registros *Indagar* tapan a los *Solucionar* en los turnos normales **no se confirmó**:
+- Comida: solo dos registros superan 0,50; el *Solucionar* (productos enlatados, 0,52) fue el que se ofreció. El de DASH queda en 0,47, debajo del umbral.
+- Estómago: ningún *Solucionar* supera 0,50 en el dominio cardiovascular.
+- Brazo: los *Solucionar* quedan en 0,42 y 0,46.
+
+El modo responder e indagar no se activó porque esos casos no tienen un registro que oriente sobre el umbral. Son vacíos de la base o de la forma de preguntar, que le corresponden al equipo clínico y al registro de vacíos (B-032). Bajar el umbral es una decisión del equipo, no de este paso.
+
+Arreglos: una pregunta que repite una de la última respuesta del hilo se descarta (`repeats_question`, 80 % de raíces compartidas); si no queda ninguna, va la pregunta fija. Y la abstención ante una pregunta de información ya no pide síntomas (`NO_INFORMATION_TEXT`).
+
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
 
