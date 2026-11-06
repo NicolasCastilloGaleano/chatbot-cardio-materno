@@ -858,3 +858,42 @@ Compuertas, que se verifican en el PC:
 - **Pasos 1.2 y 1.3:** con `activo`, `pytest -m live` completo, un guion nuevo y sin regresiones en alarmas. Si sale bien, `activo` pasa a ser el valor por defecto y se fusiona.
 
 Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 verificado en el PC ([guion](../08-despliegue/prueba-selector-observar.md)). Paso 1.2 verificado en el PC ([guion](../08-despliegue/prueba-selector-activo.md)) y activo por defecto por decisión del equipo (2026-11-02). Paso 1.3 verificado en el PC el 2026-11-06 ([guion](../08-despliegue/prueba-responder-e-indagar.md)): alarmas sin preguntas, abstención sin pedir síntomas ante preguntas de información, sin preguntas repetidas y `pytest -m live` 38 de 39 (falla segura del selector en urgencias, ajena al paso). Limitación: responder e indagar no se activó en el guion, porque la base tiene pocos registros que orienten sobre 0,50 en esos casos.
+
+### HU-15: Informe de vacíos de la base para el equipo clínico
+**Como** integrante del equipo clínico, **quiero** saber qué preguntas de salud no pudo orientar el asistente, **para** decidir qué contenido agregar a la base de conocimiento.
+
+**Qué es un vacío:** un turno de salud, dentro del alcance, en el que la persona no recibió orientación: la abstención ("No tengo información validada…") o el cierre honesto de la indagación. No cuentan los saludos, los mensajes fuera de alcance, los turnos en que el asistente solo preguntó, las alarmas ni las respuestas en texto literal, porque la información sí existía.
+
+**Qué entrega:** `scripts/report_gaps.py` lee la base en solo lectura y escribe un informe Markdown agrupado por categoría de la base, con la consulta de búsqueda de cada caso, cuántas veces apareció, el motivo, la mejor similitud y los registros que el selector descartó con lo que suponían.
+
+```gherkin
+Escenario: Una abstención aparece en el informe
+  Dado un turno de salud que terminó en abstención
+  Cuando ejecuto el informe
+  Entonces aparece en su categoría, con su consulta de búsqueda, la mejor similitud y el motivo "sin información"
+
+Escenario: Un cierre de indagación aparece en el informe
+  Dado un hilo en que la indagación terminó en el cierre honesto
+  Entonces ese turno aparece con el motivo "cierre de la indagación"
+
+Escenario: Lo que no es un vacío no aparece
+  Cuando el turno fue un saludo, fuera de alcance, una pregunta del asistente, una alarma o una respuesta verificada
+  Entonces no aparece en el informe
+
+Escenario: El selector descartó un registro
+  Dado que el selector evaluó un registro como "no" o "en_parte"
+  Entonces el informe muestra el inicio del registro y lo que suponía y la persona no dijo
+
+Escenario: Sin datos personales
+  Entonces el informe no muestra el mensaje de la persona, ni su teléfono, ni su identificador: solo la consulta de búsqueda reformulada por el análisis
+
+Escenario: Por fechas
+  Cuando ejecuto el informe con --since "2026-11-01 00:00"
+  Entonces solo incluye las respuestas desde esa fecha
+```
+
+Fuera de esta versión: la orientación de urgencia que no se envió (B-034), cuyo motivo solo queda en el registro de la aplicación y no en una traza. El informe no decide qué agregar: eso lo decide el equipo clínico.
+
+Riesgo: la consulta de búsqueda la reformula el análisis a partir del mensaje; si una persona escribe un dato personal en un síntoma, podría colarse. Hay que revisar el informe antes de compartirlo fuera del equipo.
+
+Estado: ✅ Aprobada por Santiago Silva (2026-11-06). Verificada en el PC de pruebas el 2026-11-06 con la base real: 4 turnos en 2 categorías, sin datos personales. Mejora pendiente: el informe identifica cada registro descartado por su primera frase, que fuera de contexto puede confundir (p. ej., un aviso de urgencias); mostrar la pregunta del registro exige guardarla en la traza.

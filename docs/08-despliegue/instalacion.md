@@ -119,6 +119,14 @@ sqlite3 data/cardio_materno.db "SELECT id, last_seen_at FROM users;"
 sqlite3 data/cardio_materno.db "SELECT user_id, status, domain, summary FROM threads ORDER BY updated_at DESC;"
 sqlite3 data/cardio_materno.db "SELECT channel_message_id, kind, status, error_code FROM inbound_events;"
 ```
+### Informe de vacíos para el equipo clínico (HU-15)
+Lista las preguntas de salud que el asistente no pudo orientar, agrupadas por categoría de la base, con la consulta, la mejor similitud y los registros que el selector descartó. Lee `data/cardio_materno.db` en solo lectura:
+```bash
+.venv/bin/python scripts/report_gaps.py > vacios.md
+.venv/bin/python scripts/report_gaps.py --since "2026-11-01 00:00" > vacios.md
+```
+No muestra mensajes ni identificadores, solo la consulta reformulada por el análisis. Revísalo antes de compartirlo fuera del equipo.
+
 ### Líneas de depuración (con `SHOW_THREAD_DEBUG=true`)
 | Línea | Qué muestra |
 |---|---|
