@@ -20,6 +20,7 @@ from cardio_materno.bootstrap.settings import (
     load_conversation_settings,
     load_ollama_settings,
     load_rag_settings,
+    load_selection_settings,
     load_stage_settings,
     load_web_settings,
     load_whatsapp_settings,
@@ -248,6 +249,18 @@ def test_selector_uses_the_analysis_model_unless_it_has_its_own() -> None:
     assert selection_model_variable(own) == SELECTION_MODEL_VARIABLE
     settings = load_stage_settings(own, SELECTION_MODEL_VARIABLE)
     assert (settings.model, settings.num_predict) == ("qwen3:8b", 100)
+
+
+def test_the_selector_uses_temperature_zero_with_the_analysis_context() -> None:
+    env = {"OLLAMA_TEMPERATURE": "0.3", "OLLAMA_ANALYSIS_MODEL": "mistral"}
+
+    selection = load_selection_settings(env)
+    analysis = load_stage_settings(env, ANALYSIS_MODEL_VARIABLE)
+
+    assert (selection.model, selection.temperature) == ("mistral", 0.0)
+    assert selection.num_ctx == analysis.num_ctx and analysis.temperature == 0.3
+    custom = load_selection_settings(env | {"OLLAMA_SELECTION_TEMPERATURE": "0.2"})
+    assert custom.temperature == 0.2
 
 
 def test_selection_max_sentences_from_env_reaches_the_policy(tmp_path: Path) -> None:
