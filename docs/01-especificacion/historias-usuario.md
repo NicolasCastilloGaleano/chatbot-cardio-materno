@@ -896,4 +896,4 @@ Fuera de esta versión: la orientación de urgencia que no se envió (B-034), cu
 
 Riesgo: la consulta de búsqueda la reformula el análisis a partir del mensaje; si una persona escribe un dato personal en un síntoma, podría colarse. Hay que revisar el informe antes de compartirlo fuera del equipo.
 
-Estado: ✅ Aprobada por Santiago Silva (2026-11-06). Implementada y probada automáticamente; falta correrla en el PC de pruebas con la base real.
+Estado: ✅ Aprobada por Santiago Silva (2026-11-06). Verificada en el PC de pruebas el 2026-11-06 con la base real: 4 turnos en 2 categorías, sin datos personales. Mejora pendiente: el informe identifica cada registro descartado por su primera frase, que fuera de contexto puede confundir (p. ej., un aviso de urgencias); mostrar la pregunta del registro exige guardarla en la traza.

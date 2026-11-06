@@ -20,7 +20,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Latencia**: embedder en CPU, precalentamiento, configuración por etapa en `.env` y comparación de modelos (B-022, ADR 0011) | ✅ Hecho (ADR 0011 aceptado): análisis `mistral-small3.1:24b`, respuesta `qwen3:8b`; turno p50 de unos 46 s (la meta de 15 s queda pendiente) |
 | **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Hecho (HU-10 verificada en el PC de pruebas el 2026-10-26) |
 | **Indagación guiada por la evidencia** (HU-11, ADR 0017) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-31): `INQUIRY_MODE=activo` por defecto y acompañamiento de la urgencia (B-030); textos pendientes de revisión clínica |
-| **Informe de vacíos de la base para el equipo clínico** (HU-15, B-032): `python scripts/report_gaps.py > vacios.md` | 🔄 Implementado; falta correrlo con la base real del PC de pruebas |
+| **Informe de vacíos de la base para el equipo clínico** (HU-15, B-032): `python scripts/report_gaps.py > vacios.md` | ✅ Verificado en el PC de pruebas el 2026-11-06 |
 | **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019) | 🔄 Pasos 1.1 y 1.2 verificados en el PC de pruebas y activos por defecto; responder e indagar (paso 1.3) verificado en el PC el 2026-11-06; casi no se activa con la base actual |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
