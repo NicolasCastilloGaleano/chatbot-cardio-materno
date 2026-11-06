@@ -53,7 +53,7 @@ sequenceDiagram
             L2-->>S: {reply}
             S-->>U: saludo / presentación del servicio (nunca abre un hilo; sin hilo activo NO se registra)
         else en alcance (o con alarma prioritaria)
-            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback). Con INQUIRY_MODE observar y sin alarma nueva, la regla de indagación (HU-11) registra en trace.inquiry qué modo elegiría, sin cambiar la respuesta. Con INQUIRY_MODE activo decide el turno: responder (evidencia), indagar (preguntas verificadas, sin evidencia), abstenerse o cerrar (textos fijos). Con una urgencia inmediata ya avisada no se indaga y se quitan las preguntas (B-030)
+            S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback). Con INQUIRY_MODE observar y sin alarma nueva, la regla de indagación (HU-11) registra en trace.inquiry qué modo elegiría, sin cambiar la respuesta. Con INQUIRY_MODE activo decide el turno: responder (evidencia), indagar (preguntas verificadas; si hay un registro Solucionar sobre el umbral y el selector está activo, puede responder e indagar), abstenerse o cerrar (textos fijos). Con una urgencia inmediata ya avisada no se indaga y se quitan las preguntas (B-030)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
                 S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
@@ -66,7 +66,11 @@ sequenceDiagram
                 S->>L2: prompt de respuesta + caso + últimos N mensajes + EVIDENCIA + mensaje
                 L2-->>S: {sentences: [{text, evidence_id ∈ ofrecidas ∪ "ninguna"}]}
                 S->>S: verificación determinista (domain/grounding.py); si una frase citada no está respaldada → texto literal del registro, solo con sus frases pertinentes y los avisos (B-028)
-                S-->>U: (mensaje fijo ⚠️ si prioritaria) + respuesta verificada
+                opt responder e indagar (HU-13, paso 1.3): regla de indagación activa, sin alarma ni pedido directo, con turnos disponibles
+                    S->>L2: prompt de indagación + caso + lo ya respondido + CANDIDATOS
+                    L2-->>S: {sentences}: se conserva solo una pregunta verificada; si no hay, queda la respuesta sola
+                end
+                S-->>U: (mensaje fijo ⚠️ si prioritaria) + respuesta verificada (+ una pregunta)
             end
         end
     end

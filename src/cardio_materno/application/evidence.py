@@ -52,6 +52,7 @@ class EvidencePolicy:
         inquiry_max_turns: Máximo de turnos de indagación seguidos.
         inquiry_max_stalled: Turnos de indagación seguidos sin avance que la detienen.
         inquiry_max_sentences: Máximo de frases de un turno de indagación.
+        inquiry_max_questions_with_answer: Máximo de preguntas junto a una respuesta (HU-13).
         selection_max_sentences: Máximo de frases que elige el selector (HU-13).
     """
 
@@ -75,6 +76,7 @@ class EvidencePolicy:
     inquiry_max_turns: int = 3
     inquiry_max_stalled: int = 2
     inquiry_max_sentences: int = 3
+    inquiry_max_questions_with_answer: int = 1
     selection_max_sentences: int = 5
 
     @property
@@ -86,6 +88,7 @@ class EvidencePolicy:
             self.max_free_words,
             literal_min_overlap=self.literal_min_overlap,
             max_inquiry_sentences=self.inquiry_max_sentences,
+            max_questions_with_answer=self.inquiry_max_questions_with_answer,
         )
 
     @property

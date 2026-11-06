@@ -36,7 +36,7 @@ Quien coordina es **el código determinista**, no un LLM. Los agentes son especi
 11. **Auditoría:** `SelectionTrace` guarda el veredicto, los ids, las frases ofrecidas y seleccionadas, los avisos agregados y omitidos y si se aplicó (`applied`). Se ve en la web, la consola y `scripts/export_traces.py`. Sin almacenamiento nuevo: viaja en la traza, como en el ADR 0017.
 
 ### Cuándo corre el selector
-Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *Solucionar*. No corre con una urgencia inmediata nueva, ni en turnos conversacionales, fuera de alcance, de indagación, de abstención o de cierre. Sí corre con una alarma prioritaria nueva y con una urgencia recordada (B-030), con el contexto URGENCIA EN CURSO.
+Solo en los turnos que van a mostrar evidencia y tienen al menos un registro *Solucionar*. No corre con una urgencia inmediata nueva, ni en turnos conversacionales, fuera de alcance, de abstención o de cierre. En un turno de indagación corre solo si hay un registro *Solucionar* sobre el umbral y `INQUIRY_MODE` y `EVIDENCE_SELECTION_MODE` están en `activo` (paso 1.3). Sí corre con una alarma prioritaria nueva y con una urgencia recordada (B-030), con el contexto URGENCIA EN CURSO.
 
 ### Entrega por pasos
 | Paso | Qué entrega | Cambia lo que ve la persona |
@@ -75,6 +75,28 @@ La base y las reglas de alarma siguen sin validación clínica: esta decisión n
 
 ## Cierre del paso 1.2 (2026-11-02)
 Verificado en el PC con `EVIDENCE_SELECTION_MODE=activo`: guion de la web, `pytest -m live` 38 de 39 (la falla se corrigió y el selector pasó en 5 corridas) y el caso de la comida, que ya usa 3 frases (selección de 36,5 s). La sección del selector se ve bien en el panel. Con la decisión del equipo, `activo` pasa a ser el valor por defecto.
+
+## Implementación del paso 1.3 (2026-11-02)
+`inquiry_policy.py::mode_after_answer` da el modo final después de mostrar frases. Si la regla iba a indagar y hay un registro *Solucionar* sobre el umbral, corre el selector. Con frases visibles, cualquier veredicto da responder e indagar; sin frases visibles o si el selector falla, el turno solo indaga. Si la regla iba a responder, solo `parcial` agrega la pregunta, y únicamente sin pedido directo, con síntomas y con turnos disponibles.
+
+La pregunta sale de una llamada aparte, con el prompt de indagación v1 y un contexto que le dice qué ya se respondió. Pasa por `verify_inquiry` y nunca usa la pregunta fija. Si no queda ninguna o la llamada falla, se muestra solo la respuesta y el turno no cuenta como indagación. Costo esperado: los turnos que antes solo preguntaban suman selección, redacción y pregunta; hay que medirlo en el PC.
+
+## Primer guion del paso 1.3 (2026-11-02)
+En la web, las alarmas se comportaron bien: presión alta y sangrado sin preguntas. Pero el modo responder e indagar **no se activó en ningún caso**, así que el paso 1.3 sigue sin verificar. Ardor: el selector rechazó el único registro que orienta (`no`) y la regla indagó. Brazo y estómago: `sin registro que oriente`. Comida: un solo registro *Solucionar* ofrecido, rechazado, y abstención. Hay que medir si los registros *Indagar* ocupan los puestos de la búsqueda (como en el sangrado, ADR 0021) o si la base no tiene esos registros.
+
+Defecto visto: en el ardor, el turno 2 repitió la misma pregunta al recibir `desde ayer`. La búsqueda fue idéntica y `made_progress` contó avance por la misma categoría.
+
+`pytest -m live`: 38 de 39. Falló el sangrado con evidencia fija: el selector evaluó los dos registros como `no`, sin frases de convulsión. Es una falla segura e intermitente (antes 5 de 5), en un camino que el paso 1.3 no tocó.
+
+## Medición de la búsqueda y arreglos (2026-11-05)
+Con el buscador real y los 12 primeros resultados, la hipótesis de que los registros *Indagar* tapan a los *Solucionar* en los turnos normales **no se confirmó**:
+- Comida: solo dos registros superan 0,50; el *Solucionar* (productos enlatados, 0,52) fue el que se ofreció. El de DASH queda en 0,47, debajo del umbral.
+- Estómago: ningún *Solucionar* supera 0,50 en el dominio cardiovascular.
+- Brazo: los *Solucionar* quedan en 0,42 y 0,46.
+
+El modo responder e indagar no se activó porque esos casos no tienen un registro que oriente sobre el umbral. Son vacíos de la base o de la forma de preguntar, que le corresponden al equipo clínico y al registro de vacíos (B-032). Bajar el umbral es una decisión del equipo, no de este paso.
+
+Arreglos: una pregunta que repite una de la última respuesta del hilo se descarta (`repeats_question`, 80 % de raíces compartidas). En el guion del 2026-11-06, al descartarlas todas, la pregunta fija pidió "desde cuándo" justo después de "me arde desde ayer": ahora, si todas repiten, se vuelve a hacer solo la primera. Y la abstención ante una pregunta de información ya no pide síntomas (`NO_INFORMATION_TEXT`).
 
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).

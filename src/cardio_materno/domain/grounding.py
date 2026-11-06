@@ -88,6 +88,9 @@ class GroundingPolicy:
         literal_min_overlap: Raíces que una frase del texto literal debe compartir con la
             consulta para mostrarse (B-028).
         max_inquiry_sentences: Máximo de frases de un turno de indagación (HU-11).
+        max_questions_with_answer: Máximo de preguntas que acompañan una respuesta (HU-13).
+        repeat_overlap: Parte de raíces compartidas con una pregunta ya hecha desde la que una
+            pregunta cuenta como repetida (Jaccard).
         allow_questions: False para quitar las preguntas de lo que se muestra (acompañamiento
             de una urgencia ya avisada, B-030).
     """
@@ -99,6 +102,8 @@ class GroundingPolicy:
     stem_chars: int = 5
     literal_min_overlap: int = 1
     max_inquiry_sentences: int = 3
+    max_questions_with_answer: int = 1
+    repeat_overlap: float = 0.8
     allow_questions: bool = True
 
 
@@ -196,6 +201,24 @@ def verify_inquiry(
         allowed = room and is_allowed_inquiry_sentence(sentence, said, policy)
         (kept if allowed else dropped).append(sentence)
     return tuple(kept), tuple(dropped)
+
+
+def repeats_question(sentence: str, asked: Iterable[str], policy: GroundingPolicy) -> bool:
+    """True si la frase repite una pregunta ya hecha: comparte casi todas sus raíces con ella.
+
+    Guion del 2026-11-02: con "desde ayer", el turno 2 repitió las mismas dos preguntas.
+    """
+    stems = content_stems(sentence, policy)
+    return any(
+        stem_overlap(stems, content_stems(question, policy)) >= policy.repeat_overlap
+        for question in asked
+    )
+
+
+def stem_overlap(first: frozenset[str], second: frozenset[str]) -> float:
+    """Raíces compartidas sobre raíces en total (Jaccard); 1 si las dos están vacías."""
+    union = first | second
+    return len(first & second) / len(union) if union else 1.0
 
 
 def has_question(sentences: Iterable[str]) -> bool:

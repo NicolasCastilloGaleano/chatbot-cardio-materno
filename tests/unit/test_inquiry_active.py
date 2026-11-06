@@ -2,7 +2,11 @@
 
 from dataclasses import replace
 
-from cardio_materno.application.grounded_reply import ABSTENTION_TEXT, CLOSING_TEXT
+from cardio_materno.application.grounded_reply import (
+    ABSTENTION_TEXT,
+    CLOSING_TEXT,
+    NO_INFORMATION_TEXT,
+)
 from cardio_materno.application.inquiry_policy import InquiryActivation
 from cardio_materno.application.inquiry_turn import INQUIRY_FALLBACK_QUESTION
 from cardio_materno.domain.knowledge import (
@@ -113,13 +117,46 @@ def test_a_message_without_symptoms_is_informational() -> None:
     assert inquiry_of(result).mode is TurnMode.ANSWER and result.reply == "respuesta"
 
 
-def test_a_question_without_evidence_gets_the_abstention() -> None:
+def test_a_question_without_evidence_gets_the_abstention_without_asking_for_symptoms() -> None:
     turn = reporting("r") | {"asks_information": True}
     near = replace(promising(0.45), items=(), status=RetrievalStatus.INSUFFICIENT)
 
     (result,) = send_all(ACTIVE, FakeRetriever(near), turn)
 
+    assert (inquiry_of(result).mode, result.reply) == (TurnMode.ABSTAIN, NO_INFORMATION_TEXT)
+
+
+def test_a_report_without_evidence_still_asks_for_details() -> None:
+    near = replace(promising(0.45), items=(), status=RetrievalStatus.INSUFFICIENT)
+
+    turn = reporting("r") | {"wants_guidance": True}
+
+    (result,) = send_all(ACTIVE, FakeRetriever(near), turn)
+
     assert (inquiry_of(result).mode, result.reply) == (TurnMode.ABSTAIN, ABSTENTION_TEXT)
+
+
+def test_the_next_inquiry_does_not_repeat_the_same_questions() -> None:
+    asked = "¿El ardor sube hacia la garganta?"
+    first = reporting("r", thread_action="nuevo") | {"questions": [asked]}
+    second = reporting("r") | {"questions": [asked, "¿Te pasa también al caminar?"]}
+
+    _, result = send_all(ACTIVE, FakeRetriever(promising(0.55)), first, second)
+
+    assert result.reply == "¿Te pasa también al caminar?"
+    assert result.trace is not None and result.trace.grounding is not None
+    assert asked in result.trace.grounding.dropped
+
+
+def test_if_every_question_repeats_only_the_first_is_asked_again() -> None:
+    asked = ["¿El ardor sube hacia la garganta?", "¿Aparece también al caminar?"]
+    first = reporting("r", thread_action="nuevo") | {"questions": asked}
+    second = reporting("r") | {"questions": ["¿El ardor te sube hacia la garganta?", asked[1]]}
+
+    _, result = send_all(ACTIVE, FakeRetriever(promising(0.55)), first, second)
+
+    assert result.reply == "¿El ardor te sube hacia la garganta?"
+    assert INQUIRY_FALLBACK_QUESTION not in result.reply
 
 
 def test_answers_only_use_solving_records_and_drop_questions() -> None:

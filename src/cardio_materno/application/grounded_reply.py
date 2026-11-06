@@ -24,9 +24,13 @@ from cardio_materno.domain.knowledge import EvidenceItem, KnowledgeEntry
 from cardio_materno.domain.trace import GroundingCheck, RetrievalStatus
 
 # Sin evidencia suficiente: se pide más detalle en lugar de cerrar la conversación.
-ABSTENTION_TEXT = (
+# Sin pedir detalles: ante una pregunta de información, la persona no reportó síntomas.
+NO_INFORMATION_TEXT = (
     "No tengo información validada sobre eso en la base de conocimiento del proyecto. "
-    "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud. "
+    "Te recomiendo consultarlo con el personal de salud de tu EPS o centro de salud."
+)
+ABSTENTION_TEXT = (
+    f"{NO_INFORMATION_TEXT} "
     "¿Me puedes contar con otras palabras qué sientes, desde cuándo y a quién le pasa?"
 )
 # El buscador no está disponible: pedir más detalles no ayudaría.
@@ -68,16 +72,21 @@ class SentenceVerdict:
     accepted: bool
 
 
-def abstention_text(status: RetrievalStatus) -> str:
+def abstention_text(status: RetrievalStatus, asks_details: bool = True) -> str:
     """Mensaje fijo cuando no hay evidencia suficiente (no se llama al LLM, ADR 0010).
 
     Args:
         status: Resultado de la búsqueda (insuficiente o no disponible).
+        asks_details: False ante una pregunta de información, que no reporta síntomas: no
+            se piden (guion del paso 1.3, 2026-11-02).
 
     Returns:
-        `UNAVAILABLE_TEXT` si el buscador no está disponible; si no, `ABSTENTION_TEXT`.
+        `UNAVAILABLE_TEXT` si el buscador no está disponible; si no, `ABSTENTION_TEXT` o,
+        sin pedir detalles, `NO_INFORMATION_TEXT`.
     """
-    return UNAVAILABLE_TEXT if status is RetrievalStatus.UNAVAILABLE else ABSTENTION_TEXT
+    if status is RetrievalStatus.UNAVAILABLE:
+        return UNAVAILABLE_TEXT
+    return ABSTENTION_TEXT if asks_details else NO_INFORMATION_TEXT
 
 
 def compose_grounded_reply(

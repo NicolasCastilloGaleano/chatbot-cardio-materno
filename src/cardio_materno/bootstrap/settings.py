@@ -142,6 +142,8 @@ class PolicyOverrides:
         inquiry_max_turns: `INQUIRY_MAX_TURNS`, máximo de turnos de indagación seguidos.
         inquiry_max_stalled: `INQUIRY_MAX_STALLED`, turnos de indagación seguidos sin avance.
         inquiry_max_sentences: `INQUIRY_MAX_SENTENCES`, frases de un turno de indagación.
+        inquiry_max_questions_with_answer: `INQUIRY_MAX_QUESTIONS_WITH_ANSWER`, preguntas que
+            acompañan una respuesta.
         selection_max_sentences: `EVIDENCE_SELECTION_MAX_SENTENCES`, frases que elige el
             selector de evidencia (HU-13).
     """
@@ -161,6 +163,7 @@ class PolicyOverrides:
     inquiry_max_turns: int | None = None
     inquiry_max_stalled: int | None = None
     inquiry_max_sentences: int | None = None
+    inquiry_max_questions_with_answer: int | None = None
     selection_max_sentences: int | None = None
 
 
@@ -240,6 +243,9 @@ def load_policy_overrides(env: Mapping[str, str]) -> PolicyOverrides:
         inquiry_max_turns=_get_optional_positive_int(env, "INQUIRY_MAX_TURNS"),
         inquiry_max_stalled=_get_optional_positive_int(env, "INQUIRY_MAX_STALLED"),
         inquiry_max_sentences=_get_optional_positive_int(env, "INQUIRY_MAX_SENTENCES"),
+        inquiry_max_questions_with_answer=_get_optional_positive_int(
+            env, "INQUIRY_MAX_QUESTIONS_WITH_ANSWER"
+        ),
         selection_max_sentences=_get_optional_positive_int(env, "EVIDENCE_SELECTION_MAX_SENTENCES"),
     )
 

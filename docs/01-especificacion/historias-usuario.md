@@ -104,6 +104,7 @@ Escenario: Respuesta respaldada por evidencia
 Escenario: Sin evidencia suficiente (abstención determinista, ADR 0010)
   Cuando pregunto algo que la base no cubre ("tengo diabetes gestacional, ¿cuántas unidades de insulina me pongo?")
   Entonces se muestra el mensaje fijo de abstención (no tengo información validada; consultar con el personal de salud)
+  Y solo pide detalles de síntomas si el mensaje no es una pregunta de información (paso 1.3 de la HU-13, 2026-11-05)
   Y desde el 2026-10-26 ese mensaje termina pidiendo más detalles ("qué sientes, desde cuándo y a quién le pasa"), sin afirmaciones de salud
   Y no se llama al modelo de lenguaje para redactar
   Y si hay una alarma prioritaria, se muestra solo su mensaje fijo
@@ -840,7 +841,8 @@ Escenario: Responder e indagar (paso 1.3)
   Cuando la evidencia no es clara para responder o el selector dice "parcial"
   Entonces el asistente muestra la respuesta verificada y una sola pregunta para afinar el caso
   Y el turno cuenta como turno de indagación
-  Y si la pregunta no pasa la verificación o falla su llamada, se muestra solo la respuesta
+  Y si la pregunta no pasa la verificación o falla su llamada, se muestra solo la respuesta y el turno no cuenta como indagación
+  Y si el selector falla o no deja frases visibles, el asistente solo indaga
 
 Escenario: Con pedido directo no se pregunta (paso 1.3)
   Cuando escribo "¿qué hago?" o hago una pregunta de información
@@ -855,4 +857,4 @@ Compuertas, que se verifican en el PC:
 - **Paso 1.1:** en `observar`, comparar con la línea base del ADR 0019 qué habría elegido el selector en ardor con reflujo, presión alta, DASH y sangrado (en brazo y pecho pesado no corre). Es obligatorio que en "¿qué hago mientras llego?" con sangrado no elija las instrucciones de una convulsión. Si no elige bien, no se construye el redactor.
 - **Pasos 1.2 y 1.3:** con `activo`, `pytest -m live` completo, un guion nuevo y sin regresiones en alarmas. Si sale bien, `activo` pasa a ser el valor por defecto y se fusiona.
 
-Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 verificado en el PC ([guion](../08-despliegue/prueba-selector-observar.md)). Paso 1.2 verificado en el PC ([guion](../08-despliegue/prueba-selector-activo.md)) y activo por defecto por decisión del equipo (2026-11-02). Falta el paso 1.3.
+Estado: 📝 Propuesta (2026-11-01), pendiente de revisión del equipo. Paso 1.1 verificado en el PC ([guion](../08-despliegue/prueba-selector-observar.md)). Paso 1.2 verificado en el PC ([guion](../08-despliegue/prueba-selector-activo.md)) y activo por defecto por decisión del equipo (2026-11-02). Paso 1.3 verificado en el PC el 2026-11-06 ([guion](../08-despliegue/prueba-responder-e-indagar.md)): alarmas sin preguntas, abstención sin pedir síntomas ante preguntas de información, sin preguntas repetidas y `pytest -m live` 38 de 39 (falla segura del selector en urgencias, ajena al paso). Limitación: responder e indagar no se activó en el guion, porque la base tiene pocos registros que orienten sobre 0,50 en esos casos.
