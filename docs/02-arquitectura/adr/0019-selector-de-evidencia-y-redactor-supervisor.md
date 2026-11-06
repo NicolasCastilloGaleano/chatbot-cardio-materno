@@ -106,7 +106,7 @@ La prueba del sangrado con un registro de convulsión falló dos corridas seguid
 | 0,3 (la del análisis) | 3 de 5 | `en_parte` tres veces, `no` dos |
 | 0 | 5 de 5 | `en_parte` las cinco, con el traslado visible |
 
-El selector usa ahora temperatura 0 por defecto (`OLLAMA_SELECTION_TEMPERATURE`), con el modelo y el contexto del análisis, así que Ollama no recarga el modelo. El prompt no cambia.
+El selector usa ahora temperatura 0 por defecto (`OLLAMA_SELECTION_TEMPERATURE`), con el modelo y el contexto del análisis, así que Ollama no recarga el modelo. El prompt no cambia. Con el cambio, `pytest -m live` pasó 39 de 39.
 
 ## Propuesta: orientación en el primer aviso de una urgencia (B-034)
 El usuario eligió dos mensajes (2026-11-02). La especificación sigue en el [ADR 0021](0021-orientacion-despues-del-aviso-de-urgencia.md).
