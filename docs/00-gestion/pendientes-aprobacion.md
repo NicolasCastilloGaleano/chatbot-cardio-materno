@@ -1,6 +1,6 @@
 # Pendientes de aprobación
 
-*Última actualización: 2026-10-12*
+*Última actualización: 2026-11-08*
 
 Lista única de lo que se **implementó para mostrar resultados** o se **propuso** y que debe decidir el equipo, según AGENTS.md §5 (decisiones que no se delegan a la IA). Nicolas Castillo Galeano decidió implementar los puntos 1 a 3 (2026-10-12) para la demostración, antes de la aprobación formal. Todo sigue siendo **PROVISIONAL** hasta que se marque aquí como aprobado.
 
@@ -16,6 +16,7 @@ Lista única de lo que se **implementó para mostrar resultados** o se **propuso
 | 8 | **Textos fijos del canal WhatsApp:** "solo texto", aviso de espera y error del modelo (`application/channel_messages.py`). Son textos no clínicos generados con IA | Equipo | HU-09 | 🟡 Implementado para pruebas; pendiente |
 | 10 | **Textos de la HU-11 y de B-030:** cierre honesto (`CLOSING_TEXT`), pregunta fija, contexto URGENCIA EN CURSO y marcadores de aviso de atención del texto literal | Equipo clínico | `application/grounded_reply.py`, `inquiry_turn.py`, `alarm_policy.py`, `domain/grounding.py`; ADR 0017 y 0018 | 🟡 Implementado; pendiente de revisión clínica |
 | 9 | **Consentimiento (HU-01)** antes de atender a personas reales por WhatsApp | Equipo y aliados | HU-01, `proteccion-datos.md` | ⏳ Pendiente (bloquea el piloto) |
+| 11 | **Ampliación de la base de conocimiento (B-035):** categorías nuevas, tamaño, cuotas de balance, fuentes autorizadas, formato con fuente y revisión, y nivel de revisión clínica (decisiones D1 a D7) | Equipo clínico y líder del proyecto | [Matriz de cobertura](../04-datos/matriz-cobertura-base-conocimiento.md), §9 | ⏳ Pendiente (propuesta del 2026-11-08) |
 
 ## Cómo se registra una decisión
 1. Se anota aquí el resultado, la fecha y quién decidió.
