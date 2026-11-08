@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-11-01 (HU-13: selector y redactor, propuesta)*
+*Última actualización: 2026-11-08 (HU-13 aceptada y verificada; HU-15 verificada)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
