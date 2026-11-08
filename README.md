@@ -21,7 +21,7 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Interfaz web local de chat y auditoría** (HU-08 y HU-10, ADR 0013 y 0016): auditoría de los chats de todos los canales; se puede escribir en los de consola y web | ✅ Hecho (HU-10 verificada en el PC de pruebas el 2026-10-26) |
 | **Indagación guiada por la evidencia** (HU-11, ADR 0017) | ✅ Hecho (verificado en el PC de pruebas el 2026-10-31): `INQUIRY_MODE=activo` por defecto y acompañamiento de la urgencia (B-030); textos pendientes de revisión clínica |
 | **Informe de vacíos de la base para el equipo clínico** (HU-15, B-032): `python scripts/report_gaps.py > vacios.md` | ✅ Verificado en el PC de pruebas el 2026-11-06 |
-| **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019) | 🔄 Pasos 1.1 y 1.2 verificados en el PC de pruebas y activos por defecto; responder e indagar (paso 1.3) verificado en el PC el 2026-11-06; casi no se activa con la base actual |
+| **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019) | ✅ Hecho (pasos 1.1 a 1.3 verificados en el PC de pruebas, el último el 2026-11-06; activo por defecto). Responder e indagar casi no se activa con la base actual |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |
