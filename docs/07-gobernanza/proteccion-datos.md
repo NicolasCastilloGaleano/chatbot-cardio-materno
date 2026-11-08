@@ -1,6 +1,6 @@
 # Protección de datos personales
 
-*Última actualización: 2026-10-17*
+*Última actualización: 2026-11-08*
 
 Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de 2019** (telesalud). Los datos de salud son **datos sensibles**.
 
@@ -34,6 +34,12 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - El texto de los mensajes y las trazas se guardan en `messages`, igual que en el JSON: datos de salud en un archivo (`data/cardio_materno.db`) que no se versiona.
 - `USER_ID_HASH_SECRET` va en `.env` y se respalda junto con la base: si se pierde, las personas quedan desligadas de su historial.
 - Esta fase es solo con números de prueba del equipo. El consentimiento (HU-01) es obligatorio antes de atender a personas reales.
+
+## Pruebas en MareNostrum 5 (BSC, 2026-11-08)
+- Las pruebas de consola pueden correr en MareNostrum 5 ([guía](../08-despliegue/marenostrum5.md)). Los servidores están en España y la carpeta del proyecto (GPFS) es compartida por el grupo `bsc08`.
+- Allí solo se usan **datos sintéticos** del equipo: no se sube la base `data/cardio_materno.db` del PC de pruebas ni el `.env` con los secretos de WhatsApp. La base de MN5 se crea vacía.
+- No se usan los canales con personas (WhatsApp) en MN5.
+- TODO: si algún día se procesan allí datos de personas reales, se requiere la autorización correspondiente a una transferencia internacional (Ley 1581, art. 26).
 
 ## Pendientes
 - TODO: texto del aviso de privacidad validado por los aliados.
