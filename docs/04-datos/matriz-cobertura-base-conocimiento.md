@@ -1,8 +1,19 @@
 # Matriz de cobertura de la base de conocimiento
 
-*Última actualización: 2026-11-08*
+*Última actualización: 2026-11-10*
 
 > **Estado: PROPUESTA.** Redactada con IA (Claude Code) a pedido de Nicolas Castillo Galeano. Qué cubre la base, sus cuotas y sus fuentes son **alcance y contenido clínico**, que no se delegan a la IA (AGENTS.md §5): lo decide el equipo con el líder del proyecto y queda en un ADR. Este documento **no cambia** `knowledge/kb/entries.jsonl`. Backlog: B-035. Pendiente de aprobación: punto 11.
+
+## Estado de la ampliación (2026-11-10)
+Un compañero del equipo cargó la ampliación en la hoja y se exportó a `entries.jsonl`: **2.828 registros** (1.413 CV y 1.415 MI), con los 1.600 originales sin cambios.
+
+| Comparado con la propuesta | Resultado |
+|---|---|
+| Categorías nuevas | Las 14, con 33 a 85 registros cada una (propuesta: 100). Las más pequeñas: MI-N5 salud mental (33), MI-N2 alimentación infantil (44), CV-N7 corazón y mujer (49) |
+| Categorías originales | Crecieron 400 registros: por ejemplo, *Infantil — dolor, neurología, piel, desarrollo y cuidados* pasó de 100 a 196 y *Presión arterial* a 150. Revisar la regla de atracción del §5 |
+| *Solucionar* / *Indagar* en las nuevas | Varía por categoría (CV-N4 tiene 52/0; CV-N3, 41/44) |
+| Formato con fuente y revisión (§7) | No se aplicó: los registros siguen sin fuente individual |
+| Revisión clínica (§8, fase 5) | Pendiente |
 
 ## 1. Propósito
 Hoy la base (1.600 registros) responde bien a una sola necesidad: *"tengo un síntoma, ¿qué hago?"*. Las personas también preguntan qué comer, qué hacer mientras llega la ayuda, cómo pedir una cita o si una creencia es cierta. Esta matriz define **qué debe cubrir** la base ampliada, **en qué proporción** y **de qué fuentes**, para que crezca sin sesgarse y para medir la cobertura antes y después de ampliarla.
