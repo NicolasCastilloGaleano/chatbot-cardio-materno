@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Corre en el nodo con GPU (lo lanza pedir_gpu.sh): arranca Ollama solo en 127.0.0.1 con un
-# puerto libre, ejecuta las acciones pedidas y detiene Ollama al terminar.
+# Corre en el nodo con GPU (lo lanza pedir_gpu.sh, con o sin salloc): arranca Ollama solo en
+# 127.0.0.1 con un puerto libre, ejecuta las acciones pedidas y detiene Ollama al terminar.
 #
 # Acciones (en orden; por defecto, consola):
 #   consola  chat por consola (construye el índice si no existe)
@@ -12,7 +12,7 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
 
-PYTHON="$MN5_REPO/.venv/bin/python"
+PYTHON="$MN5_VENV_PYTHON"
 INDEX_DIR="$MN5_REPO/data/kb_index"
 
 require_gpu_step() {
@@ -20,7 +20,7 @@ require_gpu_step() {
     if [ -z "${SLURM_STEP_ID:-}" ]; then
         mn5_fail "Este script corre en el nodo con GPU. Desde glogin4 usa: bash scripts/mn5/pedir_gpu.sh"
     fi
-    [ -x "$PYTHON" ] || mn5_fail "No existe .venv: ejecuta antes bash scripts/mn5/preparar.sh en glogin4."
+    mn5_venv_is_current || mn5_fail ".venv falta o usa otro Python: ejecuta bash scripts/mn5/preparar.sh en glogin4."
     [ -x "$OLLAMA_BIN" ] || mn5_fail "Ollama no está instalado: ejecuta antes bash scripts/mn5/preparar.sh."
 }
 
@@ -59,7 +59,6 @@ run_action() {
 
 main() {
     require_gpu_step
-    mn5_load_python
     mkdir -p "$MN5_LOGS"
     show_gpu
     trap mn5_stop_ollama EXIT

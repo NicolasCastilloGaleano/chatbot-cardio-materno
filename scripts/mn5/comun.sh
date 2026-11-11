@@ -12,6 +12,20 @@ OLLAMA_DIR="$MN5_WORK/ollama"
 OLLAMA_BIN="$OLLAMA_DIR/bin/ollama"
 export OLLAMA_MODELS="$OLLAMA_DIR/models"
 
+# Python propio del proyecto (CPython "standalone" instalado con uv), independiente de los
+# módulos de MN5: los nodos GPP y ACC tienen módulos distintos y el Python de ACC no carga
+# sqlite3 con la librería del sistema (2026-11-11).
+MN5_UV_DIR="$MN5_WORK/uv"
+MN5_UV_BIN="$MN5_UV_DIR/uv"
+MN5_PYTHON_DIR="$MN5_WORK/python"
+MN5_PYTHON_VERSION="3.12"
+MN5_VENV_PYTHON="$MN5_REPO/.venv/bin/python"
+export UV_PYTHON_INSTALL_DIR="$MN5_PYTHON_DIR"
+export UV_CACHE_DIR="$MN5_UV_DIR/cache"
+export UV_PYTHON_BIN_DIR="$MN5_UV_DIR/bin"
+# Variables que deja un `module load python` y que confundirían a ese Python.
+unset PYTHONPATH PYTHONHOME
+
 # Configuración local (no se versiona): la crea preparar.sh la primera vez.
 if [ -f "$MN5_CONF" ]; then
     # shellcheck source=/dev/null
@@ -24,7 +38,6 @@ MN5_PARTITION="${MN5_PARTITION:-acc}"
 MN5_QOS="${MN5_QOS:-acc_debug}"
 MN5_TIME="${MN5_TIME:-02:00:00}"
 MN5_CPUS="${MN5_CPUS:-20}"
-MN5_PYTHON_MODULE="${MN5_PYTHON_MODULE:-}"
 
 # Modelos del proyecto (ADR 0011) y la copia en CPU de la etapa de respuesta.
 MN5_MODELS=(mistral-small3.1:24b qwen3:8b qwen3-embedding:8b)
@@ -37,7 +50,6 @@ MN5_PORT_RANGE=20000
 MN5_OLLAMA_WAIT_TRIES=60
 MN5_OLLAMA_WAIT_SECONDS=2
 MN5_OLLAMA_START_ATTEMPTS=3
-MN5_MIN_PYTHON="3.12"
 
 # El espacio de GPFS es compartido por el equipo: archivos solo para el dueño y el grupo.
 umask 007
@@ -48,30 +60,11 @@ mn5_fail() {
     exit 1
 }
 
-mn5_load_python() {
-    # Carga los módulos de mn5.conf, en orden y separados por espacios (p. ej., "hdf5 python/3.12.1").
-    # Lmod no tolera `set -u`. El módulo de Python define PYTHONPATH con sus propios paquetes; se
-    # quita para que .venv use solo los que instala requirements.txt.
-    [ -z "$MN5_PYTHON_MODULE" ] && return 0
-    set +u
-    if ! type module >/dev/null 2>&1; then
-        # shellcheck source=/dev/null
-        source /etc/profile >/dev/null 2>&1 || true
-    fi
-    # shellcheck disable=SC2086 # la lista de módulos se separa a propósito
-    module load $MN5_PYTHON_MODULE || mn5_fail "No se pudieron cargar los módulos '$MN5_PYTHON_MODULE'.
-Revisa los que exige con \`module spider <módulo>\` y agrégalos antes, en MN5_PYTHON_MODULE ($MN5_CONF)."
-    set -u
-    unset PYTHONPATH
-}
-
-mn5_check_python() {
-    # Verifica que python3 sea 3.12 o superior.
-    command -v python3 >/dev/null 2>&1 || mn5_fail "No hay python3. Define MN5_PYTHON_MODULE en $MN5_CONF."
-    if ! python3 -c "import sys; sys.exit(sys.version_info < (3, 12))"; then
-        mn5_fail "python3 es $(python3 --version 2>&1) y el proyecto pide $MN5_MIN_PYTHON o superior.
-Busca uno con \`module avail python\` y escríbelo en MN5_PYTHON_MODULE ($MN5_CONF)."
-    fi
+mn5_venv_is_current() {
+    # Indica si .venv existe, usa el Python propio del proyecto y carga sqlite3.
+    [ -x "$MN5_VENV_PYTHON" ] || return 1
+    grep -qF "home = $MN5_PYTHON_DIR/" "$MN5_REPO/.venv/pyvenv.cfg" 2>/dev/null || return 1
+    "$MN5_VENV_PYTHON" -c "import sqlite3" 2>/dev/null
 }
 
 mn5_random_port() {

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Prepara el proyecto en MareNostrum 5 desde el nodo de acceso (glogin4), el único con internet.
-# Instala el entorno de Python, Ollama en el espacio del proyecto, los modelos y el .env.
-# Se puede repetir: cada paso se salta si ya está hecho.
+# Instala un Python propio (uv), el entorno .venv, Ollama en el espacio del proyecto, los
+# modelos y el .env. Se puede repetir: cada paso se salta si ya está hecho.
 #
 # Uso:   bash scripts/mn5/preparar.sh
-# Sin internet en glogin4: MN5_OLLAMA_ARCHIVE=/ruta/ollama-linux-amd64.tgz bash scripts/mn5/preparar.sh
+# Sin internet en glogin4 (paquetes subidos por transfer1):
+#   MN5_UV_ARCHIVE=/ruta/uv-x86_64-unknown-linux-gnu.tar.gz \
+#   MN5_OLLAMA_ARCHIVE=/ruta/ollama-linux-amd64.tgz bash scripts/mn5/preparar.sh
 # Guía:  docs/08-despliegue/marenostrum5.md
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
 
 OLLAMA_URL_BASE="https://ollama.com/download/ollama-linux-amd64"
+UV_URL="https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz"
 
 require_login_node() {
     # Este script descarga; en los nodos de GPU no hay internet.
@@ -23,37 +26,50 @@ write_conf() {
     [ -f "$MN5_CONF" ] && return 0
     cat >"$MN5_CONF" <<'CONF'
 # Configuración local de los scripts de MN5 (fuera del repositorio; no se versiona).
-# Módulos para tener Python 3.12 o superior, en orden y separados por espacios. Elige uno de
-# `module avail python`; si Lmod pide otros antes (p. ej., hdf5), van primero:
-#   MN5_PYTHON_MODULE="hdf5 python/3.12.1"
-# Vacío = usa el python3 del sistema.
-MN5_PYTHON_MODULE=""
 # Recursos de las sesiones con GPU (confirma las colas con `bsc_queues`).
 MN5_QOS="acc_debug"
 MN5_TIME="02:00:00"
 MN5_CPUS="20"
 CONF
-    echo "Creado $MN5_CONF (revisa MN5_PYTHON_MODULE)."
+    echo "Creado $MN5_CONF."
+}
+
+install_uv() {
+    # Instala uv (un solo binario) en $MN5_UV_DIR, sin tocar el sistema ni el PATH.
+    if [ -x "$MN5_UV_BIN" ]; then
+        echo "uv ya está instalado: $("$MN5_UV_BIN" --version)"
+        return 0
+    fi
+    local archive="${MN5_UV_ARCHIVE:-$MN5_UV_DIR/uv.tar.gz}"
+    mkdir -p "$MN5_UV_DIR"
+    if [ -z "${MN5_UV_ARCHIVE:-}" ]; then
+        curl -fL --retry 3 -o "$archive" "$UV_URL" || mn5_fail "No se pudo descargar uv. Súbelo por transfer1 y usa MN5_UV_ARCHIVE."
+    fi
+    tar -xzf "$archive" -C "$MN5_UV_DIR" --strip-components=1
+    [ -z "${MN5_UV_ARCHIVE:-}" ] && rm -f "$archive"
+    "$MN5_UV_BIN" --version
+}
+
+install_python() {
+    # Instala CPython standalone (trae su propio SQLite) en $MN5_PYTHON_DIR y muestra su ruta.
+    UV_PYTHON_PREFERENCE=only-managed "$MN5_UV_BIN" python install "$MN5_PYTHON_VERSION" >&2
+    UV_PYTHON_PREFERENCE=only-managed "$MN5_UV_BIN" python find "$MN5_PYTHON_VERSION"
 }
 
 setup_venv() {
-    # Crea .venv con el Python del módulo e instala las dependencias.
-    mn5_load_python
-    mn5_check_python
-    if [ ! -x "$MN5_REPO/.venv/bin/python" ]; then
-        python3 -m venv "$MN5_REPO/.venv"
+    # Crea .venv con el Python propio; rehace el que quedó con un Python de módulo.
+    install_uv
+    local python
+    python="$(readlink -f "$(install_python)")"
+    if ! mn5_venv_is_current; then
+        [ -d "$MN5_REPO/.venv" ] && echo ".venv usa otro Python: se vuelve a crear (es derivado)."
+        rm -rf "$MN5_REPO/.venv"
+        "$python" -m venv "$MN5_REPO/.venv"
     fi
-    check_venv_isolated
-    "$MN5_REPO/.venv/bin/pip" install --upgrade pip
-    "$MN5_REPO/.venv/bin/pip" install -r "$MN5_REPO/requirements.txt" -r "$MN5_REPO/requirements-dev.txt"
-}
-
-check_venv_isolated() {
-    # Verifica que .venv sea un entorno propio y no el Python del módulo (p. ej., por PYTHONHOME).
-    if ! "$MN5_REPO/.venv/bin/python" -c "import sys; sys.exit(sys.prefix == sys.base_prefix)"; then
-        mn5_fail ".venv no quedó aislado del Python del módulo. Bórralo (rm -rf .venv) y pega aquí la salida de:
-  module show ${MN5_PYTHON_MODULE##* }"
-    fi
+    "$MN5_VENV_PYTHON" -m pip install --upgrade pip
+    "$MN5_VENV_PYTHON" -m pip install -r "$MN5_REPO/requirements.txt" -r "$MN5_REPO/requirements-dev.txt"
+    mn5_venv_is_current || mn5_fail ".venv no quedó con el Python del proyecto o no carga sqlite3."
+    echo ".venv listo: $("$MN5_VENV_PYTHON" --version)"
 }
 
 download_ollama() {
@@ -121,13 +137,11 @@ main() {
     require_login_node
     mkdir -p "$MN5_LOGS"
     write_conf
-    # shellcheck source=/dev/null
-    source "$MN5_CONF"
-    echo "== 1/4 Entorno de Python" && setup_venv
+    echo "== 1/4 Python $MN5_PYTHON_VERSION propio y .venv" && setup_venv
     echo "== 2/4 Ollama" && install_ollama
     echo "== 3/4 Modelos (unos 25 GB)" && pull_models
     echo "== 4/4 .env" && create_env
-    echo "Listo. Para usar la GPU: bash scripts/mn5/pedir_gpu.sh consola"
+    echo "Listo. Para usar la GPU: bash scripts/mn5/pedir_gpu.sh"
 }
 
 main "$@"
