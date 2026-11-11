@@ -1,6 +1,6 @@
 # Matriz de cobertura de la base de conocimiento
 
-*Última actualización: 2026-11-10*
+*Última actualización: 2026-11-11*
 
 > **Estado: PROPUESTA.** Redactada con IA (Claude Code) a pedido de Nicolas Castillo Galeano. Qué cubre la base, sus cuotas y sus fuentes son **alcance y contenido clínico**, que no se delegan a la IA (AGENTS.md §5): lo decide el equipo con el líder del proyecto y queda en un ADR. Este documento **no cambia** `knowledge/kb/entries.jsonl`. Backlog: B-035. Pendiente de aprobación: punto 11.
 
@@ -164,3 +164,57 @@ Estilo de las respuestas, igual que la base actual: unos 550 caracteres, frases 
 - Dosis, ajustes de medicamentos y diagnósticos (Res. 2654/2019: teleorientación, no prescripción).
 - Decidir si hay alarma: lo hacen las reglas de `domain/` (ADR 0004). La base solo orienta.
 - Datos de personas reales: las preguntas son sintéticas (AGENTS.md §4).
+
+## 11. Ronda 2: determinantes sociales y temas faltantes (B-036)
+> **Estado: PROPUESTA en curso** (2026-11-11). Decisiones del usuario: los DSS van como categorías dentro de cada dominio (sin dominio nuevo ni cambios de código), Claude redacta un borrador a partir de fuentes citadas y la meta es una base de unos **4.000 registros** (unos 1.200 nuevos). El equipo valida antes de pegar en la hoja.
+
+### 11.1 Lecciones de la ronda 1 (pruebas en vivo en MN5, 2026-11-11)
+- Los registros nuevos son escenarios muy específicos. Las preguntas generales ("¿qué alimentos ayudan a controlar la presión?", "acidez a las 34 semanas, ¿es normal?") no superan el umbral de 0,50 y reciben la abstención.
+- Las 14 categorías nuevas quedaron con 33 a 85 registros, frente a 100 propuestos.
+- La sonda de recuperación no conocía las categorías nuevas.
+
+### 11.2 Determinantes sociales de la salud
+Marco de la OMS: los determinantes **estructurales** (ingreso, educación, ocupación, género, etnia, estatus migratorio) y los **intermedios** (vivienda, agua, alimentos, condiciones de trabajo, factores psicosociales, acceso al sistema de salud). En un asistente de teleorientación, un registro DSS **orienta sobre la barrera concreta** (cómo llegar, a qué tiene derecho, qué hacer con lo que hay), sin juzgar ni suponer nada de la persona.
+
+### 11.3 Categorías de la ronda 2
+El nombre exacto (columna *Categoría* de la hoja) es el de la tabla.
+
+| Bloque | Categoría | Registros |
+|---|---|---|
+| A. DSS | CV-S1 — Acceso y barreras de atención (afiliación, SISBEN, copagos, transporte, distancia rural, migrantes) | 50 |
+| A. DSS | CV-S2 — Alimentación y entorno con recursos limitados (comer sano con poco dinero, humo de leña, agua, actividad física rural) | 50 |
+| A. DSS | CV-S3 — Trabajo, ingresos y cuidado (jornaleros, recolección de café, volver al trabajo, incapacidad, cuidador, adulto mayor solo) | 50 |
+| A. DSS | CV-S4 — Educación, cultura y comunicación (entender recetas y etiquetas, remedios caseros, interculturalidad, conectividad) | 50 |
+| A. DSS | CV-S5 — Factores psicosociales (estrés económico, soledad, duelo, consumo ligado al contexto) | 50 |
+| A. DSS | MI-S1 — Acceso en el embarazo y la infancia (sin EPS, migrantes, transporte a controles, plan de parto rural, hogar de paso) | 50 |
+| A. DSS | MI-S2 — Alimentación y hogar con recursos limitados (inseguridad alimentaria, programas del ICBF, agua, saneamiento, leña) | 50 |
+| A. DSS | MI-S3 — Violencias y protección (violencia de pareja e intrafamiliar, violencia sexual, maltrato infantil, embarazo adolescente) | 50 |
+| A. DSS | MI-S4 — Trabajo, estudio y redes de apoyo (embarazo y trabajo agrícola, licencias, madre adolescente, madre sola, papel del padre) | 50 |
+| A. DSS | MI-S5 — Cultura y saberes tradicionales (parteras, dieta de los 40 días, plantas, enfoque intercultural) | 50 |
+| B. Completar | Las categorías `CV-N*` y `MI-N*` hasta 80 o más, empezando por MI-N5 (33), MI-N2 (44), CV-N7 (49), MI-N6 (50), CV-N4 (52), MI-N4 (52) y CV-N1 (55) | ≈ 300 |
+| C. Faltantes | CV-T1 — Diabetes, colesterol, riñón y obesidad | 60 |
+| C. Faltantes | CV-T2 — Adulto mayor (polifarmacia, caídas, memoria, cuidador) | 60 |
+| C. Faltantes | CV-T3 — Chagas, fiebre reumática y cardiopatías congénitas | 50 |
+| C. Faltantes | MI-T1 — Salud preconcepcional y embarazo adolescente | 60 |
+| C. Faltantes | MI-T2 — Infecciones en el embarazo y tamizajes (sífilis, VIH, hepatitis B, toxoplasmosis, dengue, zika) | 60 |
+| C. Faltantes | MI-T3 — Pérdida gestacional, duelo perinatal, prematuridad y madre canguro | 50 |
+| C. Faltantes | MI-T4 — Crecimiento, malnutrición, anemia, desparasitación y salud oral infantil | 60 |
+
+### 11.4 Reglas de redacción
+| Regla | Valor |
+|---|---|
+| Preguntas **generales y básicas** (`Tipo = general`) | ≥ 30 % de cada categoría |
+| Coloquiales, de un cuidador, en contexto rural | ≥ 15 % cada una |
+| *Solucionar* / *Indagar* | 70 / 30 |
+| Longitud de la respuesta | 300 a 650 caracteres, en frases autocontenidas y citables (ADR 0010) |
+| Prohibido | Dosis, diagnósticos ("usted tiene…"), juicios sobre la persona, datos locales inventados (teléfonos o direcciones que no estén en una fuente) |
+| Fuente | Cada registro cita un `id` de `docs/04-datos/fuentes-base-conocimiento.md` |
+
+Formato del borrador: un CSV por categoría en `docs/04-datos/borradores-kb/ronda-2/`, con las columnas `Categoría, Enfoque, Preguntas, Respuestas, Fuente, Tipo`. `scripts/export_sheet_kb.py` ignora las dos últimas, así que `entries.jsonl` no cambia de formato. `scripts/check_kb.py` revisa cuotas, longitudes, términos prohibidos, duplicados y fuentes.
+
+### 11.5 Fuera de la base (para decidir el equipo)
+- **Reglas de alarma** para ideación suicida y para violencia con riesgo inminente: hoy no existen en `knowledge/alarm_rules.json`. La base solo orienta sobre rutas; decidir una alarma no se delega a la IA (ADR 0004).
+- Preguntas sobre el propio asistente (quién es, qué guarda): van en plantillas, no en la base.
+
+### 11.6 Revisión
+Revisión del 100 % en MI-S3 (violencias), MI-T2 (infecciones) y los primeros auxilios (CV-N4, MI-N4). En el bloque A conviene la revisión de trabajo social o salud pública. En el resto, una muestra estratificada ≥ 20 %, como en el §8.
