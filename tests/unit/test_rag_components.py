@@ -294,7 +294,7 @@ def test_real_knowledge_base_and_policy_load() -> None:
     entries = load_entries(PROJECT_ROOT / "knowledge" / "kb" / "entries.jsonl")
     policy = load_policy(PROJECT_ROOT / "knowledge" / "evidence_policy.json")
 
-    assert len(entries) == 2828
+    assert len(entries) == 4049
     assert {e.domain for e in entries} == {Domain.MATERNAL_CHILD, Domain.CARDIOVASCULAR}
     assert {e.focus for e in entries} == {Focus.INQUIRE, Focus.SOLVE}
     assert len({e.id for e in entries}) == len(entries)

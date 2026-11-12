@@ -166,7 +166,7 @@ Estilo de las respuestas, igual que la base actual: unos 550 caracteres, frases 
 - Datos de personas reales: las preguntas son sintéticas (AGENTS.md §4).
 
 ## 11. Ronda 2: determinantes sociales y temas faltantes (B-036)
-> **Estado: BORRADOR LISTO PARA REVISIÓN** (2026-11-12): 1.221 registros en `docs/04-datos/borradores-kb/ronda-2/`, con sus dudas de revisión. Antes, PROPUESTA (2026-11-11). Decisiones del usuario: los DSS van como categorías dentro de cada dominio (sin dominio nuevo ni cambios de código), Claude redacta un borrador a partir de fuentes citadas y la meta es una base de unos **4.000 registros** (unos 1.200 nuevos). El equipo valida antes de pegar en la hoja.
+> **Estado: INTEGRADA** (2026-11-12): 1.221 registros revisados por el equipo y agregados a `knowledge/kb/entries.jsonl` (4.049 registros); falta el índice y la sonda de cobertura en MN5. Antes, PROPUESTA (2026-11-11). Decisiones del usuario: los DSS van como categorías dentro de cada dominio (sin dominio nuevo ni cambios de código), Claude redacta un borrador a partir de fuentes citadas y la meta es una base de unos **4.000 registros** (unos 1.200 nuevos). El equipo valida antes de pegar en la hoja.
 
 ### 11.1 Lecciones de la ronda 1 (pruebas en vivo en MN5, 2026-11-11)
 - Los registros nuevos son escenarios muy específicos. Las preguntas generales ("¿qué alimentos ayudan a controlar la presión?", "acidez a las 34 semanas, ¿es normal?") no superan el umbral de 0,50 y reciben la abstención.

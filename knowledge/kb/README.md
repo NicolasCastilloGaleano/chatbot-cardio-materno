@@ -1,19 +1,21 @@
 # Base de conocimiento (RAG)
 
-`entries.jsonl` contiene **2.828 registros** pregunta/respuesta, uno por línea:
+`entries.jsonl` contiene **4.049 registros** pregunta/respuesta, uno por línea:
 `{id, domain, category, focus, question, answer}`. *Indagar*: qué preguntar y qué señales importan · *Solucionar*: orientación.
 
 | Dominio | Registros | Categorías | Indagar / Solucionar |
 |---|---|---|---|
-| `cardiovascular` | 1.413 | 8 originales (100–150 cada una) + 7 nuevas `CV-N1` a `CV-N7` (49–85 cada una) | 618 / 795 |
-| `materno_infantil` | 1.415 | 8 originales (100–196 cada una) + 7 nuevas `MI-N1` a `MI-N7` (33–64 cada una) | 598 / 817 |
+| `cardiovascular` | 1.955 | 8 originales + `CV-N1` a `CV-N7` (ronda 1) + `CV-S1` a `CV-S5` (determinantes sociales) + `CV-T1` a `CV-T3` (temas faltantes): 23 | 776 / 1.179 |
+| `materno_infantil` | 2.094 | 8 originales + `MI-N1` a `MI-N7` + `MI-S1` a `MI-S5` + `MI-T1` a `MI-T4`: 24 | 795 / 1.299 |
 
-Las categorías `CV-N*` y `MI-N*` son las de la [matriz de cobertura](../../docs/04-datos/matriz-cobertura-base-conocimiento.md) (B-035).
+Las categorías `CV-N*`/`MI-N*` (B-035) y `CV-S*`/`MI-S*`/`CV-T*`/`MI-T*` (B-036) son las de la [matriz de cobertura](../../docs/04-datos/matriz-cobertura-base-conocimiento.md).
 
 ## Origen y estado de validación
 - **Origen:** generado con IA (ChatGPT Work) con trabajo intensivo por categoría y búsqueda de fuentes. Se mantenía en un Google Spreadsheet del equipo y se sincronizaba con `kb_sync` en el piloto anterior (`piloto-agente-nanomaterno-cardiovascular`). Se exportó el 2026-10-10 con `scripts/export_pilot_kb.py`, conservando el `id` (hash) del piloto.
 - **Estado: `VALIDADA_PARA_PROTOTIPO`.** Decisión acordada con **Miguel, líder del proyecto** (TODO: apellido), el 2026-10-10: se usa en el prototipo como datos validados.
 - **Ampliación del 2026-11-10 (B-035):** un compañero del equipo agregó a la hoja **1.228 registros** (828 en las 14 categorías nuevas de la matriz de cobertura y 400 en categorías originales); los 1.600 anteriores no cambiaron. **Estado: PENDIENTE DE VALIDACIÓN** hasta que el equipo decida D1–D7 de la matriz y el líder del proyecto los acepte para el prototipo. No traen fuente por registro.
+- **Ronda 2 del 2026-11-12 (B-036):** **1.221 registros** redactados con IA a partir del [catálogo de fuentes](../../docs/04-datos/fuentes-base-conocimiento.md): 498 de determinantes sociales, 399 de temas faltantes y 324 para completar 13 categorías de la ronda 1. Se agregaron **directamente** a este archivo desde `docs/04-datos/borradores-kb/ronda-2/*.csv` (mismo `id` que `kb_sync`), sin pasar por la hoja. **Estado: revisada por el equipo según el usuario (2026-11-12)** (TODO: quién revisó y qué se decidió en `dudas-revision.md`). La fuente de cada registro está en la columna *Fuente* de los CSV.
+- **Atención:** la hoja de Google todavía no tiene los registros de la ronda 2. Si se vuelve a exportar desde la hoja con `scripts/export_sheet_kb.py` antes de pegarlos allí, **se perderían**. Hay que pegar los CSV en la hoja (pestaña según el prefijo CV/MI) antes de la próxima exportación.
 - **Limitación:** los registros no tienen fuente, revisor ni fecha individuales. Para usar el asistente con usuarios reales se requiere la validación clínica (B-019: columnas Fuente/Validado por/Fecha en la hoja).
 
 ## Índice vectorial (derivado, no versionado)
