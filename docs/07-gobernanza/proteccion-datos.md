@@ -1,6 +1,6 @@
 # Protección de datos personales
 
-*Última actualización: 2026-10-17*
+*Última actualización: 2026-11-11*
 
 Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de 2019** (telesalud). Los datos de salud son **datos sensibles**.
 
@@ -19,6 +19,7 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 ## RAG (HU-02)
 - La consulta de búsqueda (mensaje + resumen + síntomas) se envía al modelo de embeddings de **Ollama local**; no sale del equipo.
 - La base de conocimiento no contiene datos personales.
+- **Determinantes sociales (B-036):** con la ronda 2, las personas pueden contar datos sensibles (estatus migratorio, violencia, pertenencia étnica, situación económica). Se tratan como los demás datos de salud del hilo: no se envían fuera del equipo, la traza no se versiona y los registros de la base no piden esos datos, solo orientan sobre rutas.
 - La `trace` de cada respuesta incluye los síntomas reportados (datos de salud) y se guarda con el hilo, en `data/threads/`, que no se versiona.
 
 ## Interfaz web local (HU-08, HU-10, ADR 0013 y 0016)

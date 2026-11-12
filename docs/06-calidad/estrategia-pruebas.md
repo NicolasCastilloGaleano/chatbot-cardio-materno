@@ -1,6 +1,6 @@
 # Estrategia de pruebas
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-11-11*
 
 | Nivel | Carpeta | Qué prueba | Cuándo corre |
 |---|---|---|---|
@@ -8,7 +8,7 @@
 | Integración | `tests/integration/` | Adaptadores reales (BD, API FastAPI, healthcheck) | Cada PR |
 | Conversacionales (golden) | `tests/conversational/` | Hoy: frases de referencia de las reglas de alarma (`alarm_phrases.json`): cada regla con ≥ 2 frases que la activan, frases que no deben activarla y frases cotidianas sin alarma. Futuro: conversaciones completas contra la consola | Cada PR y cada cambio de regla o prompt |
 
-| En vivo | `tests/live/` (marcador `live`, excluidas por defecto y de la CI) | Contra Ollama real y el índice construido: sonda de recuperación (16 casos, meta ≥ 13 en top-3), **no contaminación** del análisis con preguntas educativas y detección del filtro 2 en reportes coloquiales | En el PC de pruebas: `pytest -m live -s` |
+| En vivo | `tests/live/` (marcador `live`, excluidas por defecto y de la CI) | Contra Ollama real y el índice construido: sonda de recuperación (16 casos, meta ≥ 13 en top-3), **no contaminación** del análisis con preguntas educativas y detección del filtro 2 en reportes coloquiales; **sonda de cobertura** de las categorías nuevas (`coverage_probe.json`, 4 preguntas generales por categoría, meta ≥ 80 % en top-3; las categorías aún sin registros se informan y no cuentan) | En el PC de pruebas: `pytest -m live -s` |
 
 ## Reglas
 - Cada criterio de aceptación en Gherkin tiene al menos una prueba, registrada en la [trazabilidad](../01-especificacion/trazabilidad.md).
