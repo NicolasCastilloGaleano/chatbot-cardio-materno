@@ -1,6 +1,6 @@
 # Product Backlog
 
-*Última actualización: 2026-11-01 (HU-13 propuesta, B-031 a B-033)*
+*Última actualización: 2026-11-11 (B-036 en curso)*
 
 Priorizado por el Product Owner con los aliados (decisión **no delegable** a la IA). Cada ítem se enlaza con su historia de usuario (HU) en `../01-especificacion/historias-usuario.md`.
 
@@ -40,6 +40,8 @@ Priorizado por el Product Owner con los aliados (decisión **no delegable** a la
 | B-032 | Registro de vacíos para el equipo clínico: `scripts/report_gaps.py` reconoce en las trazas los turnos sin orientación y los agrupa por categoría y consulta, sin datos personales | HU-15 | Media | — | ✅ Verificado en el PC el 2026-11-06 |
 | B-033 | Separar el análisis en extractor clínico e intérprete, sin perder detecciones del filtro 2 | HU-14 (por especificar) | Media | — | ⏳ Después de B-032, con medición previa |
 | B-034 | Orientación en el primer aviso de una urgencia: además del mensaje fijo, algo que la persona pueda hacer en el momento, sin que tenga que preguntar y sin textos fijos por alarma. Dos mensajes: el aviso sale de inmediato y la orientación llega sola después (decisión del usuario, 2026-11-02) | HU-03 / HU-04 | Alta | — | 🔄 Paso 1 (consola) por verificar en el PC; falta la web y WhatsApp (ADR 0021) |
+| B-035 | Ampliar la base de conocimiento por intención (alimentación, primeros auxilios, rutas, hábitos, medicamentos, salud mental, mitos) a unos 3.000 registros balanceados y con fuente. Propuesta: [matriz de cobertura](../04-datos/matriz-cobertura-base-conocimiento.md), con 14 categorías nuevas, cuotas y fuentes oficiales; la CIE-10 solo como lista de control | HU-02, HU-15 | Alta | — | 🔄 Ampliación cargada en la hoja y exportada (2.828 registros, 2026-11-10, `scripts/export_sheet_kb.py`); falta el índice y la sonda en vivo en el PC o en MN5, y la validación clínica (D1–D7) |
+| B-036 | Segunda ampliación de la base (unos 1.200 registros): determinantes sociales de la salud como categorías CV-S*/MI-S*, completar las categorías cortas de la ronda 1 y temas faltantes CV-T*/MI-T*. Claude redacta el borrador con fuentes citadas; el equipo lo valida y lo pega en la hoja. Especificación: [matriz de cobertura §11](../04-datos/matriz-cobertura-base-conocimiento.md) | HU-02, HU-15 | Alta | — | 🔄 Integrada (2026-11-12): 1.221 registros revisados por el equipo y agregados a `entries.jsonl` (4.049); falta el índice y `pytest -m live` en MN5, y pegarlos en la hoja |
 
 ## Notas de ítems
 

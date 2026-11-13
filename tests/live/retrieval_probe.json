@@ -105,7 +105,8 @@
       "query": "tengo diabetes en el embarazo, que debo comer",
       "domain": "materno_infantil",
       "expected_categories": [
-        "Materno — complicaciones sistémicas e infecciones"
+        "Materno — complicaciones sistémicas e infecciones",
+        "MI-N1 — Alimentación en el embarazo y la lactancia (náuseas, acidez, diabetes gestacional, anemia, suplementos como información)"
       ]
     },
     {
