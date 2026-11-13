@@ -1,6 +1,6 @@
 # Estándares de código
 
-*Última actualización: 2026-10-09*
+*Última actualización: 2026-11-08*
 
 Resumen obligatorio en [AGENTS.md §3](../../AGENTS.md). Aquí está el detalle.
 
@@ -38,6 +38,8 @@ def detect_alarm_signs(symptoms: list[Symptom]) -> list[AlarmSign]:
 
 ## Herramientas
 `ruff check`, `ruff format`, `mypy --strict` (sobre `src` y `tests`) y `pytest`. La configuración está en `pyproject.toml` y se ejecuta en la CI (`.github/workflows/ci.yml`).
+
+**Scripts de shell** (solo para operar en entornos externos, como `scripts/mn5/` para MareNostrum 5): bash con `set -euo pipefail`, funciones pequeñas con un comentario de qué hacen, mensajes en español, constantes con nombre y lo ajustable en un archivo de configuración local que no se versiona. Se validan con `bash -n` (y `shellcheck` si está disponible) y con dobles de los programas externos. Se ejecutan con `bash script.sh`, sin depender del permiso de ejecución.
 
 ## Constructores con muchas dependencias
 **Configuración:** todo parámetro que se ajuste al operar se lee de `.env` en `bootstrap/settings.py` (con un valor por defecto en constante) y se documenta en `.env.example` y en la tabla de variables de `instalacion.md`. Las etapas del LLM usan el prefijo `OLLAMA_ANALYSIS_` / `OLLAMA_REPLY_`, con respaldo en `OLLAMA_*`.

@@ -1,6 +1,6 @@
 # Instalación y ejecución
 
-*Última actualización: 2026-10-18 (HU-10: consola y web sobre SQLite)*
+*Última actualización: 2026-11-08 (sección C: pruebas en MareNostrum 5)*
 
 ## A. PC de pruebas (Ubuntu 24.04 + Ollama)
 Requisitos: **Python 3.12+**, **Git**, **[Ollama](https://ollama.com/download)** con `mistral-small3.1:24b` y `qwen3-embedding:8b`.
@@ -295,3 +295,6 @@ pytest                 # pruebas sin Ollama (excluye las "live")
 ruff check .           # estilo, complejidad y docstrings
 mypy src tests scripts # tipos (modo estricto)
 ```
+
+## C. MareNostrum 5 (BSC; solo consola y pruebas)
+Para hacer las pruebas con una GPU H100 del BSC en lugar del PC de pruebas: [marenostrum5.md](marenostrum5.md). Se prepara una vez en el nodo de acceso con `bash scripts/mn5/preparar.sh` y cada sesión se abre con `bash scripts/mn5/pedir_gpu.sh`. Sin WhatsApp; la interfaz web está pendiente de la autorización del BSC.

@@ -38,7 +38,7 @@ docs/                   Documentación viva (ver docs/README.md y su matriz de i
 src/cardio_materno/     Código fuente (domain, application, adapters, bootstrap)
 knowledge/              Base de conocimiento clínica curada para RAG
 tests/                  unit / integration / conversational
-scripts/                Utilidades de desarrollo
+scripts/                Utilidades de desarrollo (scripts/mn5/: pruebas en MareNostrum 5)
 .claude/                Hooks y comandos de Claude Code que hacen cumplir las reglas
 ```
 
@@ -58,6 +58,8 @@ ngrok http --url=<tu-dominio>.ngrok-free.app 8001
 ⚠️ Prototipo técnico: las reglas de alarma son PROVISIONALES (R-09) y la base de conocimiento está validada solo para el prototipo (R-10). Solo para pruebas del equipo.
 
 Guía completa, variables, guiones de prueba y solución de problemas: [docs/08-despliegue/instalacion.md](docs/08-despliegue/instalacion.md).
+
+Pruebas de consola con una GPU de **MareNostrum 5** (BSC), sin WhatsApp: [docs/08-despliegue/marenostrum5.md](docs/08-despliegue/marenostrum5.md) (`bash scripts/mn5/preparar.sh` y luego `bash scripts/mn5/pedir_gpu.sh`). Pendiente de la primera ejecución real.
 
 ## Cómo contribuir
 1. Leer [AGENTS.md](AGENTS.md). Aplica a personas y a agentes de IA.
