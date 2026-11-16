@@ -39,7 +39,7 @@ git pull
 .venv/bin/pip install -r requirements.txt     # por si cambiaron las dependencias
 .venv/bin/python run_build_kb_index.py        # solo si cambió knowledge/kb/entries.jsonl o OLLAMA_EMBED_MODEL
 .venv/bin/python run_console.py
-# Alternativa de demostración: interfaz de chat y auditoría en http://127.0.0.1:8000
+# Interfaz web: vista ciudadana en http://127.0.0.1:8000 y vista del equipo en http://127.0.0.1:8000/equipo
 .venv/bin/python run_web.py
 ```
 Si acabas de cambiar a una rama que incorpora dependencias nuevas, instala primero las versiones de esa rama con `.venv/bin/pip install -r requirements.txt`.
@@ -48,7 +48,9 @@ Al arrancar se muestran las reglas de alarma cargadas, los modelos de cada etapa
 Escribe tus mensajes y presiona Enter. Para terminar, escribe `salir` (o usa Ctrl+C). **Desde la HU-10**, cada arranque de la consola crea su propio chat en `data/cardio_materno.db` y muestra su identificador corto ("Chat de consola 1a2b3c4d…"). Al salir, ese chat se continúa en la interfaz web; la consola no retoma chats anteriores. Si la consola se cierra de golpe, el chat queda "en uso en la consola" hasta liberarlo desde la web.
 
 ### Interfaz local de auditoría multicanal (HU-08 y HU-10)
-Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). Carga los mismos modelos, reglas y RAG que la consola y lee la base `data/cardio_materno.db`, la misma de la consola y WhatsApp, que pueden correr a la vez.
+Desde el 2026-11-15 (ADR 0022) hay dos vistas. **`http://127.0.0.1:8000/` es la vista ciudadana**: bienvenida (y consentimiento si `CONSENT_MODE=requerido`), conversación con las fuentes de cada respuesta y avisos de alarma destacados; es la que se usa en una sesión de validación con personas. **`http://127.0.0.1:8000/equipo` es la vista del equipo**, descrita a continuación, con una pestaña *Alertas* que reúne las alarmas de todos los chats. En pantallas angostas se ve un panel a la vez (Chats, Conversación, Traza).
+
+Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000/equipo` (`WEB_HOST` y `WEB_PORT` en `.env`; el host solo puede ser local). Carga los mismos modelos, reglas y RAG que la consola y lee la base `data/cardio_materno.db`, la misma de la consola y WhatsApp, que pueden correr a la vez.
 - **Izquierda:** los chats de todos los canales, con filtros. 🔒 marca los de solo lectura (WhatsApp, Telegram, Histórico y las consolas abiertas).
 - **Centro:** el chat como una sola conversación. Cada hilo tiene un color, y un separador marca dónde cambia. Al subir con el scroll se cargan los mensajes anteriores (`WEB_PAGE_SIZE`).
 - **Derecha:** la traza de la respuesta que selecciones, con la evidencia completa y las alertas del turno.
@@ -190,6 +192,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 |---|---|---|
 | `APP_ENV` / `LOG_LEVEL` / `CHANNEL` | `development` / `INFO` / `console` | Entorno, nivel de registro (lo usa `run_whatsapp.py`) y canal |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
+| `CARE_ACCESS_MODE` | `apagado` | Datos de acceso a la atención (HU-18, ADR 0023): `observar` usa el prompt de análisis v9 y registra lo decidido solo en el turno; `activo` muestra además los textos **aprobados** de `knowledge/care_access.json`. Informe: `python scripts/export_care_access.py > acceso.csv` |
+| `CONSENT_MODE` | `apagado` | `requerido` exige aceptar el consentimiento antes de atender en WhatsApp y en la vista ciudadana (HU-01). Obligatorio con personas reales |
 | `OLLAMA_KEEP_ALIVE` | `30m` | Tiempo que Ollama mantiene cargados los modelos entre turnos |
 
 **2. Modelos y generación (generales y por etapa, ADR 0011)**
@@ -267,7 +271,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `WHATSAPP_SEND_TIMEOUT_SECONDS` | `15` | Espera máxima de cada envío a Meta |
 | `WHATSAPP_WAIT_NOTICE_SECONDS` | `10` | Segundos antes del aviso "Estoy revisando tu mensaje" |
 | `WHATSAPP_MAX_PENDING` | `100` | Mensajes en cola antes de pedir a Meta que reintente (503) |
-| `DATABASE_PATH` | `data/cardio_materno.db` | Base SQLite de usuarios, hilos y eventos (no se versiona) |
+| `DATABASE_PATH` | `data/cardio_materno.db` | Base SQLite de usuarios, hilos y eventos (no se versiona). Al abrirla con una versión que trae un esquema más nuevo se migra sola y antes se guarda una copia junto a ella (`cardio_materno.respaldo-v2.db`). Una versión anterior del programa no abre la base migrada: para volver a ella, se usa la copia (los mensajes posteriores a la migración no están en la copia) |
 | `THREAD_IDLE_TIMEOUT_HOURS` | `12` | Horas sin actividad tras las cuales se cierra el hilo abierto |
 Al arrancar, la consola muestra el modelo de cada etapa y el umbral efectivo del RAG (`… · umbral 0.50`).
 

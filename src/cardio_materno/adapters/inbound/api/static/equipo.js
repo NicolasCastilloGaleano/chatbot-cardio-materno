@@ -1,7 +1,8 @@
-// Interfaz de auditoría multicanal (HU-10, ADR 0016).
+// Vista del equipo: auditoría multicanal y supervisión de alertas (HU-10, HU-17, ADR 0016 y 0022).
 // Lista los chats de todos los canales, los muestra como un chat continuo por persona
 // (con un color por hilo), carga los mensajes por partes al subir con el scroll, se
-// actualiza sola y solo permite escribir en los chats de consola y web.
+// actualiza sola y solo permite escribir en los chats de consola y web. La pestaña
+// Alertas reúne las alarmas deterministas de todos los chats para revisarlas.
 
 const $ = (selector) => document.querySelector(selector);
 const nodes = {
@@ -20,6 +21,10 @@ const nodes = {
   input: $("#message-input"),
   send: $("#send-button"),
   audit: $("#audit-panel"),
+  shell: $(".app-shell"),
+  alertList: $("#alert-list"),
+  tabChats: $("#tab-chats"),
+  tabAlerts: $("#tab-alerts"),
 };
 
 const STORAGE_KEY = "cardio-materno:chat-abierto";
@@ -44,6 +49,8 @@ const state = {
   pending: 0,
   selectedSeq: null,
   unseen: 0,
+  list: "chats",
+  alerts: [],
 };
 
 // --- Utilidades ---------------------------------------------------------------------------
@@ -57,7 +64,7 @@ function textNode(tag, text, className) {
 
 async function request(path, options = {}) {
   const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail || "No se pudo completar la solicitud.");
   return data;
 }
@@ -81,6 +88,11 @@ function remembered() {
   } catch {
     return null;
   }
+}
+
+// En pantallas angostas solo se ve un panel: chats, conversación o traza.
+function setView(view) {
+  nodes.shell.dataset.view = view;
 }
 
 function lastSeq() {
@@ -192,6 +204,52 @@ function renderChats() {
   nodes.chatList.replaceChildren(...state.chats.map(chatItem));
 }
 
+// --- Alertas para supervisión ----------------------------------------------------------------
+
+const SEVERITY_LABELS = { urgencia_inmediata: "Urgencia inmediata", consulta_prioritaria: "Consulta prioritaria" };
+const SUPERVISION_NOTE = "Alarmas detectadas por las reglas deterministas (catálogo provisional). El sistema ya mostró el aviso fijo a la persona; no notifica a un profesional: la revisión es manual.";
+
+function alertItem(alert) {
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = `alert-item${alert.severity === "urgencia_inmediata" ? " urgent" : ""}`;
+  const top = document.createElement("span");
+  top.className = "alert-top";
+  top.append(textNode("span", SEVERITY_LABELS[alert.severity] || alert.severity), textNode("span", formatDate(alert.created_at), "muted"));
+  item.append(
+    top,
+    textNode("span", alert.rule_ids.join(", "), "alert-rules"),
+    textNode("span", `${alert.channel_label} · ${alert.short_id} · origen: ${alert.origin}`, "chat-meta"),
+    textNode("span", alert.summary, "alert-summary"),
+  );
+  item.addEventListener("click", () => openChat(alert.chat_id));
+  return item;
+}
+
+async function loadAlerts() {
+  try {
+    state.alerts = await request("/api/alerts");
+    const note = textNode("p", SUPERVISION_NOTE, "supervision-note");
+    const items = state.alerts.length ? state.alerts.map(alertItem) : [textNode("p", "Aún no hay alertas registradas.", "muted empty-list")];
+    nodes.alertList.replaceChildren(note, ...items);
+  } catch (error) {
+    nodes.alertList.replaceChildren(textNode("p", error.message, "muted empty-list"));
+  }
+}
+
+function showList(list) {
+  state.list = list;
+  const alerts = list === "alerts";
+  nodes.tabChats.classList.toggle("active", !alerts);
+  nodes.tabAlerts.classList.toggle("active", alerts);
+  nodes.tabChats.setAttribute("aria-selected", String(!alerts));
+  nodes.tabAlerts.setAttribute("aria-selected", String(alerts));
+  nodes.chatList.hidden = alerts;
+  nodes.filters.hidden = alerts;
+  nodes.alertList.hidden = !alerts;
+  if (alerts) loadAlerts();
+}
+
 // --- Abrir un chat y cargar páginas ----------------------------------------------------------
 
 async function openChat(chatId) {
@@ -205,6 +263,7 @@ async function openChat(chatId) {
     remember(chatId);
     renderChatHeader();
     renderMessages();
+    setView("chat");
     scrollToBottom();
     showAudit(null);
     renderChats();
@@ -247,7 +306,7 @@ function mergeNew(messages) {
 function renderChatHeader() {
   const chat = state.chat;
   nodes.title.textContent = chat ? chat.label : "Selecciona un chat";
-  nodes.eyebrow.textContent = chat ? `DESDE ${formatDate(chat.created_at)}` : "CONVERSACIÓN";
+  nodes.eyebrow.textContent = chat ? `Desde ${formatDate(chat.created_at)}` : "Conversación";
   nodes.badge.hidden = !chat;
   if (chat) {
     nodes.badge.textContent = chat.channel_label;
@@ -365,6 +424,7 @@ function selectEntry(entry, color, bubble) {
   state.selectedSeq = entry.seq || null;
   nodes.messages.querySelectorAll(".bubble.selected").forEach((node) => node.classList.remove("selected"));
   bubble.classList.add("selected");
+  setView("audit");
   showAudit(entry.trace, entry.ephemeral, entry.thread, entry.alerts || [], color);
 }
 
@@ -419,9 +479,28 @@ function evidenceList(trace) {
     );
     card.append(header, textNode("p", evidence.question, "evidence-question"), textNode("p", evidence.answer, "evidence-answer"));
     if (trace.cited_evidence.includes(evidence.label)) card.append(textNode("span", "Citada por el agente", "tag"));
+    if (evidence.provenance) card.append(provenanceBlock(evidence.provenance));
     list.append(card);
   });
   return list;
+}
+
+// De dónde viene el registro: lote, revisión del lote y fuentes citadas en su borrador.
+function provenanceBlock(provenance) {
+  const block = document.createElement("div");
+  block.className = "provenance";
+  block.append(textNode("span", `${provenance.batch || "Lote desconocido"} · ${provenance.review_label}`, `review-${provenance.review}`));
+  if (!provenance.sources.length) block.append(textNode("span", "Sin fuente individual registrada.", "muted"));
+  provenance.sources.forEach((source) => {
+    const label = `${source.entity}: ${source.title}`;
+    if (!/^https?:\/\//i.test(source.url || "")) return block.append(textNode("span", label));
+    const link = textNode("a", label);
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    block.append(link);
+  });
+  return block;
 }
 
 function evidenceEmptyMessage(trace) {
@@ -498,11 +577,25 @@ function traceSections(trace, thread) {
   );
   if (trace.selection) sections.push(...selectionSections(trace.selection));
   if (trace.inquiry) sections.push(inquirySection(trace.inquiry));
+  if (trace.care_access) sections.push(careAccessSection(trace.care_access));
   if (trace.urgent_follow_up) sections.push(section("Orientación después del aviso (B-034)", "Mensaje automático: la persona no tuvo que preguntar."));
   if (trace.urgent_accompaniment) sections.push(section("Acompañamiento de la urgencia (B-030)", "Se recordó una urgencia ya avisada: el turno no indagó y se quitaron las preguntas de la respuesta."));
   if (trace.timings?.length) sections.push(section("Tiempos por etapa", metricGrid(trace.timings.map((t) => [t.stage, `${t.seconds.toFixed(1)} s`]))));
   if (trace.model_usage?.length) sections.push(section("Uso del modelo (lee el prompt · genera)", metricGrid(trace.model_usage.map((u) => [u.stage, `${u.prompt_tokens} tok en ${u.prompt_seconds.toFixed(1)} s · ${u.output_tokens} tok en ${u.output_seconds.toFixed(1)} s`]))));
   return sections;
+}
+
+// Datos de acceso a la atención (HU-18): nunca cambian la alarma, el alcance ni la evidencia.
+function careAccessSection(access) {
+  const block = document.createElement("div");
+  const facts = (items) => items.map((fact) => `${fact.code}: ${fact.label}`);
+  const outcome = access.applied ? "Mostrado a la persona" : access.pending_approval ? "No mostrado: texto pendiente de aprobación" : "Solo registrado";
+  block.append(metricGrid([["Ruta del turno", access.route || "no orienta"], ["Aviso elegido", access.notice || "ninguno"], ["Pregunta", access.question || "ninguna"], ["Resultado", outcome]]));
+  if (access.facts_withheld) block.append(textNode("p", "Códigos no guardados: la persona no autorizó su uso en informes agregados.", "detail-text"));
+  if (access.stated_facts.length) block.append(textNode("p", "Dicho por la persona (patrón en su texto):", "detail-text"), tags(facts(access.stated_facts)));
+  if (access.interpreted_facts.length) block.append(textNode("p", "Interpretado por el modelo (no es una cita):", "detail-text"), tags(facts(access.interpreted_facts), true));
+  if (access.contradictions.length) block.append(textNode("p", "Declaraciones contradictorias en:", "detail-text"), tags(access.contradictions, true));
+  return section("Acceso a la atención (HU-18, no cambia alarma ni evidencia)", block);
 }
 
 const INQUIRY_MODES = { responder: "Responder", indagar: "Indagar", responder_e_indagar: "Responder e indagar", abstenerse: "Abstenerse (pedir detalles)", cerrar: "Cerrar" };
@@ -599,7 +692,8 @@ function applySendResult(result, text) {
   scrollToBottom();
   const last = state.entries[state.entries.length - 1];
   if (unsaved) showAudit(turn.trace, turn.out_of_scope, null, turn.alerts);
-  else if (last) showAudit(last.trace, false, last.thread, last.alerts, threadColors(state.entries).get(last.thread.id));
+  // La traza del turno recién procesado trae los códigos de acceso aunque no se guarden.
+  else if (last) showAudit(turn.trace || last.trace, false, last.thread, last.alerts, threadColors(state.entries).get(last.thread.id));
   loadChats();
 }
 
@@ -614,6 +708,7 @@ function unsavedKind(turn) {
 async function poll() {
   if (state.chatId && !state.sending) await pollChat();
   await loadChats();
+  if (state.list === "alerts") await loadAlerts();
 }
 
 async function pollChat() {
@@ -702,6 +797,10 @@ nodes.release.addEventListener("click", async () => {
   }
 });
 
+nodes.tabChats.addEventListener("click", () => showList("chats"));
+nodes.tabAlerts.addEventListener("click", () => showList("alerts"));
+document.querySelectorAll(".view-tab").forEach((tab) => tab.addEventListener("click", () => setView(tab.dataset.view)));
+
 // --- Inicio ----------------------------------------------------------------------------------
 
 async function init() {
@@ -713,7 +812,9 @@ async function init() {
   renderFilters();
   await loadChats();
   const saved = remembered();
+  showAudit(null);
   if (saved && state.chats.some((chat) => chat.id === saved)) await openChat(saved);
+  setView("chats");
   setInterval(poll, state.config.poll_seconds * 1000);
 }
 

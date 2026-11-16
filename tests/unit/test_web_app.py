@@ -1,15 +1,22 @@
-"""Pruebas de la API web de auditoría multicanal y chat directo (HU-10), sin Ollama."""
+"""Pruebas de la API web: vista del equipo (HU-10, HU-17) y ciudadana (HU-01, HU-16)."""
 
 import itertools
+import tempfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from cardio_materno.adapters.inbound.api.web_app import WebOptions, create_app
+from cardio_materno.adapters.inbound.api.serializers import Knowledge
+from cardio_materno.adapters.inbound.api.web_app import WebOptions, WebServices, create_app
+from cardio_materno.adapters.outbound.clinical_rules.json_care_access_catalog import (
+    load_care_access_catalog,
+    load_public_emergency_info,
+)
 from cardio_materno.adapters.outbound.persistence.sqlite_channel_log import SqliteChannelLog
 from cardio_materno.adapters.outbound.persistence.sqlite_chat_audit import SqliteChatAudit
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
@@ -22,9 +29,14 @@ from cardio_materno.adapters.outbound.persistence.sqlite_user_directory import (
 from cardio_materno.adapters.outbound.persistence.sqlite_user_thread_store import (
     SqliteUserThreadStore,
 )
+from cardio_materno.application.care_access import CareAccessActivation
+from cardio_materno.application.citizen_chat import CitizenChat, CitizenPolicy
 from cardio_materno.application.direct_chat import DirectChat, open_console_session
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.ports.channel_log import InboundEvent
+from cardio_materno.domain.care_access import CareAccessCatalog
+from cardio_materno.domain.consent import authorizes_research
+from cardio_materno.domain.provenance import EntryProvenance, Provenance, SourceRef
 from cardio_materno.domain.user import Channel, new_user
 from tests.unit.fakes import (
     URGENT_MESSAGE,
@@ -39,7 +51,14 @@ from tests.unit.fakes import (
 )
 
 PAGE_SIZE = 2
+REPO = Path(__file__).resolve().parents[2]
+CATALOG_FILE = REPO / "knowledge" / "care_access.json"
+SOURCE = SourceRef("OPS-HEARTS", "OPS", "HEARTS en las Américas", "2019", "https://www.paho.org/es")
+PROVENANCE = Provenance(
+    {"k1": EntryProvenance("ronda_2", "Ronda 2", "revisada_por_el_equipo", "Revisada", (SOURCE,))}
+)
 NOW = datetime(2026, 10, 18, 9, 0, tzinfo=UTC)
+LOCAL_URL = "http://127.0.0.1:8000"
 
 
 @dataclass
@@ -56,20 +75,50 @@ def database() -> Iterator[SqliteDatabase]:
     db.close()
 
 
-def build(database: SqliteDatabase, *turns: dict[str, Any] | Exception) -> WebHarness:
+def approved_catalog() -> CareAccessCatalog:
+    """Catálogo real con sus textos aprobados solo para la prueba (hoy están pendientes)."""
+    text = CATALOG_FILE.read_text(encoding="utf-8").replace('"pendiente"', '"aprobado"')
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "care_access.json"
+        path.write_text(text, encoding="utf-8")
+        return load_care_access_catalog(path)
+
+
+def build(
+    database: SqliteDatabase,
+    *turns: dict[str, Any] | Exception,
+    consent_required: bool = False,
+    care_access: bool = False,
+    pending_texts: bool = False,
+) -> WebHarness:
     agent, clock, ids = ScriptedAgent(*turns), FakeClock(), itertools.count(1)
+    users = SqliteUserDirectory(database)
+    catalog = approved_catalog() if care_access else None
+    if catalog is not None and pending_texts:
+        catalog = load_care_access_catalog(CATALOG_FILE)
+
+    def research(user_id: str) -> bool:
+        owner = users.get(user_id)
+        return owner is not None and authorizes_research(owner.user)
+
+    config: dict[str, Any] = {"alarm_policy": make_alarm_policy(), "research_authorized": research}
+    if catalog is not None:
+        config |= {"care_access": catalog, "care_access_activation": CareAccessActivation.ACTIVE}
     conversations = make_user_conversations(
-        agent,
-        SqliteUserThreadStore(database),
-        clock,
-        service_config={"alarm_policy": make_alarm_policy()},
+        agent, SqliteUserThreadStore(database), clock, service_config=config
     )
-    chat = DirectChat(
-        SqliteUserDirectory(database), conversations, clock, lambda: f"chat-{next(ids):04d}"
-    )
+    chat = DirectChat(users, conversations, clock, lambda: f"chat-{next(ids):04d}")
     entry = knowledge_entry(answer="Orientación validada para la prueba")
-    app = create_app(chat, SqliteChatAudit(database), [entry], WebOptions(PAGE_SIZE, 3.0))
-    return WebHarness(TestClient(app), chat, database)
+    policy = CitizenPolicy(consent_required, catalog.research_text if catalog else "")
+    services = WebServices(
+        chat,
+        CitizenChat(chat, users, policy, clock),
+        SqliteChatAudit(database),
+    )
+    emergency = load_public_emergency_info(REPO / "knowledge" / "public_info.json")
+    knowledge = Knowledge({entry.id: entry}, PROVENANCE, catalog, emergency)
+    app = create_app(services, knowledge, WebOptions(PAGE_SIZE, 3.0))
+    return WebHarness(TestClient(app, base_url=LOCAL_URL), chat, database)
 
 
 def new_web_chat(harness: WebHarness) -> str:
@@ -99,7 +148,9 @@ def test_page_script_and_config_are_served(database: SqliteDatabase) -> None:
     config = harness.client.get("/api/config").json()
 
     assert harness.client.get("/").status_code == 200
-    assert harness.client.get("/static/app.js").status_code == 200
+    assert harness.client.get("/equipo").status_code == 200
+    assert harness.client.get("/static/equipo.js").status_code == 200
+    assert harness.client.get("/static/ciudadano.js").status_code == 200
     assert harness.client.get("/static/../web_app.py").status_code == 404
     assert config["page_size"] == PAGE_SIZE and config["poll_seconds"] == 3.0
     assert {"id": "whatsapp", "label": "WhatsApp"} in config["channels"]
@@ -108,9 +159,10 @@ def test_page_script_and_config_are_served(database: SqliteDatabase) -> None:
 def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> None:
     harness = build(database)
 
-    page = harness.client.get("/").text
-    script = harness.client.get("/static/app.js").text
-    styles = harness.client.get("/static/styles.css").text
+    page = harness.client.get("/equipo").text
+    script = harness.client.get("/static/equipo.js").text
+    styles = harness.client.get("/static/base.css").text
+    styles += harness.client.get("/static/equipo.css").text
 
     assert 'id="chat-list"' in page and 'id="channel-filters"' in page
     assert 'id="release-chat"' in page and 'id="audit-panel"' in page
@@ -125,7 +177,7 @@ def test_client_implements_the_multichannel_view(database: SqliteDatabase) -> No
 def test_page_and_assets_are_revalidated_on_every_load(database: SqliteDatabase) -> None:
     harness = build(database)
 
-    for path in ("/", "/static/app.js", "/static/styles.css"):
+    for path in ("/", "/equipo", "/static/equipo.js", "/static/ciudadano.js", "/static/base.css"):
         assert harness.client.get(path).headers["cache-control"] == "no-cache"
 
 

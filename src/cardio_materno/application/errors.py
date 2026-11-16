@@ -32,6 +32,10 @@ class ChatReadOnlyError(Exception):
         self.reason = reason
 
 
+class ConsentRequiredError(Exception):
+    """La persona aún no ha aceptado el consentimiento y no se la puede atender (HU-01)."""
+
+
 class ChannelDeliveryError(Exception):
     """El canal (p. ej., WhatsApp) no aceptó o no recibió un envío.
 

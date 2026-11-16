@@ -33,11 +33,16 @@ class Scope(StrEnum):
     OUT_OF_SCOPE = "fuera_de_alcance"
 
 
-def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
+ACCESS_FACTS_FIELD = "access_facts"
+
+
+def analysis_schema(sign_codes: Sequence[str], fact_codes: Sequence[str] = ()) -> dict[str, Any]:
     """JSON Schema de la llamada de análisis; `reported_signs` se limita a los códigos dados.
 
     Args:
         sign_codes: Códigos de signos del catálogo (ADR 0012). Sin códigos, la lista debe ir vacía.
+        fact_codes: Códigos de datos de acceso (ADR 0023). Sin códigos, el esquema es
+            idéntico al anterior: el campo `access_facts` no existe.
 
     Returns:
         El esquema que Ollama usa para restringir la salida.
@@ -45,7 +50,7 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
     signs: dict[str, Any] = {"type": "array", "items": {"type": "string", "enum": list(sign_codes)}}
     if not sign_codes:
         signs = {"type": "array", "items": {"type": "string"}, "maxItems": 0}
-    return {
+    schema: dict[str, Any] = {
         "type": "object",
         "properties": {
             "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
@@ -74,6 +79,13 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
             "asks_information",
         ],
     }
+    if fact_codes:
+        schema["properties"][ACCESS_FACTS_FIELD] = {
+            "type": "array",
+            "items": {"type": "string", "enum": list(fact_codes)},
+        }
+        schema["required"].append(ACCESS_FACTS_FIELD)
+    return schema
 
 
 # Esquema sin códigos de signos (catálogo sin códigos o pruebas).
@@ -102,6 +114,8 @@ class AnalysisTurn:
             conversación de salud del hilo (ADR 0009, prompt v7). True si falta.
         wants_guidance: Si la persona pide directamente qué hacer (HU-11, ADR 0017).
         asks_information: Si hace una pregunta concreta de información (HU-11, prompt v8).
+        access_facts: Códigos de datos de acceso que el análisis marcó (ADR 0023). No
+            intervienen en ninguna decisión del turno: solo los lee la regla de acceso.
     """
 
     thread_action: ThreadAction
@@ -115,6 +129,7 @@ class AnalysisTurn:
     about_health: bool = True
     wants_guidance: bool = False
     asks_information: bool = False
+    access_facts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -143,7 +158,9 @@ class DraftSentence:
     evidence_id: str | None = None
 
 
-def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> AnalysisTurn:
+def parse_analysis(
+    data: dict[str, Any], sign_codes: Collection[str] = (), fact_codes: Collection[str] = ()
+) -> AnalysisTurn:
     """Valida el JSON de la llamada de análisis.
 
     Quita del resumen y de la consulta los marcadores copiados de los ejemplos del prompt
@@ -152,6 +169,8 @@ def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> An
     Args:
         data: JSON devuelto por el modelo.
         sign_codes: Códigos de signos válidos; `reported_signs` puede faltar (= vacío).
+        fact_codes: Códigos de datos de acceso válidos. Un código desconocido o un campo
+            mal formado se ignoran: estos datos nunca pueden hacer fallar un turno.
 
     Raises:
         LanguageModelError: Si falta un campo, está vacío, tiene un valor no permitido o
@@ -169,6 +188,7 @@ def parse_analysis(data: dict[str, Any], sign_codes: Collection[str] = ()) -> An
         about_health=_optional_flag(data, "about_health", default=True),
         wants_guidance=_optional_flag(data, "wants_guidance", default=False),
         asks_information=_optional_flag(data, "asks_information", default=False),
+        access_facts=_access_facts(data, fact_codes),
     )
 
 
@@ -283,6 +303,15 @@ def _sign_codes(data: dict[str, Any], sign_codes: Collection[str]) -> tuple[str,
         detail = f"código de signo desconocido: {', '.join(unknown)}"
         raise LanguageModelError(MSG_INVALID_TURN.format(detail=detail))
     return tuple(dict.fromkeys(marked))
+
+
+def _access_facts(data: dict[str, Any], fact_codes: Collection[str]) -> tuple[str, ...]:
+    """Códigos de acceso válidos, sin repetir; lo que no sea un código conocido se ignora."""
+    marked = data.get(ACCESS_FACTS_FIELD)
+    if not isinstance(marked, list):
+        return ()
+    known = [code for code in marked if isinstance(code, str) and code in fact_codes]
+    return tuple(dict.fromkeys(known))
 
 
 def _required_text(data: dict[str, Any], field: str) -> str:

@@ -66,6 +66,27 @@ class ChatPage:
     next_before: int | None = None
 
 
+@dataclass(frozen=True)
+class AlertRecord:
+    """Alerta con el chat y el hilo en que ocurrió, para la supervisión del equipo.
+
+    Attributes:
+        alert: La alerta determinista registrada.
+        user_id: Chat (usuario) en el que ocurrió.
+        channel: Canal del chat.
+        thread_id: Hilo de la alerta.
+        domain: Dominio del hilo.
+        summary: Resumen del hilo.
+    """
+
+    alert: Alert
+    user_id: str
+    channel: Channel
+    thread_id: str
+    domain: str
+    summary: str
+
+
 class ChatAudit(Protocol):
     """Lectura de chats para la auditoría."""
 
@@ -83,6 +104,10 @@ class ChatAudit(Protocol):
 
     def messages_after(self, user_id: str, after: int, limit: int) -> ChatPage:
         """Hasta `limit` mensajes posteriores a `after` (para la actualización automática)."""
+        ...
+
+    def recent_alerts(self, limit: int) -> list[AlertRecord]:
+        """Las últimas `limit` alertas de todos los chats, de la más reciente a la más antigua."""
         ...
 
     def pending_inbound(self, user_id: str) -> int:

@@ -6,6 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
+from cardio_materno.application.care_access import CareAccessActivation
 from cardio_materno.application.conversation_service import UrgentGuidanceActivation
 from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.inquiry_policy import InquiryActivation
@@ -24,6 +25,16 @@ DEFAULT_SHOW_THREAD_DEBUG = "true"
 DEFAULT_THREADS_DIR = "data/threads"
 DEFAULT_ALARM_RULES_FILE = "knowledge/alarm_rules.json"
 INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
+CONSENT_MODE_VARIABLE = "CONSENT_MODE"
+CARE_ACCESS_MODE_VARIABLE = "CARE_ACCESS_MODE"
+# Apagado: el análisis usa el prompt v8 y su esquema no cambia. Los textos del catálogo
+# están pendientes de aprobación clínica y jurídica (ADR 0023).
+DEFAULT_CARE_ACCESS_MODE = "apagado"
+DEFAULT_CARE_ACCESS_FILE = "knowledge/care_access.json"
+DEFAULT_PUBLIC_INFO_FILE = "knowledge/public_info.json"
+# Apagado mientras el equipo y los aliados aprueban el texto (pendiente 9): hoy solo
+# escriben los números de prueba del equipo. Con personas reales debe ser "requerido".
+DEFAULT_CONSENT_MODE = "apagado"
 DEFAULT_INQUIRY_MODE = "activo"
 URGENT_GUIDANCE_MODE_VARIABLE = "URGENT_GUIDANCE_MODE"
 DEFAULT_URGENT_GUIDANCE_MODE = "apagado"
@@ -114,6 +125,9 @@ class ConversationSettings:
         inquiry_activation: `INQUIRY_MODE`, cómo participa la regla de indagación (HU-11).
         selection_activation: `EVIDENCE_SELECTION_MODE`, cómo participa el selector (HU-13).
         urgent_guidance: `URGENT_GUIDANCE_MODE`, orientación después del aviso (ADR 0021).
+        care_access: `CARE_ACCESS_MODE`, cómo participa la regla de acceso (ADR 0023).
+        care_access_file: Catálogo de datos de acceso (`CARE_ACCESS_FILE`).
+        public_info_file: Información pública de emergencias (`PUBLIC_INFO_FILE`).
     """
 
     context_messages: int
@@ -123,6 +137,9 @@ class ConversationSettings:
     inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
     selection_activation: SelectionActivation = SelectionActivation.ACTIVE
     urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
+    care_access: CareAccessActivation = CareAccessActivation.OFF
+    care_access_file: Path = Path(DEFAULT_CARE_ACCESS_FILE)
+    public_info_file: Path = Path(DEFAULT_PUBLIC_INFO_FILE)
 
 
 @dataclass(frozen=True)
@@ -376,6 +393,13 @@ def load_web_settings(env: Mapping[str, str]) -> WebSettings:
     )
 
 
+class ConsentMode(StrEnum):
+    """Si el consentimiento (HU-01) es condición para atender."""
+
+    OFF = "apagado"
+    REQUIRED = "requerido"
+
+
 @dataclass(frozen=True)
 class PersistenceSettings:
     """Base SQLite por usuario, común a todos los canales (ADR 0015 y 0016).
@@ -383,19 +407,25 @@ class PersistenceSettings:
     Attributes:
         database_path: Archivo SQLite (`DATABASE_PATH`).
         idle_timeout_hours: Inactividad que cierra el hilo abierto (`THREAD_IDLE_TIMEOUT_HOURS`).
+        consent_required: Si se exige el consentimiento antes de atender (`CONSENT_MODE`,
+            HU-01). Aplica a WhatsApp y a la vista ciudadana de la web.
     """
 
     database_path: Path
     idle_timeout_hours: float
+    consent_required: bool = False
 
 
 def load_persistence_settings(env: Mapping[str, str], project_root: Path) -> PersistenceSettings:
     """Lee la ubicación de la base y la regla de inactividad.
 
     Raises:
-        ConfigurationError: Si la inactividad no es un número.
+        ConfigurationError: Si la inactividad no es un número o `CONSENT_MODE` no es
+            válido.
     """
+    consent = _get_activation(env, CONSENT_MODE_VARIABLE, DEFAULT_CONSENT_MODE, ConsentMode)
     return PersistenceSettings(
+        consent_required=consent is ConsentMode.REQUIRED,
         database_path=_get_path(env, "DATABASE_PATH", DEFAULT_DATABASE_PATH, project_root),
         idle_timeout_hours=_get_float(
             env, "THREAD_IDLE_TIMEOUT_HOURS", DEFAULT_THREAD_IDLE_TIMEOUT_HOURS
@@ -518,6 +548,11 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
             DEFAULT_URGENT_GUIDANCE_MODE,
             UrgentGuidanceActivation,
         ),
+        care_access=_get_activation(
+            env, CARE_ACCESS_MODE_VARIABLE, DEFAULT_CARE_ACCESS_MODE, CareAccessActivation
+        ),
+        care_access_file=_get_path(env, "CARE_ACCESS_FILE", DEFAULT_CARE_ACCESS_FILE, project_root),
+        public_info_file=_get_path(env, "PUBLIC_INFO_FILE", DEFAULT_PUBLIC_INFO_FILE, project_root),
     )
 
 

@@ -3,6 +3,7 @@
 from typing import Any
 
 from cardio_materno.domain.trace import (
+    CareAccessTrace,
     EvidenceRef,
     GroundingCheck,
     InquiryTrace,
@@ -23,7 +24,7 @@ LEGACY_SYMPTOMS_KEY = "reported_symptoms"
 
 def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
     """Convierte la traza en un diccionario legible."""
-    return {
+    data: dict[str, Any] = {
         "reported_symptoms": list(trace.reported_symptoms),
         "reported_signs": list(trace.reported_signs),
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
@@ -46,6 +47,10 @@ def trace_to_dict(trace: ReplyTrace) -> dict[str, Any]:
         "selection": selection_to_dict(trace.selection) if trace.selection else None,
         "urgent_follow_up": trace.urgent_follow_up,
     }
+    # Solo cuando la regla de acceso corrió: con ella apagada la traza guardada no cambia.
+    if trace.care_access is not None:
+        data["care_access"] = care_access_to_dict(trace.care_access)
+    return data
 
 
 def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
@@ -74,6 +79,37 @@ def trace_from_dict(data: dict[str, Any]) -> ReplyTrace:
         urgent_accompaniment=bool(data.get("urgent_accompaniment", False)),
         selection=selection_from_dict(data["selection"]) if data.get("selection") else None,
         urgent_follow_up=bool(data.get("urgent_follow_up", False)),
+        care_access=care_access_from_dict(data["care_access"]) if data.get("care_access") else None,
+    )
+
+
+def care_access_to_dict(access: CareAccessTrace) -> dict[str, Any]:
+    """Serializa los datos de acceso del turno (HU-18)."""
+    return {
+        "stated_facts": list(access.stated_facts),
+        "interpreted_facts": list(access.interpreted_facts),
+        "contradictions": list(access.contradictions),
+        "route": access.route,
+        "notice": access.notice,
+        "question": access.question,
+        "applied": access.applied,
+        "pending_approval": access.pending_approval,
+        "facts_withheld": access.facts_withheld,
+    }
+
+
+def care_access_from_dict(data: dict[str, Any]) -> CareAccessTrace:
+    """Reconstruye los datos de acceso del turno."""
+    return CareAccessTrace(
+        stated_facts=tuple(data.get("stated_facts", [])),
+        interpreted_facts=tuple(data.get("interpreted_facts", [])),
+        contradictions=tuple(data.get("contradictions", [])),
+        route=data.get("route", ""),
+        notice=data.get("notice", ""),
+        question=data.get("question", ""),
+        applied=bool(data.get("applied", False)),
+        pending_approval=bool(data.get("pending_approval", False)),
+        facts_withheld=bool(data.get("facts_withheld", False)),
     )
 
 

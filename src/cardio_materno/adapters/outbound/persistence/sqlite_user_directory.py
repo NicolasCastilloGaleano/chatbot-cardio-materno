@@ -10,7 +10,10 @@ from cardio_materno.adapters.outbound.persistence.sqlite_database import SqliteD
 from cardio_materno.application.ports.user_directory import ChatOwner
 from cardio_materno.domain.user import Channel, ConsentStatus, User
 
-USER_COLUMNS = "u.id, u.created_at, u.last_seen_at, u.consent_status, u.live_session_at"
+USER_COLUMNS = (
+    "u.id, u.created_at, u.last_seen_at, u.consent_status, u.live_session_at, u.consent_at, "
+    "u.research_consent, u.research_at"
+)
 
 
 class SqliteUserDirectory:
@@ -55,7 +58,8 @@ class SqliteUserDirectory:
             with self._db.transaction() as connection:
                 connection.execute(
                     "INSERT INTO users (id, created_at, last_seen_at, consent_status, "
-                    "live_session_at) VALUES (?, ?, ?, ?, ?)",
+                    "live_session_at, consent_at, research_consent, research_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         user.id,
                         *_mutable_values(user),
@@ -78,7 +82,8 @@ class SqliteUserDirectory:
         with self._db.transaction() as connection:
             cursor = connection.execute(
                 "UPDATE users SET created_at = ?, last_seen_at = ?, consent_status = ?, "
-                "live_session_at = ? WHERE id = ?",
+                "live_session_at = ?, consent_at = ?, research_consent = ?, research_at = ? "
+                "WHERE id = ?",
                 (*_mutable_values(user), user.id),
             )
             if cursor.rowcount == 0:
@@ -86,23 +91,29 @@ class SqliteUserDirectory:
 
 
 def _mutable_values(user: User) -> tuple[str | None, ...]:
-    """Valores del usuario en el orden: creación, último contacto, consentimiento, consola."""
+    """Valores en el orden: creación, último contacto, consentimiento, consola y su fecha."""
     live = user.live_session_at.isoformat() if user.live_session_at else None
     return (
         user.created_at.isoformat(),
         user.last_seen_at.isoformat(),
         str(user.consent_status),
         live,
+        user.consent_at.isoformat() if user.consent_at else None,
+        str(user.research_consent),
+        user.research_at.isoformat() if user.research_at else None,
     )
 
 
 def user_from_row(row: sqlite3.Row) -> User:
     """Reconstruye un usuario desde su fila."""
-    live = row["live_session_at"]
+    live, consent_at, research_at = row["live_session_at"], row["consent_at"], row["research_at"]
     return User(
         id=row["id"],
         created_at=datetime.fromisoformat(row["created_at"]),
         last_seen_at=datetime.fromisoformat(row["last_seen_at"]),
         consent_status=ConsentStatus(row["consent_status"]),
         live_session_at=datetime.fromisoformat(live) if live else None,
+        consent_at=datetime.fromisoformat(consent_at) if consent_at else None,
+        research_consent=ConsentStatus(row["research_consent"]),
+        research_at=datetime.fromisoformat(research_at) if research_at else None,
     )

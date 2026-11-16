@@ -1,0 +1,185 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-11-16",
+  "validation_status": "PROVISIONAL",
+  "validated_by": null,
+  "notes": "Datos de acceso a la atención (HU-18, ADR 0023): barreras de acceso, afiliación y cascada del colesterol (medición, diagnóstico, tratamiento, control). Adaptado de la propuesta del equipo del 2026-11-12. Estos códigos NUNCA cambian la alarma, el alcance, la evidencia ni la ruta de atención. Cada aviso y cada pregunta tiene su propio estado: solo los que estén en 'aprobado' se muestran a una persona, aunque CARE_ACCESS_MODE sea 'activo'. Hoy todos están en 'pendiente'. Para aprobar uno: cambiar su 'status', registrar 'approved_by' y 'approved_at', y subir 'version'.",
+  "topic_patterns": [
+    "\\bcolesterol\\b",
+    "\\bestatinas?\\b",
+    "\\bperfil lipidico\\b",
+    "\\bgrasa en la sangre\\b"
+  ],
+  "facts": [
+    {"code": "COLESTEROL_MEDIDO", "group": "cascada", "step": "medicion", "value": true,
+     "label": "Dice que le han medido el colesterol alguna vez",
+     "examples": ["me hicieron el examen del colesterol", "me sacaron el perfil lipídico el año pasado"]},
+    {"code": "COLESTEROL_NUNCA_MEDIDO", "group": "cascada", "step": "medicion", "value": false,
+     "label": "Dice que nunca le han medido el colesterol",
+     "examples": ["nunca me han medido el colesterol", "no me he hecho ese examen"]},
+    {"code": "COLESTEROL_ALTO", "group": "cascada", "step": "diagnostico", "value": true,
+     "label": "Dice que le dijeron que tiene el colesterol alto",
+     "examples": ["me salió el colesterol alto", "el médico dijo que tengo mucha grasa en la sangre"]},
+    {"code": "COLESTEROL_NORMAL", "group": "cascada", "step": "diagnostico", "value": false,
+     "label": "Dice que le dijeron que tiene el colesterol normal",
+     "examples": ["me salió normal el colesterol"]},
+    {"code": "TRATAMIENTO_COLESTEROL", "group": "cascada", "step": "tratamiento", "value": true,
+     "label": "Dice que toma un tratamiento formulado para el colesterol",
+     "examples": ["tomo pastillas para el colesterol", "me formularon estatinas"]},
+    {"code": "SIN_TRATAMIENTO_COLESTEROL", "group": "cascada", "step": "tratamiento", "value": false,
+     "label": "Dice que no toma tratamiento para el colesterol (no se lo formularon o lo dejó)",
+     "examples": ["no me mandaron nada para el colesterol", "dejé las pastillas del colesterol"]},
+    {"code": "CONTROL_COLESTEROL", "group": "cascada", "step": "control", "value": true,
+     "label": "Dice que se lo volvieron a medir después de empezar el tratamiento",
+     "examples": ["me lo volvieron a medir y ya está bien", "en el último control salió en la meta"]},
+    {"code": "SIN_CONTROL_COLESTEROL", "group": "cascada", "step": "control", "value": false,
+     "label": "Dice que no se lo han vuelto a medir desde que tiene tratamiento",
+     "examples": ["no me lo han vuelto a medir", "hace años no me controlan el colesterol"]},
+    {"code": "AFILIACION_CONTRIBUTIVO", "group": "afiliacion",
+     "label": "Dice que está en el régimen contributivo",
+     "examples": ["tengo EPS por el trabajo", "cotizo como independiente"]},
+    {"code": "AFILIACION_SUBSIDIADO", "group": "afiliacion",
+     "label": "Dice que está en el régimen subsidiado",
+     "examples": ["soy subsidiado", "tengo la EPS por el SISBÉN"]},
+    {"code": "AFILIACION_ESPECIAL", "group": "afiliacion",
+     "label": "Dice que está en un régimen especial o de excepción",
+     "examples": ["soy del magisterio", "me atiende sanidad de la policía"]},
+    {"code": "SIN_AFILIACION", "group": "barrera", "barrier": "administrativa",
+     "label": "Dice que no tiene EPS ni afiliación a salud",
+     "examples": ["no tengo EPS", "me sacaron de la EPS"],
+     "patterns": [
+       "\\bno (tengo|tiene|tenemos) (eps|seguro)\\b",
+       "\\bsin (eps|seguro|afiliacion)\\b",
+       "\\bno (estoy|esta|estamos) afiliad\\w*\\b",
+       "\\bme (sacaron|desafiliaron|retiraron) de la eps\\b"
+     ]},
+    {"code": "BARRERA_DISTANCIA", "group": "barrera", "barrier": "geografica",
+     "label": "Dice que le cuesta llegar al servicio de salud (lejos o sin transporte)",
+     "examples": ["el puesto de salud queda muy lejos", "no tengo cómo bajar al pueblo"],
+     "patterns": [
+       "\\b(queda|vivo|vivimos) (muy )?(lejos|retirado)\\b",
+       "\\bno (tengo|tenemos|hay) (como|en que) (llegar|ir|bajar|subir|salir)\\b",
+       "\\bno (tengo|tenemos|hay) transporte\\b"
+     ]},
+    {"code": "BARRERA_COSTO", "group": "barrera", "barrier": "economica",
+     "label": "Dice que no tiene con qué pagar (pasajes, cuotas o medicamentos)",
+     "examples": ["no tengo plata para el pasaje", "no me alcanza para la cuota"],
+     "patterns": [
+       "\\bno (tengo|tenemos) (plata|dinero|con que pagar)\\b",
+       "\\bno me alcanza (la plata|el dinero|para)\\b",
+       "\\bno (puedo|podemos) pagar\\b"
+     ]},
+    {"code": "BARRERA_CITA", "group": "barrera", "barrier": "administrativa",
+     "label": "Dice que no le asignan cita o se la dan muy tarde",
+     "examples": ["no me dan la cita", "la cita me la dieron para dentro de tres meses"],
+     "patterns": [
+       "\\bno (me|nos|le) (dan|dieron|asignan|asignaron) (la )?cita\\b",
+       "\\bcita (es |me la dieron |quedo )?para dentro de\\b",
+       "\\bno hay (citas|agenda)\\b"
+     ]},
+    {"code": "BARRERA_MEDICAMENTO", "group": "barrera", "barrier": "medicamentos",
+     "label": "Dice que no le entregan el medicamento formulado",
+     "examples": ["no me han entregado las pastillas", "el medicamento quedó pendiente"],
+     "patterns": [
+       "\\bno me (han )?(entregado|entregan|entregaron) (el|la|los|las) (medicamentos?|drogas?|pastillas?|remedios?)\\b",
+       "\\b(medicamentos?|drogas?|pastillas?) (quedo|quedaron|esta|estan) pendientes?\\b",
+       "\\bno hay (el )?medicamento\\b"
+     ]},
+    {"code": "BARRERA_CUIDADO", "group": "barrera", "barrier": "cuidado",
+     "label": "Dice que no tiene con quién dejar a quienes cuida",
+     "examples": ["no tengo con quién dejar a los niños"],
+     "patterns": [
+       "\\bno (tengo|tenemos) (con )?quien (dejar|me cuide|cuide)\\b"
+     ]}
+  ],
+  "notices": {
+    "SIN_AFILIACION": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Ley Estatutaria 1751 de 2015, art. 10 (b) y art. 14", "Ley 715 de 2001, art. 67", "Decreto 064 de 2020, art. 4, y Resolución 1128 de 2020", "Concepto MinSalud 0823432 de 2025"],
+      "source_ids": ["LEY-1751-2015", "DEC-064-2020"],
+      "texts": {
+        "consulta": "Sobre lo que me dices de no tener EPS: igual te pueden atender. En el hospital o el puesto de salud público, o en la secretaría de salud de tu municipio, pueden afiliarte de oficio con tu documento de identidad, aunque no tengas encuesta del SISBÉN. Pídelo cuando vayas.",
+        "urgencias": "Sobre lo que me dices de no tener EPS: en urgencias te tienen que atender aunque no tengas EPS, documento ni plata. La ley no permite exigir documentos ni pagos antes de atender una urgencia. No dejes de ir por eso."
+      }
+    },
+    "BARRERA_DISTANCIA": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Orientación general; sin norma específica citada"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Sobre la distancia: pregunta en tu EPS o en el puesto de salud si te pueden atender por teleconsulta o en una jornada cerca de donde vives, y si tu EPS cubre el transporte. Si te toca viajar, organiza desde ya cómo vas a llegar.",
+        "urgencias": "Sobre la distancia: si no tienes cómo llegar rápido, llama a la línea 123 y explica dónde estás. No esperes a conseguir transporte propio si la situación empeora."
+      }
+    },
+    "BARRERA_COSTO": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Ley Estatutaria 1751 de 2015, art. 10 (b) y art. 14"],
+      "source_ids": ["LEY-1751-2015"],
+      "texts": {
+        "consulta": "Sobre la plata: antes de dejar de ir, pregunta en tu EPS o en el hospital público si ese servicio tiene algún cobro para ti. No des por hecho que te van a cobrar.",
+        "urgencias": "Sobre la plata: la atención de urgencias no se puede condicionar a un pago previo. Ve primero; lo administrativo se resuelve después."
+      }
+    },
+    "BARRERA_CITA": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Competencia general de la Superintendencia Nacional de Salud"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Sobre la cita: si te la dan muy lejos y lo que tienes no da espera, explica en la EPS exactamente qué te pasa y pide que te la adelanten. Si no te la asignan, puedes poner una queja en la EPS y, si no responden, ante la Superintendencia Nacional de Salud.",
+        "urgencias": "Sobre la cita: esto no tiene que esperar una cita. Urgencias atiende sin cita previa."
+      }
+    },
+    "BARRERA_MEDICAMENTO": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Decreto Ley 019 de 2012, art. 131, y Resolución 1604 de 2013 (VERIFICAR VIGENCIA antes de aprobar)"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Sobre el medicamento: no lo suspendas por tu cuenta. Si la farmacia no te lo entrega completo, pide que te dejen por escrito lo que quedó pendiente y cuándo te lo entregan. Si no cumplen, puedes quejarte en la EPS y ante la Superintendencia Nacional de Salud.",
+        "urgencias": "Sobre el medicamento: lleva la fórmula y las cajas que tengas, aunque estén vacías, para que sepan qué estás tomando."
+      }
+    },
+    "BARRERA_CUIDADO": {
+      "kind": "administrativo", "status": "pendiente",
+      "basis": ["Orientación general; sin norma específica citada"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Sobre quién cuide a los tuyos: busca desde hoy a un familiar o vecino de confianza para el día de la cita; si no lo consigues, pregunta en el puesto de salud si puedes ir con ellos.",
+        "urgencias": "Sobre quién cuide a los tuyos: no dejes de ir por eso. Puedes llegar con ellos o pedirle a un vecino que se quede mientras tanto."
+      }
+    },
+    "CASCADA_SIN_MEDICION": {
+      "kind": "clinico", "status": "pendiente",
+      "basis": ["Contenido clínico general; requiere revisión clínica"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Si nunca te han medido el colesterol, puedes pedir en tu próxima consulta que valoren si conviene medírtelo: es un examen de sangre sencillo."
+      }
+    },
+    "CASCADA_SIN_TRATAMIENTO": {
+      "kind": "clinico", "status": "pendiente",
+      "basis": ["Contenido clínico general; requiere revisión clínica"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Si te dijeron que tienes el colesterol alto y no estás tomando nada para eso, pide una cita para que valoren qué seguimiento necesitas, aunque no sientas nada."
+      }
+    },
+    "CASCADA_SIN_CONTROL": {
+      "kind": "clinico", "status": "pendiente",
+      "basis": ["Contenido clínico general; requiere revisión clínica"],
+      "source_ids": [],
+      "texts": {
+        "consulta": "Si ya tomas tratamiento para el colesterol y no te lo han vuelto a medir, pregunta en tu control cuándo te corresponde el siguiente examen: solo el examen dice cómo va."
+      }
+    }
+  },
+  "cascade_questions": {
+    "diagnostico": {"status": "pendiente", "text": "¿Qué te dijeron del resultado de ese examen?"},
+    "tratamiento": {"status": "pendiente", "text": "¿Te formularon algún tratamiento para el colesterol?"},
+    "control": {"status": "pendiente", "text": "¿Te lo han vuelto a medir desde que empezaste el tratamiento?"}
+  },
+  "research_authorization": {
+    "status": "pendiente",
+    "basis": ["Ley 1581 de 2012, art. 6", "Decreto 1377 de 2013, art. 6 (Decreto 1074 de 2015)"],
+    "text": "Además, y solo si quieres: autorizo que lo que cuente sobre mi afiliación a salud, las dificultades para atenderme y mi colesterol se cuente, sin mi nombre ni mi número, en informes agregados para mejorar los servicios de salud. No es obligatorio y mi atención será la misma si no lo autorizo."
+  }
+}

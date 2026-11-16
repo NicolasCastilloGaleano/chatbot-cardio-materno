@@ -19,7 +19,11 @@ from cardio_materno.application.ports.knowledge_retriever import (
 )
 from cardio_materno.application.ports.thread_repository import ThreadRepository
 from cardio_materno.application.ports.user_thread_store import UserThreadStore
-from cardio_materno.application.user_conversations import UserConversations
+from cardio_materno.application.user_conversations import (
+    ResearchCheck,
+    UserConversations,
+    no_research,
+)
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
 from cardio_materno.domain.knowledge import (
@@ -43,6 +47,7 @@ ANALYSIS_KEYS = (
     "about_health",
     "wants_guidance",
     "asks_information",
+    "access_facts",
 )
 
 
@@ -223,6 +228,10 @@ def evidence_result(*entries: KnowledgeEntry) -> RetrievalResult:
     return RetrievalResult(RetrievalStatus.SUFFICIENT, items, 0.8)
 
 
+# Clave de `config` de `make_service` que simula la autorización para informes (ADR 0023).
+KEEP_ACCESS_FACTS = "keep_access_facts"
+
+
 def make_service(
     agent: "ScriptedAgent",
     repo: ThreadRepository | None = None,
@@ -245,11 +254,13 @@ def make_service(
         "clock": FakeClock(),
         "new_id": SequentialIds(),
         "timer": FakeTimer(),
-    }
+    } | (config or {})
+    keep_access_facts = bool(options.pop(KEEP_ACCESS_FACTS, False))
     return ConversationService(
         ports,
-        ConversationConfig("ANALYSIS", "REPLY", **(options | (config or {}))),
+        ConversationConfig("ANALYSIS", "REPLY", **options),
         active_thread_id,
+        keep_access_facts,
     )
 
 
@@ -261,12 +272,16 @@ def make_user_conversations(
     service_config: dict[str, Any] | None = None,
 ) -> UserConversations:
     """Servicio por usuario con el agente guionizado, reloj compartido e ids hilo-1, hilo-2…"""
-    options = {"clock": clock, "new_id": SequentialIds()} | (service_config or {})
+    options: dict[str, Any] = {"clock": clock, "new_id": SequentialIds()} | (service_config or {})
 
-    def factory(repository: ThreadRepository, active: str | None) -> ConversationService:
-        return make_service(agent, repository, options, active_thread_id=active)
+    def factory(
+        repository: ThreadRepository, active: str | None, keep_facts: bool = False
+    ) -> ConversationService:
+        config = options | {KEEP_ACCESS_FACTS: keep_facts}
+        return make_service(agent, repository, config, active_thread_id=active)
 
-    return UserConversations(threads, factory, idle_timeout, clock)
+    research: ResearchCheck = options.pop("research_authorized", no_research)
+    return UserConversations(threads, factory, idle_timeout, clock, research)
 
 
 class FakeTimer:

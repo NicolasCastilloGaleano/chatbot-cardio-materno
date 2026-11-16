@@ -34,7 +34,7 @@ class ChatLock(StrEnum):
 
 
 class ConsentStatus(StrEnum):
-    """Estado del consentimiento de tratamiento de datos (HU-01, aún sin implementar)."""
+    """Estado del consentimiento de tratamiento de datos (HU-01, `domain/consent.py`)."""
 
     PENDING = "pendiente"
     ACCEPTED = "aceptado"
@@ -50,6 +50,10 @@ class User:
         created_at: Primer contacto.
         last_seen_at: Último mensaje recibido.
         consent_status: Estado del consentimiento (HU-01).
+        consent_at: Cuándo aceptó o rechazó (None mientras está pendiente).
+        research_consent: Autorización aparte y opcional para usar sus datos de acceso
+            en informes agregados (ADR 0023). No condiciona la atención.
+        research_at: Cuándo la dio o la negó.
         live_session_at: Desde cuándo una consola tiene abierto este chat (None si ninguna).
     """
 
@@ -58,6 +62,9 @@ class User:
     last_seen_at: datetime
     consent_status: ConsentStatus = ConsentStatus.PENDING
     live_session_at: datetime | None = None
+    consent_at: datetime | None = None
+    research_consent: ConsentStatus = ConsentStatus.PENDING
+    research_at: datetime | None = None
 
 
 def new_user(user_id: str, now: datetime) -> User:

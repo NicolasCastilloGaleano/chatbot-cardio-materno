@@ -11,6 +11,23 @@ WAIT_NOTICE_TEXT = "Estoy revisando tu mensaje, dame un momento por favor."
 MODEL_ERROR_TEXT = (
     "No pude preparar una respuesta en este momento. Intenta de nuevo en unos minutos."
 )
+# Consentimiento (HU-01). Textos PROVISIONALES: su redacción y su alcance jurídico los
+# aprueban el equipo y los aliados (docs/00-gestion/pendientes-aprobacion.md, punto 9).
+CONSENT_REQUEST_TEXT = (
+    "Hola. Soy un asistente de teleorientación en salud del corazón, la presión arterial, "
+    "el embarazo y el cuidado del bebé. Doy información educativa: no hago diagnósticos, no "
+    "receto medicamentos y no reemplazo al personal de salud.\n\n"
+    "Para orientarte necesito guardar los mensajes de esta conversación. No guardo tu "
+    "nombre ni tu número de teléfono.\n\n"
+    "¿Aceptas? Responde SÍ o NO.\n\n"
+    "Si es una emergencia, llama al 123 o acude a urgencias."
+)
+CONSENT_ACCEPTED_TEXT = "Gracias. Ya puedes contarme tu duda o lo que sientes."
+CONSENT_REJECTED_TEXT = (
+    "Entendido: no guardaré tu conversación y no podré orientarte por este medio. Si "
+    "cambias de opinión, escríbeme de nuevo. Si es una emergencia, llama al 123 o acude a "
+    "urgencias."
+)
 WHATSAPP_MAX_CHARS = 4096
 _TOKEN = re.compile(r"\s+|\S+")
 

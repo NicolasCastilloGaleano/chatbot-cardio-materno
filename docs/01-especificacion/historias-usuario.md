@@ -1,6 +1,6 @@
 # Historias de usuario
 
-*Última actualización: 2026-10-26 (HU-03/HU-04: alarmas ya avisadas como recordatorio, propuesta)*
+*Última actualización: 2026-11-16 (HU-18 nueva, apagada por defecto; HU-01, HU-16 y HU-17 del 2026-11-15)*
 
 Formato: *Como [rol], quiero [acción], para [beneficio]*. Los criterios de aceptación van en Gherkin. El estado se sincroniza con el [backlog](../00-gestion/backlog.md) y la [trazabilidad](trazabilidad.md).
 
@@ -80,13 +80,40 @@ Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-10)
 
 ### HU-01: Inicio de conversación y consentimiento
 **Como** persona de la comunidad, **quiero** saber qué hace el asistente y aceptar el uso de mis datos, **para** usarlo con confianza.
+Notas técnicas ([ADR 0022](../02-arquitectura/adr/0022-vista-ciudadana-consentimiento-y-procedencia.md)): `CONSENT_MODE` (`apagado` por defecto, `requerido`). La respuesta se lee con una regla determinista (`domain/consent.py`); el estado y su fecha se guardan en el usuario. Aplica a WhatsApp y a la vista ciudadana de la web (HU-16). Los textos son PROVISIONALES.
+
 ```gherkin
 Escenario: Primer contacto
-  Dado que es la primera vez que escribo
+  Dado que CONSENT_MODE es "requerido" y es la primera vez que escribo
   Cuando envío cualquier mensaje
-  Entonces recibo un saludo, el aviso de teleorientación y la solicitud de consentimiento
+  Entonces recibo un saludo, el aviso de teleorientación, la solicitud de consentimiento y la línea 123
+  Y mi mensaje no se procesa ni se guarda
+
+Escenario: Aceptar
+  Cuando respondo "sí" o "acepto"
+  Entonces queda registrado que acepté y cuándo
+  Y mi siguiente mensaje se atiende con el flujo normal
+
+Escenario: Rechazar
+  Cuando respondo "no"
+  Entonces queda registrado el rechazo, se me dice que no se guardará mi conversación y no se me atiende
+  Y si después acepto, se me atiende
+
+Escenario: Respuesta que no es un sí ni un no
+  Cuando respondo otra cosa ("sí, pero me duele el pecho", una nota de voz)
+  Entonces recibo de nuevo la solicitud y nada se procesa ni se guarda
+
+Escenario: Consentimiento en la web
+  Dado que CONSENT_MODE es "requerido"
+  Cuando abro la vista ciudadana
+  Entonces veo qué hace el asistente, qué no hace y qué se guarda, con los botones para aceptar o no
+  Y el servidor rechaza cualquier mensaje mientras no haya aceptado
+
+Escenario: Modo apagado
+  Dado que CONSENT_MODE es "apagado"
+  Entonces los canales atienden como antes (solo números de prueba del equipo)
 ```
-Estado: ⏳ Borrador
+Estado: 🟡 Implementada y probada automáticamente (2026-11-15), **apagada por defecto**. Pendiente: aprobación del texto por el equipo y los aliados, y decidir si las alarmas se evalúan antes de aceptar ([ADR 0022](../02-arquitectura/adr/0022-vista-ciudadana-consentimiento-y-procedencia.md))
 
 ### HU-02: Orientación en salud con evidencia
 **Como** gestante o cuidador, **quiero** hacer preguntas en mis propias palabras, **para** recibir información clara y confiable, respaldada por la base de conocimiento del proyecto.
@@ -410,7 +437,132 @@ Escenario: Las alarmas tienen prioridad sobre el alcance
 ```
 Estado: ✅ Aceptada (verificada en el PC de pruebas el 2026-10-11 y el 2026-10-12: `pytest -m live` de alcance y guion, incluidos el mensaje mixto, los saludos sin hilo y la alarma con otro tema). Cambios del 2026-10-26 (B-025): respaldo determinista para las respuestas a preguntas del asistente y mensaje fijo de alcance que invita a seguir; verificados en vivo sin regresiones. El caso de la respuesta a una pregunta quedó tapado por una alarma en el guion manual. 📝 Cambio aprobado el 2026-10-27 (prompt de análisis v7, ADR 0009): en el guion de B-027, "¿quién ganó el partido?" en un hilo con síntomas quedó en alcance y terminó en abstención, en contra del escenario "Mensaje ajeno en medio de una consulta"; se corrige con `about_health`. ✅ Implementado y verificado en el PC el 2026-10-28 (prompt de análisis v7, `tests/live/test_live_scope.py` 14/14, con el respaldo para el análisis contradictorio y la excepción del tema nuevo)
 
+### HU-16: Vista ciudadana de la conversación
+**Como** persona de la comunidad, **quiero** conversar con el asistente en una página clara y cómoda en mi teléfono, que me diga de dónde sale lo que me responde, **para** entender la orientación y confiar en ella.
+
+Notas técnicas ([ADR 0022](../02-arquitectura/adr/0022-vista-ciudadana-consentimiento-y-procedencia.md)): página `/` de la interfaz web local, con `/api/me/*` (`application/citizen_chat.py`). Es la vista para las sesiones de validación con la comunidad; **no** es un producto publicado ni un control de acceso.
+
+```gherkin
+Escenario: Bienvenida
+  Cuando abro la página por primera vez
+  Entonces veo los temas en los que orienta, que no diagnostica ni receta, qué se guarda y la línea 123
+  Y con CONSENT_MODE "requerido" debo aceptar para empezar (HU-01)
+
+Escenario: Preguntar y recibir la respuesta con sus fuentes
+  Cuando envío una duda y la respuesta cita registros de la base
+  Entonces veo la respuesta y puedo abrir sus fuentes (entidad, título y enlace)
+  Y si los registros citados no tienen fuente propia, se indica que se basa en la base del proyecto
+
+Escenario: Aviso de alarma
+  Cuando mi mensaje activa una urgencia inmediata
+  Entonces el aviso fijo se muestra destacado, con un botón para llamar al 123
+  Y una consulta prioritaria se muestra destacada con otro color
+
+Escenario: Espera y errores
+  Cuando la respuesta tarda
+  Entonces veo que se está revisando mi mensaje y, pasados unos segundos, que puede tardar cerca de un minuto
+  Y si el modelo falla, veo un mensaje claro con la línea 123 y un botón para reintentar
+
+Escenario: Solo mi conversación
+  Entonces la página nunca recibe trazas, síntomas interpretados ni puntajes
+  Y con el identificador de mi conversación no se puede leer ni escribir en chats de otros canales
+
+Escenario: Mis datos
+  Cuando escribo mi teléfono, mi cédula, mi correo, mi dirección o "me llamo …"
+  Entonces el mensaje se guarda y se procesa con una marca en lugar del dato (`domain/privacy.py`)
+  Y las cifras de salud (presión, semanas, peso) no cambian
+
+Escenario: Conversación nueva
+  Cuando selecciono "Conversación nueva"
+  Entonces empiezo otra conversación y la anterior deja de mostrarse
+```
+Estado: 🟡 Implementada y probada automáticamente (2026-11-15); recorrido visual con agente guionizado y datos sintéticos. Pendiente: aprobación del equipo, recorrido con Ollama en el PC de pruebas, accesibilidad con lector de pantalla y validación con la comunidad
+
+### HU-17: Bandeja de alertas para la supervisión
+**Como** integrante del equipo, **quiero** ver en un solo lugar las alarmas que detectaron las reglas en todos los chats, **para** revisar esos casos sin recorrer chat por chat.
+
+```gherkin
+Escenario: Ver las alertas recientes
+  Cuando abro la pestaña "Alertas" de la vista del equipo (`/equipo`)
+  Entonces veo las alertas de la más reciente a la más antigua, con su gravedad, sus reglas, el canal, el origen y el resumen del hilo
+  Y al seleccionar una se abre su chat
+
+Escenario: Límite honesto
+  Entonces la bandeja indica que el catálogo es provisional y que el sistema no notifica a ningún profesional
+```
+Estado: 🟡 Implementada y probada automáticamente (2026-11-15). Es solo lectura: marcar una alerta como revisada y avisar a un profesional (HU-05, `AlertNotifier`) siguen sin implementar
+
+### HU-18: Barreras de acceso a la atención y cascada del colesterol
+**Como** persona que consulta, **quiero** que el asistente tenga en cuenta lo que le cuento que me impide atenderme (no tengo EPS, queda lejos, no tengo plata, no me dan la cita, no me entregan el medicamento, no tengo con quién dejar a los míos), **para** que la orientación que recibo se pueda cumplir.
+
+> Propuesta del equipo del 2026-11-12, que la numeraba HU-16. Ese número ya era de la vista ciudadana, así que se integra como HU-18 ([ADR 0023](../02-arquitectura/adr/0023-datos-de-acceso-a-la-atencion.md)).
+
+Notas técnicas: `CARE_ACCESS_MODE` (`apagado` por defecto, `observar`, `activo`); catálogo `knowledge/care_access.json`; prompt de análisis v9. Estos datos **nunca** cambian la alarma, el alcance, la evidencia, el hilo ni la ruta.
+
+```gherkin
+Escenario: Apagado no cambia nada
+  Dado que CARE_ACCESS_MODE es "apagado"
+  Entonces el análisis usa el prompt v8 y su esquema, y la traza guardada es la misma de antes
+
+Escenario: Aviso de una barrera que la persona dice ahora
+  Dado que el aviso de esa barrera está aprobado y el modo es "activo"
+  Cuando escribo "tengo el colesterol alto y no tengo EPS" y el turno orienta con evidencia
+  Entonces la respuesta incluye el aviso fijo de esa barrera, marcado como información de trámites y no como recomendación médica
+  Y si la respuesta terminaba en una pregunta, sigue terminando en ella
+  Y en la vista ciudadana el aviso se ve en una tarjeta distinta de la respuesta y de sus fuentes
+
+Escenario: Un texto pendiente no se muestra
+  Dado que el aviso está en estado "pendiente" en el catálogo
+  Entonces la respuesta no cambia aunque el modo sea "activo"
+  Y el equipo ve en la traza del turno que el aviso se eligió y no se mostró
+
+Escenario: Sin repeticiones
+  Cuando ya recibí el aviso de una barrera en este hilo, o la mencioné en un mensaje anterior
+  Entonces no se repite
+
+Escenario: En una urgencia
+  Cuando mi mensaje activa una urgencia inmediata y digo que no tengo EPS
+  Entonces el mensaje fijo de la alarma va primero y sin cambios, y la alerta se registra igual
+  Y el aviso usa su variante de urgencias y nunca se me hace una pregunta
+
+Escenario: Solo lo que dije
+  Cuando escribo "tomo pastillas para el colesterol"
+  Entonces no se da por hecho que lo tengo alto ni que me lo midieron
+  Y si digo cosas opuestas ("nunca me lo han medido" y "me salió alto"), el paso queda como contradictorio y no hay aviso
+  Y lo que solo interpretó el modelo queda marcado como interpretación, no como algo que dije
+
+Escenario: La cascada no es un cuestionario
+  Cuando cuento algo de mi colesterol y no pedí un dato concreto
+  Entonces puedo recibir como mucho una pregunta de contexto en todo el hilo
+  Y nunca se me pregunta si me lo han medido sin que yo haya hablado de eso
+  Y si hago una pregunta de información ("¿qué alimentos bajan el colesterol?"), no se me pregunta nada
+
+Escenario: Mis datos de acceso no se guardan si no lo autorizo
+  Dado que no acepté la autorización opcional para informes
+  Entonces los códigos de lo que dije no se guardan, tampoco en modo "observar"
+  Y recibo la misma atención
+
+Escenario: Autorización opcional para informes
+  Cuando abro la vista ciudadana con la regla en "observar" o "activo"
+  Entonces veo, aparte del consentimiento y sin marcar, la opción de autorizar el uso agregado
+  Y puedo retirarla después: dejo de contar en los informes
+
+Escenario: Informe agregado
+  Cuando el equipo ejecuta scripts/export_care_access.py
+  Entonces cuenta personas (no hilos) que autorizaron, solo de meses cerrados
+  Y omite los meses con menos de 10 personas, publica "<5" para conteos pequeños y redondea los demás
+  Y el archivo advierte que no es una estimación de Caldas
+
+Escenario: Emergencias sin consentimiento
+  Cuando abro la página sin haber aceptado nada
+  Entonces puedo ver las indicaciones generales para una emergencia y llamar al 123
+  Y no se crea ninguna conversación ni se guarda ningún dato
+```
+Estado: 🟡 Implementada y probada automáticamente (2026-11-16), **apagada por defecto** y con todos los textos en `pendiente`. Pendiente: aprobación clínica y jurídica de cada texto, ratificar el [ADR 0023](../02-arquitectura/adr/0023-datos-de-acceso-a-la-atencion.md), y comparar en vivo el prompt v8 con el v9 antes de usar `observar`
+
 ### HU-08: Interfaz local de conversación y auditoría
+> Desde el 2026-11-15 esta interfaz es la **vista del equipo** y se abre en `/equipo` (HU-16, [ADR 0022](../02-arquitectura/adr/0022-vista-ciudadana-consentimiento-y-procedencia.md)).
+
 **Como** integrante del equipo de desarrollo, **quiero** conversar con el asistente desde una interfaz web local y consultar la traza asociada a cada respuesta, **para** sustentar y depurar el flujo sin depender temporalmente de Telegram o WhatsApp.
 
 ```gherkin

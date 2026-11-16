@@ -1,6 +1,11 @@
 """Configuración de las pruebas en vivo: necesitan Ollama, los modelos y el índice construido.
 
 Se ejecutan solo en el PC de pruebas con `pytest -m live`. Fuera de ese modo se omiten.
+
+Para repetir la misma batería con el prompt de análisis v9 (ADR 0023) se definen
+`LIVE_ANALYSIS_PROMPT=v9` y `CARE_ACCESS_MODE=observar` antes de ejecutarla: la primera
+cambia las pruebas que llaman al análisis directamente y la segunda, las que arman el
+servicio completo. Sin esas variables la batería usa el v8, como siempre.
 """
 
 import os
@@ -9,15 +14,24 @@ from pathlib import Path
 import pytest
 
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import load_alarm_policy
+from cardio_materno.adapters.outbound.clinical_rules.json_care_access_catalog import (
+    load_care_access_catalog,
+)
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLanguageModel
 from cardio_materno.adapters.outbound.rag.hybrid_retriever import HybridRetriever
 from cardio_materno.adapters.outbound.rag.knowledge_files import load_entries
 from cardio_materno.adapters.outbound.rag.vector_index import load_index
 from cardio_materno.application.agent_turn import AnalysisTurn, analysis_schema, parse_analysis
 from cardio_materno.application.alarm_policy import AlarmPolicy
+from cardio_materno.application.care_access import render_care_access_prompt
 from cardio_materno.application.evidence import EvidencePolicy
 from cardio_materno.bootstrap.env_file import load_env_file
-from cardio_materno.bootstrap.main import ANALYSIS_PROMPT_FILE, ENV_FILE, PROJECT_ROOT
+from cardio_materno.bootstrap.main import (
+    ANALYSIS_PROMPT_FILE,
+    CARE_ACCESS_ANALYSIS_PROMPT_FILE,
+    ENV_FILE,
+    PROJECT_ROOT,
+)
 from cardio_materno.bootstrap.rag_setup import build_embedder, load_effective_policy
 from cardio_materno.bootstrap.settings import (
     ANALYSIS_MODEL_VARIABLE,
@@ -27,9 +41,20 @@ from cardio_materno.bootstrap.settings import (
     load_stage_settings,
 )
 from cardio_materno.domain.alarms import AlertOrigin
+from cardio_materno.domain.care_access import CareAccessCatalog
 from cardio_materno.domain.conversation import ChatMessage
 
 LIVE_DIR = Path(__file__).parent
+LIVE_PROMPT_VARIABLE = "LIVE_ANALYSIS_PROMPT"
+PROMPT_V9 = "v9"
+
+
+def care_access_catalog() -> CareAccessCatalog | None:
+    """Catálogo de acceso si la batería se pidió con el prompt v9; None con el v8."""
+    if os.environ.get(LIVE_PROMPT_VARIABLE, "").strip().lower() != PROMPT_V9:
+        return None
+    settings = load_conversation_settings(os.environ, PROJECT_ROOT)
+    return load_care_access_catalog(settings.care_access_file)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -54,8 +79,12 @@ def analyzer() -> OllamaLanguageModel:
 
 @pytest.fixture(scope="session")
 def analysis_prompt_template() -> str:
-    """Prompt de análisis sin renderizar."""
-    return ANALYSIS_PROMPT_FILE.read_text(encoding="utf-8").strip()
+    """Prompt de análisis sin las alarmas: el v8, o el v9 con su tabla de datos de acceso."""
+    catalog = care_access_catalog()
+    if catalog is None:
+        return ANALYSIS_PROMPT_FILE.read_text(encoding="utf-8").strip()
+    template = CARE_ACCESS_ANALYSIS_PROMPT_FILE.read_text(encoding="utf-8").strip()
+    return render_care_access_prompt(template, catalog)
 
 
 def make_retriever(policy: EvidencePolicy) -> HybridRetriever:
@@ -78,8 +107,10 @@ def complete_analysis(
     analyzer: OllamaLanguageModel, policy: AlarmPolicy, messages: list[ChatMessage]
 ) -> AnalysisTurn:
     """Llamada de análisis real con el esquema de códigos de signos del catálogo (ADR 0012)."""
-    data = analyzer.complete_json(messages, analysis_schema(policy.codes))
-    return parse_analysis(data, policy.codes)
+    catalog = care_access_catalog()
+    facts = catalog.codes if catalog else ()
+    data = analyzer.complete_json(messages, analysis_schema(policy.codes, facts))
+    return parse_analysis(data, policy.codes, facts)
 
 
 def agent_rule_ids(policy: AlarmPolicy, analysis: AnalysisTurn) -> set[str]:

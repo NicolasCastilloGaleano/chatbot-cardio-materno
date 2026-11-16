@@ -11,6 +11,9 @@ import logging
 from dataclasses import dataclass
 
 from cardio_materno.application.channel_messages import (
+    CONSENT_ACCEPTED_TEXT,
+    CONSENT_REJECTED_TEXT,
+    CONSENT_REQUEST_TEXT,
     MODEL_ERROR_TEXT,
     UNSUPPORTED_MESSAGE_TEXT,
     WAIT_NOTICE_TEXT,
@@ -36,7 +39,13 @@ from cardio_materno.application.ports.channel_log import (
 from cardio_materno.application.ports.message_sender import DelayedActions, MessageSender
 from cardio_materno.application.ports.user_directory import UserDirectory
 from cardio_materno.application.user_conversations import UserConversations
-from cardio_materno.domain.user import new_user, seen_user
+from cardio_materno.domain.consent import (
+    ConsentAnswer,
+    has_consented,
+    read_consent_answer,
+    with_consent_decision,
+)
+from cardio_materno.domain.user import User, new_user, seen_user
 
 ERROR_MODEL = "modelo"
 ERROR_DELIVERY = "envio"
@@ -73,12 +82,14 @@ class ChannelConfig:
         max_message_chars: Máximo de caracteres por mensaje del canal.
         clock: Reloj (UTC).
         new_id: Generador de identificadores de usuario.
+        consent_required: Si se exige el consentimiento antes de atender (HU-01).
     """
 
     wait_notice_seconds: float
     max_message_chars: int = WHATSAPP_MAX_CHARS
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
+    consent_required: bool = False
 
 
 class HandleIncomingMessage:
@@ -105,11 +116,14 @@ class HandleIncomingMessage:
         Raises:
             ChannelDeliveryError: Si no se pudo entregar la respuesta (queda "fallido").
         """
-        user_id = self._resolve_user(message)
-        if not self._register(message, user_id):
+        user = self._resolve_user(message)
+        if not self._register(message, user.id):
             return
         try:
-            self._attend(message, user_id)
+            if self._config.consent_required and not has_consented(user):
+                self._request_consent(message, user)
+            else:
+                self._attend(message, user.id)
         except ChannelDeliveryError:
             self._mark(message, InboundStatus.FAILED, ERROR_DELIVERY)
             raise
@@ -130,6 +144,22 @@ class HandleIncomingMessage:
         self._deliver_reply(message, user_id, result)
         self._mark(message, InboundStatus.ANSWERED)
 
+    def _request_consent(self, message: IncomingMessage, user: User) -> None:
+        """Pide el consentimiento o registra la decisión; el mensaje no se atiende."""
+        self._acknowledge(message)
+        answer = (
+            read_consent_answer(message.text)
+            if message.kind is MessageKind.TEXT
+            else ConsentAnswer.UNCLEAR
+        )
+        reply = CONSENT_REQUEST_TEXT
+        if answer is not ConsentAnswer.UNCLEAR:
+            accepted = answer is ConsentAnswer.ACCEPT
+            self._ports.users.save(with_consent_decision(user, accepted, self._config.clock()))
+            reply = CONSENT_ACCEPTED_TEXT if accepted else CONSENT_REJECTED_TEXT
+        self._deliver(message, user.id, reply, OutboundKind.NOTICE)
+        self._mark(message, InboundStatus.CONSENT)
+
     def _converse(self, message: IncomingMessage, user_id: str) -> TurnResult | None:
         """Llama al agente con el aviso de espera programado; None si el modelo falló."""
         service = self._conversations.service_for(user_id)
@@ -144,7 +174,7 @@ class HandleIncomingMessage:
         finally:
             cancel()
 
-    def _resolve_user(self, message: IncomingMessage) -> str:
+    def _resolve_user(self, message: IncomingMessage) -> User:
         """Busca al usuario de la identidad del canal o lo crea en su primer contacto."""
         now = self._config.clock()
         users = self._ports.users
@@ -153,8 +183,9 @@ class HandleIncomingMessage:
             user = new_user(self._config.new_id(), now)
             users.register(user, message.channel, message.user_hash)
         else:
-            users.save(seen_user(user, now))
-        return user.id
+            user = seen_user(user, now)
+            users.save(user)
+        return user
 
     def _register(self, message: IncomingMessage, user_id: str) -> bool:
         """Registra el mensaje; False si el canal ya lo había enviado antes."""
