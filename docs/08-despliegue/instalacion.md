@@ -57,6 +57,9 @@ Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST`
 - Los mensajes fuera de alcance no se guardan (HU-07) y no aparecen al auditar.
 - No la expongas a una red: muestra datos de salud sin autenticación.
 
+### Apartado del profesional de salud (HU-16)
+Con `ESCALATION_MODE=activo` y `CLINICIAN_ACCESS_KEY` en el `.env`, abre `http://127.0.0.1:8000/medico` e ingresa la clave. Verás los casos que el asistente no pudo responder, con su resumen clínico y la conversación. **Generar borrador** pide al modelo una sugerencia marcada "sin respaldo de la base"; **Aprobar borrador** la envía tal cual y **Enviar mi versión**, el texto que escribas. La persona la recibe en su chat como "Profesional de salud". Por ahora solo en chats de consola y web. Solo con usuarios de prueba.
+
 ### Importar el histórico JSON (HU-10, una sola vez)
 Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):
 ```bash
@@ -246,6 +249,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `WEB_HOST` | `127.0.0.1` | Dirección de escucha. Solo `127.0.0.1`, `localhost` o `::1`: cualquier otra impide arrancar, porque la interfaz muestra datos de salud sin autenticación |
 | `WEB_PORT` | `8000` | Puerto |
 | `WEB_PAGE_SIZE` | `30` | Mensajes por página al abrir un chat o subir con el scroll (1 a 200) |
+| `CLINICIAN_ACCESS_KEY` | (vacía) | Clave del apartado del profesional en `/medico` (HU-16). Vacía, el apartado no existe. Es un secreto |
 | `WEB_POLL_SECONDS` | `3` | Segundos entre consultas de mensajes nuevos (actualización automática) |
 
 **6. Alarmas, hilos y consola**

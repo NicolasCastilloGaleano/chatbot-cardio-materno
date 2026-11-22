@@ -1,0 +1,219 @@
+// Apartado del profesional de salud (HU-16, ADR 0022). Todo el texto se pinta con textContent:
+// los mensajes de la persona y el borrador nunca se interpretan como HTML.
+"use strict";
+
+const KEY_STORAGE = "cardio-materno.clinician-key";
+const POLL_MS = 5000;
+const REASONS = { "sin información": "La base no tenía información", "cierre de la indagación": "Se cerró la indagación sin respuesta" };
+const DOMAINS = { cardiovascular: "Cardiovascular", materno_infantil: "Materno-infantil", ninguno: "Sin dominio" };
+const ROLES = { user: "Persona", assistant: "Asistente", clinician: "Profesional de salud" };
+
+const nodes = {
+  keyForm: document.getElementById("key-form"),
+  keyInput: document.getElementById("key-input"),
+  keyError: document.getElementById("key-error"),
+  workspace: document.getElementById("clinician-workspace"),
+  list: document.getElementById("case-list"),
+  detail: document.getElementById("case-detail"),
+  logout: document.getElementById("logout"),
+};
+const state = { key: readKey(), selected: null, timer: null };
+
+function readKey() {
+  try { return sessionStorage.getItem(KEY_STORAGE) || ""; } catch { return ""; }
+}
+
+function storeKey(key) {
+  try { key ? sessionStorage.setItem(KEY_STORAGE, key) : sessionStorage.removeItem(KEY_STORAGE); } catch { /* sin almacenamiento */ }
+}
+
+async function api(path, options = {}) {
+  const headers = { "X-Clinician-Key": state.key, ...(options.body ? { "Content-Type": "application/json" } : {}) };
+  const response = await fetch(path, { ...options, headers });
+  if (response.status === 401) { showKeyForm("La clave no es válida."); throw new Error("401"); }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "No se pudo completar la acción.");
+  return data;
+}
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined && text !== null) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }) : "—";
+}
+
+function showKeyForm(error) {
+  clearInterval(state.timer);
+  storeKey("");
+  state.key = "";
+  nodes.workspace.hidden = true;
+  nodes.keyForm.hidden = false;
+  nodes.keyError.hidden = !error;
+  nodes.keyError.textContent = error || "";
+  nodes.keyInput.focus();
+}
+
+function start() {
+  nodes.keyForm.hidden = true;
+  nodes.workspace.hidden = false;
+  loadCases();
+  state.timer = setInterval(loadCases, POLL_MS);
+}
+
+async function loadCases() {
+  try {
+    renderCases(await api("/api/clinician/cases"));
+  } catch (error) {
+    if (error.message !== "401") nodes.list.replaceChildren(element("p", error.message, "notice error"));
+  }
+}
+
+function renderCases(cases) {
+  if (!cases.length) {
+    nodes.list.replaceChildren(element("p", "No hay casos pendientes.", "muted"));
+    return;
+  }
+  nodes.list.replaceChildren(...cases.map(caseItem));
+}
+
+function caseItem(item) {
+  const button = element("button", null, `case-item${item.id === state.selected ? " selected" : ""}`);
+  button.type = "button";
+  const title = item.snapshot.query || item.snapshot.summary || "Consulta sin detalle";
+  button.append(
+    element("strong", title),
+    element("span", `${DOMAINS[item.snapshot.domain] || item.snapshot.domain} · ${item.channel_label}`),
+    element("span", `Abierto ${formatDate(item.created_at)} · vence ${formatDate(item.expires_at)}`),
+  );
+  button.addEventListener("click", () => openCase(item.id));
+  return button;
+}
+
+async function openCase(caseId) {
+  state.selected = caseId;
+  nodes.detail.replaceChildren(element("p", "Cargando el caso…", "muted"));
+  try {
+    renderDetail(await api(`/api/clinician/cases/${encodeURIComponent(caseId)}`));
+    loadCases();
+  } catch (error) {
+    if (error.message !== "401") nodes.detail.replaceChildren(element("p", error.message, "notice error"));
+  }
+}
+
+function renderDetail(item) {
+  const snapshot = item.snapshot;
+  nodes.detail.replaceChildren(
+    element("p", `CASO ${item.id.slice(0, 8)} · ${item.channel_label}`, "eyebrow"),
+    element("h2", snapshot.query || "Consulta sin detalle"),
+    summarySection(item),
+    conversationSection(item.messages || []),
+    draftSection(item),
+  );
+}
+
+function summarySection(item) {
+  const snapshot = item.snapshot;
+  const facts = element("dl", null, "facts");
+  const rows = [
+    ["Motivo", REASONS[snapshot.reason] || snapshot.reason],
+    ["Dominio", DOMAINS[snapshot.domain] || snapshot.domain],
+    ["Resumen", snapshot.summary || "—"],
+    ["Síntomas", snapshot.symptoms.join(", ") || "—"],
+    ["Signos", snapshot.signs.join(", ") || "—"],
+    ["Turnos sin respuesta", String(item.gap_count)],
+    ["Vence", formatDate(item.expires_at)],
+  ];
+  for (const [label, value] of rows) facts.append(element("dt", label), element("dd", value));
+  const section = element("div", null, "case-section");
+  section.append(element("h3", "Resumen clínico (sin datos de identificación)"), facts);
+  return section;
+}
+
+function conversationSection(messages) {
+  const list = element("div", null, "conversation");
+  for (const message of messages) {
+    const row = element("div", null, `bubble-row ${message.role}`);
+    row.append(element("div", message.content, "bubble"), element("span", `${ROLES[message.role] || message.role} · ${formatDate(message.created_at)}`, "bubble-meta"));
+    list.append(row);
+  }
+  const section = element("div", null, "case-section");
+  section.append(element("h3", "Conversación"), messages.length ? list : element("p", "Sin mensajes.", "muted"));
+  return section;
+}
+
+function draftSection(item) {
+  const section = element("div", null, "case-section");
+  const box = element("div", null, "draft-box");
+  const text = element("textarea");
+  text.value = item.draft || "";
+  text.placeholder = "Escribe aquí la respuesta, o genera un borrador.";
+  text.setAttribute("aria-label", "Respuesta para la persona");
+  box.append(element("p", "BORRADOR SIN RESPALDO DE LA BASE · REVÍSALO ANTES DE ENVIAR", "draft-label"), text);
+  const notice = element("p", draftNotice(item), "notice");
+  notice.hidden = !draftNotice(item);
+  section.append(element("h3", "Respuesta"), box, actions(item, text, notice), notice);
+  return section;
+}
+
+function draftNotice(item) {
+  if (!item.deliverable) return "Responder por este canal estará disponible más adelante.";
+  if (item.draft_status === "fallido") return "No se pudo generar el borrador. Puedes escribir la respuesta y enviarla con Modificar.";
+  return "";
+}
+
+function actions(item, text, notice) {
+  const row = element("div", null, "actions");
+  const ready = item.draft_status === "listo";
+  const draft = actionButton("Generar borrador", () => run(`/api/clinician/cases/${item.id}/draft`, null, notice, true));
+  draft.disabled = ready;
+  const approve = actionButton("Aprobar borrador", () => run(`/api/clinician/cases/${item.id}/approve`, null, notice, false));
+  approve.disabled = !ready || !item.deliverable || text.value.trim() !== (item.draft || "").trim();
+  const modify = actionButton("Enviar mi versión", () => run(`/api/clinician/cases/${item.id}/modify`, { text: text.value }, notice, false));
+  modify.disabled = !item.deliverable;
+  text.addEventListener("input", () => { approve.disabled = !ready || !item.deliverable || text.value.trim() !== (item.draft || "").trim(); });
+  const contact = actionButton("Contacto directo", () => {});
+  contact.disabled = true;
+  contact.title = "Disponible en la siguiente fase";
+  row.append(draft, approve, modify, contact);
+  return row;
+}
+
+function actionButton(label, handler) {
+  const button = element("button", label, "quiet-button");
+  button.type = "button";
+  button.addEventListener("click", handler);
+  return button;
+}
+
+async function run(path, body, notice, reopen) {
+  notice.hidden = false;
+  notice.className = "notice";
+  notice.textContent = "Procesando…";
+  try {
+    const item = await api(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
+    if (reopen) { openCase(item.id); return; }
+    state.selected = null;
+    nodes.detail.replaceChildren(element("p", "Respuesta enviada a la persona. El caso quedó cerrado.", "notice"));
+    loadCases();
+  } catch (error) {
+    if (error.message === "401") return;
+    notice.className = "notice error";
+    notice.textContent = error.message;
+  }
+}
+
+nodes.keyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  state.key = nodes.keyInput.value.trim();
+  storeKey(state.key);
+  nodes.keyInput.value = "";
+  start();
+});
+nodes.logout.addEventListener("click", () => showKeyForm(""));
+
+if (state.key) start(); else showKeyForm("");

@@ -351,16 +351,18 @@ class WebSettings:
         port: Puerto TCP.
         page_size: Mensajes por página al abrir un chat o subir con el scroll.
         poll_seconds: Cada cuánto la interfaz busca mensajes nuevos.
+        clinician_access_key: Clave del apartado del profesional (HU-16); vacía, no existe.
     """
 
     host: str
     port: int
     page_size: int = int(DEFAULT_WEB_PAGE_SIZE)
     poll_seconds: float = float(DEFAULT_WEB_POLL_SECONDS)
+    clinician_access_key: str = ""
 
 
 def load_web_settings(env: Mapping[str, str]) -> WebSettings:
-    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
+    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE`, `WEB_POLL_SECONDS` y `CLINICIAN_ACCESS_KEY`.
 
     Raises:
         ConfigurationError: Si el host no es local (la interfaz no se expone en la red), el
@@ -381,6 +383,7 @@ def load_web_settings(env: Mapping[str, str]) -> WebSettings:
         _get_port(env, "WEB_PORT", DEFAULT_WEB_PORT),
         page_size,
         poll_seconds,
+        env.get("CLINICIAN_ACCESS_KEY", "").strip(),
     )
 
 

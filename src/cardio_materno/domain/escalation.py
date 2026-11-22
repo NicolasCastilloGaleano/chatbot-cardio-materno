@@ -23,6 +23,14 @@ class CaseStatus(StrEnum):
     EXPIRED = "expirada"
 
 
+class DraftStatus(StrEnum):
+    """Estado del borrador que ve el profesional (marcado "sin respaldo de la base")."""
+
+    NOT_READY = "sin_generar"
+    READY = "listo"
+    FAILED = "fallido"
+
+
 class CaseAction(StrEnum):
     """Lo que puede hacer el profesional con un caso, o el vencimiento."""
 
@@ -88,6 +96,8 @@ class ClinicalCase:
         created_at: Apertura.
         expires_at: Vencimiento: la ventana desde el último mensaje de la persona.
         closed_at: Cierre, aprobación, modificación o vencimiento (None si sigue abierto).
+        draft: Borrador de respuesta del modelo, sin respaldo de la base ("" si no hay).
+        draft_status: Si el borrador está por generar, listo o falló.
     """
 
     id: str
@@ -99,6 +109,8 @@ class ClinicalCase:
     created_at: datetime
     expires_at: datetime
     closed_at: datetime | None = None
+    draft: str = ""
+    draft_status: DraftStatus = DraftStatus.NOT_READY
 
     @property
     def is_open(self) -> bool:

@@ -37,3 +37,19 @@ class ChannelDeliveryError(Exception):
 
     El mensaje explica la causa técnica sin incluir el texto ni la identidad del usuario.
     """
+
+
+class CaseNotFoundError(Exception):
+    """No existe un caso escalado con ese identificador (HU-16)."""
+
+
+class CaseConflictError(Exception):
+    """El caso ya no admite esa acción: cambió de estado, venció o se resolvió (HU-16)."""
+
+
+class CaseChannelNotSupportedError(Exception):
+    """Todavía no se puede responder por el canal de ese caso (HU-16)."""
+
+
+class DraftNotReadyError(Exception):
+    """No hay un borrador listo para aprobar: hay que prepararlo o escribir la respuesta."""

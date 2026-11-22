@@ -221,6 +221,9 @@ button { font-family: inherit; }
 .bubble-row { display: flex; max-width: 83%; flex-direction: column; gap: 4px; }
 .bubble-row.user { align-self: flex-end; align-items: flex-end; }
 .bubble-row.assistant { align-self: flex-start; align-items: flex-start; }
+/* Mensaje de un profesional de salud en un caso escalado (HU-16). */
+.bubble-row.clinician { align-self: flex-start; align-items: flex-start; }
+.clinician .bubble { border-color: #b9d6ca; border-bottom-left-radius: 5px; background: #e2f1ea; color: var(--deep); }
 .bubble {
   padding: 11px 15px;
   border: 1px solid transparent;

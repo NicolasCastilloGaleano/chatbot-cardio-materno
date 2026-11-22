@@ -10,23 +10,43 @@ from datetime import datetime
 from typing import Any
 
 from cardio_materno.adapters.outbound.persistence.sqlite_database import SqliteDatabase
+from cardio_materno.application.ports.case_inbox import InboxCase
 from cardio_materno.domain.conversation import Domain
 from cardio_materno.domain.escalation import (
     OPEN_STATUSES,
     CaseSnapshot,
     CaseStatus,
     ClinicalCase,
+    DraftStatus,
 )
+from cardio_materno.domain.user import Channel
 
 CASE_COLUMNS = (
-    "id, thread_id, status, notified, gap_count, snapshot_json, created_at, expires_at, closed_at"
+    "id, thread_id, status, notified, gap_count, snapshot_json, created_at, expires_at, "
+    "closed_at, draft_text, draft_status"
 )
 UPSERT_CASE = f"""
-    INSERT INTO clinical_cases (user_id, {CASE_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET status = excluded.status, gap_count = excluded.gap_count,
+    INSERT INTO clinical_cases (user_id, {CASE_COLUMNS})
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET status = excluded.status, notified = excluded.notified,
+        gap_count = excluded.gap_count,
         snapshot_json = excluded.snapshot_json, expires_at = excluded.expires_at,
-        closed_at = excluded.closed_at
+        closed_at = excluded.closed_at, draft_text = excluded.draft_text,
+        draft_status = excluded.draft_status
     WHERE clinical_cases.user_id = excluded.user_id
+"""
+
+# La bandeja lee el canal del chat de la persona para saber cómo entregar la respuesta.
+INBOX_SELECT = f"""
+    SELECT user_id, {CASE_COLUMNS},
+        (SELECT channel FROM channel_identities ci WHERE ci.user_id = clinical_cases.user_id
+         LIMIT 1) AS channel
+    FROM clinical_cases
+"""
+UPDATE_IF_STATUS = """
+    UPDATE clinical_cases SET status = ?, notified = ?, gap_count = ?, snapshot_json = ?,
+        created_at = ?, expires_at = ?, closed_at = ?, draft_text = ?, draft_status = ?
+    WHERE id = ? AND status = ?
 """
 
 
@@ -74,6 +94,56 @@ class SqliteCaseRepository:
             connection.execute(UPSERT_CASE, (self._user_id, *case_values(case)))
 
 
+class SqliteCaseInbox:
+    """Implementación de CaseInbox sobre SQLite: los casos de todas las personas."""
+
+    def __init__(self, database: SqliteDatabase) -> None:
+        """Crea la bandeja.
+
+        Args:
+            database: Base SQLite compartida.
+        """
+        self._db = database
+
+    def list_open(self) -> list[InboxCase]:
+        """Casos abiertos con aviso a la persona, del más antiguo al más nuevo."""
+        marks = ", ".join("?" for _ in OPEN_STATUSES)
+        rows = self._db.query(
+            f"{INBOX_SELECT} WHERE status IN ({marks}) AND notified = 1 ORDER BY created_at",
+            tuple(str(status) for status in OPEN_STATUSES),
+        )
+        return [inbox_case_from_row(row) for row in rows]
+
+    def get(self, case_id: str) -> InboxCase | None:
+        """Un caso por su id, o None."""
+        rows = self._db.query(f"{INBOX_SELECT} WHERE id = ?", (case_id,))
+        return inbox_case_from_row(rows[0]) if rows else None
+
+    def update_if(self, case: ClinicalCase, expected: CaseStatus) -> bool:
+        """Guarda el caso solo si su estado sigue siendo `expected`."""
+        values = case_values(case)
+        with self._db.transaction() as connection:
+            cursor = connection.execute(UPDATE_IF_STATUS, (*values[2:], case.id, str(expected)))
+        return cursor.rowcount == 1
+
+    def expire_due(self, now: datetime) -> int:
+        """Vence los casos abiertos cuyo plazo pasó."""
+        marks = ", ".join("?" for _ in OPEN_STATUSES)
+        stamp = now.isoformat()
+        with self._db.transaction() as connection:
+            cursor = connection.execute(
+                f"UPDATE clinical_cases SET status = ?, closed_at = ? "
+                f"WHERE status IN ({marks}) AND expires_at <= ?",
+                (str(CaseStatus.EXPIRED), stamp, *(str(s) for s in OPEN_STATUSES), stamp),
+            )
+        return cursor.rowcount
+
+
+def inbox_case_from_row(row: sqlite3.Row) -> InboxCase:
+    """Caso de la bandeja con su persona y el canal de su chat."""
+    return InboxCase(case_from_row(row), row["user_id"], Channel(row["channel"]))
+
+
 def case_values(case: ClinicalCase) -> tuple[Any, ...]:
     """Valores de las columnas de `CASE_COLUMNS`, en orden."""
     return (
@@ -86,6 +156,8 @@ def case_values(case: ClinicalCase) -> tuple[Any, ...]:
         case.created_at.isoformat(),
         case.expires_at.isoformat(),
         case.closed_at.isoformat() if case.closed_at else None,
+        case.draft,
+        str(case.draft_status),
     )
 
 
@@ -102,6 +174,8 @@ def case_from_row(row: sqlite3.Row) -> ClinicalCase:
         created_at=datetime.fromisoformat(row["created_at"]),
         expires_at=datetime.fromisoformat(row["expires_at"]),
         closed_at=datetime.fromisoformat(closed) if closed else None,
+        draft=row["draft_text"],
+        draft_status=DraftStatus(row["draft_status"]),
     )
 
 

@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from cardio_materno.adapters.inbound.api.clinician_routes import add_clinician_routes
 from cardio_materno.adapters.inbound.api.serializers import (
     CHANNEL_LABELS,
     LOCK_TEXTS,
@@ -23,6 +24,7 @@ from cardio_materno.adapters.inbound.api.serializers import (
     entry_to_dict,
     turn_to_dict,
 )
+from cardio_materno.application.clinician_review import ClinicianReview
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.direct_chat import DirectChat
 from cardio_materno.application.errors import (
@@ -51,6 +53,19 @@ NOT_LIVE = "El chat no está en uso en una consola."
 EMPTY_TEXT = "El mensaje no puede estar vacío"
 MAX_LIMIT = 200
 DEFAULT_CHAT_LIMIT = 50
+
+
+@dataclass(frozen=True)
+class ClinicianAccess:
+    """Apartado del profesional de salud (HU-16): sus casos y la clave que exige la API.
+
+    Attributes:
+        review: Casos del profesional.
+        access_key: Clave del `.env` (`CLINICIAN_ACCESS_KEY`), no vacía.
+    """
+
+    review: ClinicianReview
+    access_key: str
 
 
 @dataclass(frozen=True)
@@ -98,7 +113,11 @@ class ChatLocks:
 
 
 def create_app(
-    chats: DirectChat, audit: ChatAudit, entries: list[KnowledgeEntry], options: WebOptions
+    chats: DirectChat,
+    audit: ChatAudit,
+    entries: list[KnowledgeEntry],
+    options: WebOptions,
+    clinician: ClinicianAccess | None = None,
 ) -> FastAPI:
     """Construye la aplicación HTTP con sus dependencias inyectadas.
 
@@ -107,6 +126,7 @@ def create_app(
         audit: Lectura de los chats de todos los canales.
         entries: Registros de conocimiento para ampliar la evidencia de la auditoría.
         options: Tamaño de página y frecuencia de actualización.
+        clinician: Apartado del profesional (HU-16); None si no hay clave configurada.
 
     Returns:
         Aplicación FastAPI lista para servir en loopback.
@@ -116,6 +136,9 @@ def create_app(
     _add_page_routes(app)
     _add_chat_routes(app, chats, audit, options)
     _add_message_routes(app, chats, audit, entry_index, options)
+    if clinician is not None:
+        page = STATIC_DIR / "medico.html"
+        add_clinician_routes(app, clinician.review, audit, clinician.access_key, page)
     return app
 
 

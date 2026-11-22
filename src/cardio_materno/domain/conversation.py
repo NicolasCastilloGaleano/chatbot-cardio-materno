@@ -13,6 +13,9 @@ class Role(StrEnum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
+    # Mensaje de un profesional de salud en un caso escalado (HU-16, ADR 0022). Nunca llega
+    # así al modelo: `turn_context` lo convierte en un mensaje del asistente con su prefijo.
+    CLINICIAN = "clinician"
 
 
 class Domain(StrEnum):

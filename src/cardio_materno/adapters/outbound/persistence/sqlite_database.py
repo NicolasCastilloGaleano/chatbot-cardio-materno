@@ -101,7 +101,9 @@ SCHEMA_V3: tuple[str, ...] = (
         snapshot_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
         expires_at TEXT NOT NULL,
-        closed_at TEXT
+        closed_at TEXT,
+        draft_text TEXT NOT NULL,
+        draft_status TEXT NOT NULL
     )""",
     "CREATE INDEX clinical_cases_by_status ON clinical_cases(status, created_at)",
     """CREATE UNIQUE INDEX one_open_case_per_user ON clinical_cases(user_id)

@@ -52,6 +52,7 @@ REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v4.md"
 INQUIRY_PROMPT_FILE = PROMPTS_DIR / "inquiry_prompt_v1.md"
 SELECTION_PROMPT_FILE = PROMPTS_DIR / "evidence_selection_prompt_v1.md"
 SELECTED_REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v5.md"
+CLINICIAN_DRAFT_PROMPT_FILE = PROMPTS_DIR / "clinician_draft_prompt_v1.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
 STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)

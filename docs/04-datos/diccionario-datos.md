@@ -158,3 +158,6 @@ Clase: `domain/user.py::User`.
 | `gap_count` | INTEGER | Turnos sin evidencia que sumó el caso |
 | `snapshot_json` | TEXT | Resumen clínico: dominio, resumen del hilo, síntomas, códigos, consulta, motivo, categoría y similitud. Sin mensajes ni datos de identificación |
 | `created_at`, `expires_at`, `closed_at` | TEXT (ISO 8601) | Apertura; vencimiento (ventana desde el último mensaje); cierre o resolución |
+| `draft_text`, `draft_status` | TEXT | Borrador del profesional, sin respaldo de la base, y su estado: `sin_generar`, `listo` o `fallido` (fase 2) |
+
+En `messages.role` se agrega `clinician`: mensaje de un profesional de salud en un caso escalado. Nunca llega así al modelo: se convierte en un mensaje del asistente con el prefijo "Profesional de salud:".

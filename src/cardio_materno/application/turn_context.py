@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from cardio_materno.application.agent_turn import AnalysisTurn
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Role
@@ -10,6 +10,8 @@ from cardio_materno.domain.conversation import ChatMessage, ConversationThread, 
 THREAD_CONTEXT_TEMPLATE = "HILO ACTUAL (JSON):\n{thread_json}"
 NO_THREAD_CONTEXT = "HILO ACTUAL: no hay un hilo activo. Este mensaje inicia un hilo nuevo."
 CASE_CONTEXT_TEMPLATE = "CASO (análisis de este turno, JSON):\n{case_json}"
+# Cómo ve el modelo un mensaje del profesional de salud (HU-16).
+CLINICIAN_PREFIX = "Profesional de salud:"
 
 
 @dataclass(frozen=True)
@@ -80,4 +82,17 @@ def _with_history(
 ) -> list[ChatMessage]:
     """Encabezado + mensajes recientes + mensajes de sistema extra + mensaje del usuario."""
     extras = [ChatMessage(Role.SYSTEM, text) for text in extra_system]
-    return [*head, *turn.recent, *extras, ChatMessage(Role.USER, turn.user_text)]
+    recent = [for_model(message) for message in turn.recent]
+    return [*head, *recent, *extras, ChatMessage(Role.USER, turn.user_text)]
+
+
+def for_model(message: ChatMessage) -> ChatMessage:
+    """El mensaje tal como lo entiende el modelo.
+
+    El modelo solo conoce los roles de sistema, usuario y asistente: un mensaje del
+    profesional de salud (HU-16) va como del asistente, con un prefijo que dice quién lo
+    escribió.
+    """
+    if message.role is not Role.CLINICIAN:
+        return message
+    return replace(message, role=Role.ASSISTANT, content=f"{CLINICIAN_PREFIX} {message.content}")

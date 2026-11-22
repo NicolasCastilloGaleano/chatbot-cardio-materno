@@ -40,6 +40,8 @@ Restricciones:
 ## Implementación
 **Fase 1 (2026-11-22):** `domain/escalation.py` (estados y transiciones), el puerto `CaseRepository` acotado por persona, la tabla `clinical_cases` (esquema v3) y el gancho en `ConversationService.send`: con un vacío y sin alarma, `activo` pone el aviso de espera y abre el caso, o suma el turno al caso abierto. La fábrica de servicios ahora recibe el id de la persona. Aún no hay apartado del médico ni rol `profesional`: llegan en la fase 2, cuando existen sus mensajes. Las tablas de la dirección temporal y de la bandeja de salida llegan en la fase 4, para no crear tablas que todavía no se usan.
 
+**Fase 2 (2026-11-22):** el rol `clinician` y su conversión en `turn_context.for_model`; el borrador (`application/clinician_draft.py`, prompt `clinician_draft_prompt_v1.md`, modelo de respuesta) que se genera cuando el profesional lo pide y recibe solo el resumen; la revisión (`application/clinician_review.py`: listar, preparar el borrador, aprobar y modificar, con cambios optimistas); la bandeja `SqliteCaseInbox`; las rutas `/api/clinician/*` con `X-Clinician-Key`, y la página `/medico`. Por ahora se entrega en los chats de consola y web; un caso de WhatsApp se ve pero no se puede responder hasta la fase 4. Los casos en modo `observar` no aparecen en la bandeja, porque la persona no recibió el aviso.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

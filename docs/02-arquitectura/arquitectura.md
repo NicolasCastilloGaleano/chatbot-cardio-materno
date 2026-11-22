@@ -81,6 +81,7 @@ sequenceDiagram
 | `UserThreadStore` (`application/ports/user_thread_store.py`) | Hilo abierto de cada usuario (con su última actividad) y su repositorio acotado | ✅ `SqliteUserThreadStore` (ADR 0015) |
 | `UserDirectory` (`application/ports/user_directory.py`) | Usuarios y su identidad seudonimizada por canal | ✅ `SqliteUserDirectory` (ADR 0015) |
 | `CaseStore` / `CaseRepository` (`application/ports/case_repository.py`) | Casos de cada persona escalados al profesional de salud: el caso abierto y guardar (HU-16) | ✅ `SqliteCaseStore` ([ADR 0022](adr/0022-escalamiento-al-profesional-de-salud.md)) |
+| `CaseInbox` (`application/ports/case_inbox.py`) | Casos de todas las personas para el profesional: abiertos, uno por id, cambio de estado optimista y vencimiento (HU-16) | ✅ `SqliteCaseInbox` ([ADR 0022](adr/0022-escalamiento-al-profesional-de-salud.md)) |
 | `ChatAudit` (`application/ports/chat_audit.py`) | Leer los chats de todos los canales para auditarlos: lista por canal, páginas por *keyset* sobre `seq`, alertas por turno y mensajes en proceso | ✅ `SqliteChatAudit` ([ADR 0016](adr/0016-auditoria-multicanal-y-chats-por-usuario.md)) |
 | `ChannelLog` (`application/ports/channel_log.py`) | Deduplicar mensajes del canal y auditar lo recibido y enviado, sin texto | ✅ `SqliteChannelLog` (ADR 0014 y 0015) |
 | `AlertNotifier` | Notificar alertas al equipo de salud | TODO (hoy las alertas solo se registran en el hilo vía `ThreadRepository.append_alert`) |
