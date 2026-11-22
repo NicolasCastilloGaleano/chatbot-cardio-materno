@@ -150,6 +150,11 @@ def with_new_gap(case: ClinicalCase, now: datetime, window: timedelta) -> Clinic
     return replace(case, gap_count=case.gap_count + 1, expires_at=now + window)
 
 
+def renewed(case: ClinicalCase, now: datetime, window: timedelta) -> ClinicalCase:
+    """Renueva el vencimiento con un mensaje nuevo de la persona (contacto directo, ADR 0023)."""
+    return replace(case, expires_at=now + window)
+
+
 def apply_action(case: ClinicalCase, action: CaseAction, now: datetime) -> ClinicalCase:
     """Aplica una acción según la tabla de transiciones.
 

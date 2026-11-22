@@ -42,6 +42,12 @@ Restricciones:
 
 **Fase 2 (2026-11-22):** el rol `clinician` y su conversión en `turn_context.for_model`; el borrador (`application/clinician_draft.py`, prompt `clinician_draft_prompt_v1.md`, modelo de respuesta) que se genera cuando el profesional lo pide y recibe solo el resumen; la revisión (`application/clinician_review.py`: listar, preparar el borrador, aprobar y modificar, con cambios optimistas); la bandeja `SqliteCaseInbox`; las rutas `/api/clinician/*` con `X-Clinician-Key`, y la página `/medico`. Por ahora se entrega en los chats de consola y web; un caso de WhatsApp se ve pero no se puede responder hasta la fase 4. Los casos en modo `observar` no aparecen en la bandeja, porque la persona no recibió el aviso.
 
+**Fase 3 (2026-11-22):** contacto directo en los chats de consola y web. `ClinicianReview.start_contact`, `send_message` y `end_contact`; rutas `/contact`, `/messages` y `/close`, y un chat de contacto en `/medico`. Mientras el caso está `en_contacto`, `ConversationService.send` desvía el mensaje de la persona a su hilo **sin llamar a ningún modelo** (`TurnResult.relayed`, respuesta vacía que los canales no muestran) y renueva el vencimiento. Decisiones de esta fase:
+- **El filtro 1 sigue corriendo:** una alarma por palabras clave recibe su aviso fijo de inmediato y su alerta queda en el hilo, donde la ve el profesional.
+- **Riesgo aceptado, a revisar con el equipo clínico:** durante el contacto **no corre el filtro 2** (el análisis del modelo), así que una alarma que solo detectaría el modelo depende de que el profesional la lea. La alternativa (correr el análisis en cada mensaje) llama al modelo mientras un profesional ya atiende.
+- **El hilo es el del caso,** aunque el de la persona se haya cerrado por inactividad; al cerrar el contacto, el siguiente mensaje vuelve al asistente.
+- **Cada lado escribe solo sus campos:** la persona, el aviso, las brechas, el resumen y el vencimiento (`CaseRepository.save`, que no hace nada si el estado cambió); el profesional, el estado y el borrador (`CaseInbox.update_if`). Así un turno que leyó el caso antes de que el profesional actuara no revierte su decisión, y al revés.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

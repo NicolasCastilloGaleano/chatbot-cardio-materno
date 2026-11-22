@@ -40,7 +40,10 @@ class CaseInbox(Protocol):
         ...
 
     def update_if(self, case: ClinicalCase, expected: CaseStatus) -> bool:
-        """Guarda el caso solo si su estado sigue siendo `expected`; False si alguien lo cambió."""
+        """Guarda el estado y el borrador si el estado sigue siendo `expected`; False si cambió.
+
+        No toca las brechas, el resumen ni el vencimiento, que son del lado de la persona.
+        """
         ...
 
     def expire_due(self, now: datetime) -> int:

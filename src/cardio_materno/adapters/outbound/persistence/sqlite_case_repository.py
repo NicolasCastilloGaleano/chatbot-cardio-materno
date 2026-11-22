@@ -25,15 +25,17 @@ CASE_COLUMNS = (
     "id, thread_id, status, notified, gap_count, snapshot_json, created_at, expires_at, "
     "closed_at, draft_text, draft_status"
 )
+# Del lado de la persona solo cambian el aviso, las brechas, el resumen y el vencimiento. El
+# estado y el borrador son del profesional (`update_if`): un turno que leyó el caso antes de que
+# el profesional actuara no los revierte, y si el estado ya cambió, no se toca nada.
 UPSERT_CASE = f"""
     INSERT INTO clinical_cases (user_id, {CASE_COLUMNS})
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET status = excluded.status, notified = excluded.notified,
+    ON CONFLICT(id) DO UPDATE SET notified = excluded.notified,
         gap_count = excluded.gap_count,
-        snapshot_json = excluded.snapshot_json, expires_at = excluded.expires_at,
-        closed_at = excluded.closed_at, draft_text = excluded.draft_text,
-        draft_status = excluded.draft_status
+        snapshot_json = excluded.snapshot_json, expires_at = excluded.expires_at
     WHERE clinical_cases.user_id = excluded.user_id
+        AND clinical_cases.status = excluded.status
 """
 
 # La bandeja lee el canal del chat de la persona para saber cómo entregar la respuesta.
@@ -43,9 +45,10 @@ INBOX_SELECT = f"""
          LIMIT 1) AS channel
     FROM clinical_cases
 """
+# El profesional solo cambia el estado y el borrador: las brechas, el resumen y el vencimiento
+# son del lado de la persona (`UPSERT_CASE`), así ninguno revierte lo que escribió el otro.
 UPDATE_IF_STATUS = """
-    UPDATE clinical_cases SET status = ?, notified = ?, gap_count = ?, snapshot_json = ?,
-        created_at = ?, expires_at = ?, closed_at = ?, draft_text = ?, draft_status = ?
+    UPDATE clinical_cases SET status = ?, closed_at = ?, draft_text = ?, draft_status = ?
     WHERE id = ? AND status = ?
 """
 
@@ -89,7 +92,10 @@ class SqliteCaseRepository:
         return case_from_row(rows[0]) if rows else None
 
     def save(self, case: ClinicalCase) -> None:
-        """Crea o actualiza un caso de la persona (no toca casos de otra)."""
+        """Crea un caso o actualiza lo que cambia del lado de la persona (no toca casos de otra).
+
+        El estado y el borrador solo los cambia el profesional, con `CaseInbox.update_if`.
+        """
         with self._db.transaction() as connection:
             connection.execute(UPSERT_CASE, (self._user_id, *case_values(case)))
 
@@ -120,10 +126,11 @@ class SqliteCaseInbox:
         return inbox_case_from_row(rows[0]) if rows else None
 
     def update_if(self, case: ClinicalCase, expected: CaseStatus) -> bool:
-        """Guarda el caso solo si su estado sigue siendo `expected`."""
+        """Guarda el estado y el borrador del caso solo si su estado sigue siendo `expected`."""
         values = case_values(case)
+        changes = (values[2], *values[8:])
         with self._db.transaction() as connection:
-            cursor = connection.execute(UPDATE_IF_STATUS, (*values[2:], case.id, str(expected)))
+            cursor = connection.execute(UPDATE_IF_STATUS, (*changes, case.id, str(expected)))
         return cursor.rowcount == 1
 
     def expire_due(self, now: datetime) -> int:

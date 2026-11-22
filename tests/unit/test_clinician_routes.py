@@ -1,4 +1,4 @@
-"""Pruebas del apartado del profesional en la API web (HU-16, ADR 0022, fase 2)."""
+"""Pruebas del apartado del profesional en la API web (HU-16, ADR 0022, fases 2 y 3)."""
 
 import itertools
 from collections.abc import Iterator
@@ -118,3 +118,19 @@ def test_a_whatsapp_case_is_shown_but_cannot_be_answered_yet(database: SqliteDat
     )
 
     assert detail["deliverable"] is False and sent.status_code == 409
+
+
+def test_the_clinician_talks_directly_with_the_person(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    api = client(database)
+    base = f"/api/clinician/cases/{case_id}"
+
+    early = api.post(f"{base}/messages", headers=HEADERS, json={"text": "Hola."})
+    started = api.post(f"{base}/contact", headers=HEADERS).json()
+    sent = api.post(f"{base}/messages", headers=HEADERS, json={"text": "¿Desde cuándo?"})
+    closed = api.post(f"{base}/close", headers=HEADERS).json()
+
+    assert early.status_code == 409 and started["status"] == "en_contacto"
+    assert sent.status_code == 200 and closed["status"] == "cerrada"
+    chat = api.get("/api/chats/ana/messages").json()["messages"]
+    assert (chat[-1]["role"], chat[-1]["content"]) == ("clinician", "¿Desde cuándo?")

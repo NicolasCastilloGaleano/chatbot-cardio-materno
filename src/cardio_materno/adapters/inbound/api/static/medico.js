@@ -7,6 +7,9 @@ const POLL_MS = 5000;
 const REASONS = { "sin información": "La base no tenía información", "cierre de la indagación": "Se cerró la indagación sin respuesta" };
 const DOMAINS = { cardiovascular: "Cardiovascular", materno_infantil: "Materno-infantil", ninguno: "Sin dominio" };
 const ROLES = { user: "Persona", assistant: "Asistente", clinician: "Profesional de salud" };
+const IN_CONTACT = "en_contacto";
+const SENT_TEXT = "Respuesta enviada a la persona. El caso quedó cerrado.";
+const CLOSED_TEXT = "Contacto cerrado. El asistente vuelve a responder a la persona.";
 
 const nodes = {
   keyForm: document.getElementById("key-form"),
@@ -67,7 +70,10 @@ function start() {
 
 async function loadCases() {
   try {
-    renderCases(await api("/api/clinician/cases"));
+    const cases = await api("/api/clinician/cases");
+    renderCases(cases);
+    const selected = cases.find((item) => item.id === state.selected);
+    if (selected && selected.status === IN_CONTACT) refreshConversation(selected.id);
   } catch (error) {
     if (error.message !== "401") nodes.list.replaceChildren(element("p", error.message, "notice error"));
   }
@@ -87,7 +93,7 @@ function caseItem(item) {
   const title = item.snapshot.query || item.snapshot.summary || "Consulta sin detalle";
   button.append(
     element("strong", title),
-    element("span", `${DOMAINS[item.snapshot.domain] || item.snapshot.domain} · ${item.channel_label}`),
+    element("span", `${DOMAINS[item.snapshot.domain] || item.snapshot.domain} · ${item.channel_label}${item.status === IN_CONTACT ? " · en contacto" : ""}`),
     element("span", `Abierto ${formatDate(item.created_at)} · vence ${formatDate(item.expires_at)}`),
   );
   button.addEventListener("click", () => openCase(item.id));
@@ -112,8 +118,24 @@ function renderDetail(item) {
     element("h2", snapshot.query || "Consulta sin detalle"),
     summarySection(item),
     conversationSection(item.messages || []),
-    draftSection(item),
+    item.status === IN_CONTACT ? contactSection(item) : draftSection(item),
   );
+}
+
+// En contacto directo solo se cambia la conversación: lo que el profesional escribe se mantiene.
+async function refreshConversation(caseId) {
+  try {
+    const item = await api(`/api/clinician/cases/${encodeURIComponent(caseId)}`);
+    const current = nodes.detail.querySelector(".conversation-section");
+    if (state.selected !== caseId || !current) return;
+    if (item.status !== IN_CONTACT) { renderDetail(item); return; }
+    const scroller = current.querySelector(".conversation");
+    const atBottom = !scroller || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 8;
+    const fresh = conversationSection(item.messages || []);
+    current.replaceWith(fresh);
+    const list = fresh.querySelector(".conversation");
+    if (list && atBottom) list.scrollTop = list.scrollHeight;
+  } catch { /* el siguiente sondeo lo intenta de nuevo */ }
 }
 
 function summarySection(item) {
@@ -141,8 +163,9 @@ function conversationSection(messages) {
     row.append(element("div", message.content, "bubble"), element("span", `${ROLES[message.role] || message.role} · ${formatDate(message.created_at)}`, "bubble-meta"));
     list.append(row);
   }
-  const section = element("div", null, "case-section");
+  const section = element("div", null, "case-section conversation-section");
   section.append(element("h3", "Conversación"), messages.length ? list : element("p", "Sin mensajes.", "muted"));
+  requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
   return section;
 }
 
@@ -176,11 +199,49 @@ function actions(item, text, notice) {
   const modify = actionButton("Enviar mi versión", () => run(`/api/clinician/cases/${item.id}/modify`, { text: text.value }, notice, false));
   modify.disabled = !item.deliverable;
   text.addEventListener("input", () => { approve.disabled = !ready || !item.deliverable || text.value.trim() !== (item.draft || "").trim(); });
-  const contact = actionButton("Contacto directo", () => {});
-  contact.disabled = true;
-  contact.title = "Disponible en la siguiente fase";
+  const contact = actionButton("Contacto directo", () => run(`/api/clinician/cases/${item.id}/contact`, null, notice, true));
+  contact.disabled = !item.deliverable;
+  contact.title = "Escribirle a la persona en su mismo chat; el asistente deja de responder mientras dure.";
   row.append(draft, approve, modify, contact);
   return row;
+}
+
+function contactSection(item) {
+  const section = element("div", null, "case-section");
+  const text = element("textarea", null, "contact-input");
+  text.placeholder = "Escribe tu mensaje para la persona.";
+  text.setAttribute("aria-label", "Mensaje para la persona");
+  const notice = element("p", null, "notice");
+  notice.hidden = true;
+  const send = actionButton("Enviar", () => sendContactMessage(item.id, text, notice));
+  text.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) send.click();
+  });
+  const close = actionButton("Cerrar contacto", () => run(`/api/clinician/cases/${item.id}/close`, null, notice, false, CLOSED_TEXT));
+  const row = element("div", null, "actions");
+  row.append(send, close);
+  section.append(
+    element("h3", "Contacto directo"),
+    element("p", "La persona lee tus mensajes como «Profesional de salud» en su mismo chat. Mientras dure el contacto el asistente no le responde, pero sus avisos de alarma siguen saliendo de inmediato. Ctrl+Enter envía.", "muted"),
+    text, row, notice,
+  );
+  return section;
+}
+
+async function sendContactMessage(caseId, text, notice) {
+  const message = text.value.trim();
+  if (!message) return;
+  notice.hidden = true;
+  try {
+    await api(`/api/clinician/cases/${caseId}/messages`, { method: "POST", body: JSON.stringify({ text: message }) });
+    text.value = "";
+    refreshConversation(caseId);
+  } catch (error) {
+    if (error.message === "401") return;
+    notice.hidden = false;
+    notice.className = "notice error";
+    notice.textContent = error.message;
+  }
 }
 
 function actionButton(label, handler) {
@@ -190,7 +251,7 @@ function actionButton(label, handler) {
   return button;
 }
 
-async function run(path, body, notice, reopen) {
+async function run(path, body, notice, reopen, doneText = SENT_TEXT) {
   notice.hidden = false;
   notice.className = "notice";
   notice.textContent = "Procesando…";
@@ -198,7 +259,7 @@ async function run(path, body, notice, reopen) {
     const item = await api(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
     if (reopen) { openCase(item.id); return; }
     state.selected = null;
-    nodes.detail.replaceChildren(element("p", "Respuesta enviada a la persona. El caso quedó cerrado.", "notice"));
+    nodes.detail.replaceChildren(element("p", doneText, "notice"));
     loadCases();
   } catch (error) {
     if (error.message === "401") return;

@@ -17,7 +17,11 @@ class CaseRepository(Protocol):
         ...
 
     def save(self, case: ClinicalCase) -> None:
-        """Crea o actualiza un caso de la persona."""
+        """Crea un caso o actualiza sus brechas, su resumen o su vencimiento.
+
+        No cambia el estado ni el borrador (son del profesional): si el estado guardado ya no
+        es el del caso recibido, no hace nada.
+        """
         ...
 
 

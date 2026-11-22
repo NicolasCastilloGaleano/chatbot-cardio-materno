@@ -1,6 +1,7 @@
 """Dobles de prueba compartidos para los puertos de la aplicación."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -293,7 +294,13 @@ class InMemoryCaseRepository:
         return next((case for case in self.cases.values() if case.is_open), None)
 
     def save(self, case: ClinicalCase) -> None:
-        self.cases[case.id] = case
+        stored = self.cases.get(case.id)
+        if stored is None:
+            self.cases[case.id] = case
+        elif stored.status is case.status:
+            self.cases[case.id] = replace(
+                case, draft=stored.draft, draft_status=stored.draft_status
+            )
 
 
 class InMemoryThreadRepository:

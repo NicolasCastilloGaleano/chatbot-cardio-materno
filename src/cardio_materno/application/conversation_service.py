@@ -121,7 +121,13 @@ from cardio_materno.domain.conversation import (
     open_thread,
     update_thread,
 )
-from cardio_materno.domain.escalation import open_case, with_new_gap
+from cardio_materno.domain.escalation import (
+    CaseStatus,
+    ClinicalCase,
+    open_case,
+    renewed,
+    with_new_gap,
+)
 from cardio_materno.domain.grounding import (
     GroundingPolicy,
     has_question,
@@ -309,6 +315,8 @@ class TurnResult:
         out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
         urgent_guidance: Orientación que el canal puede pedir después de entregar el aviso.
         escalated_case_id: Caso del profesional que abrió o sumó el turno (HU-16).
+        relayed: True si el mensaje fue al profesional en contacto directo y el asistente
+            no respondió (la respuesta está vacía, salvo el aviso de una alarma).
     """
 
     reply: str
@@ -319,6 +327,7 @@ class TurnResult:
     out_of_scope: bool = False
     urgent_guidance: UrgentGuidanceRequest | None = None
     escalated_case_id: str | None = None
+    relayed: bool = False
 
 
 @dataclass(frozen=True)
@@ -405,6 +414,9 @@ class ConversationService:
         current = self._active_thread()
         turn = TurnInput(user_text, self._recent(current))
         pre = self._config.alarm_policy.evaluate([user_text], AlertOrigin.USER)
+        contact = self._contact_case()
+        if contact is not None:
+            return self._relay(contact, user_text, pre)
         if pre is not None and pre.is_immediate:
             outcome = TurnOutcome(compose_reply([pre], None), (pre,))
         else:
@@ -921,6 +933,35 @@ class ConversationService:
             case = replace(case, notified=notified)
         cases.save(case)
         return replace(result, escalated_case_id=case.id)
+
+    def _contact_case(self) -> ClinicalCase | None:
+        """Caso en contacto directo de la persona, si lo hay (fase 3 de la HU-16)."""
+        cases = self._ports.cases
+        case = cases.open_case() if cases is not None else None
+        return case if case is not None and case.status is CaseStatus.IN_CONTACT else None
+
+    def _relay(self, case: ClinicalCase, user_text: str, pre: AlarmDecision | None) -> TurnResult:
+        """Contacto directo: guarda el mensaje para el profesional, sin llamar a ningún modelo.
+
+        El filtro 1 ya corrió: si el mensaje tiene una alarma, la persona recibe su aviso fijo
+        de inmediato y la alerta queda en el hilo del caso, donde la ve el profesional.
+        """
+        thread = self._ports.repository.get_thread(case.thread_id)
+        if thread is None:
+            raise KeyError(case.thread_id)
+        reply = ""
+        alerts: tuple[Alert, ...] = ()
+        if pre is None:
+            message = ChatMessage(Role.USER, user_text, thread.id, self._config.clock())
+            self._ports.repository.append_message(message)
+        else:
+            reply = compose_reply([pre], None)
+            alerts = self._record(thread.id, user_text, TurnOutcome(reply, (pre,)))
+        if self._ports.cases is not None:
+            self._ports.cases.save(
+                renewed(case, self._config.clock(), self._config.escalation_window)
+            )
+        return TurnResult(reply, thread, False, alerts, relayed=True)
 
     # --- Hilo y registro --------------------------------------------------------------
 

@@ -161,3 +161,5 @@ Clase: `domain/user.py::User`.
 | `draft_text`, `draft_status` | TEXT | Borrador del profesional, sin respaldo de la base, y su estado: `sin_generar`, `listo` o `fallido` (fase 2) |
 
 En `messages.role` se agrega `clinician`: mensaje de un profesional de salud en un caso escalado. Nunca llega así al modelo: se convierte en un mensaje del asistente con el prefijo "Profesional de salud:".
+
+Cada lado escribe solo sus campos (fase 3): el turno de la persona, `notified`, `gap_count`, `snapshot_json` y `expires_at`, y solo si `status` no cambió; el profesional, `status`, `closed_at`, `draft_text` y `draft_status`, con la condición de que `status` siga siendo el que leyó.

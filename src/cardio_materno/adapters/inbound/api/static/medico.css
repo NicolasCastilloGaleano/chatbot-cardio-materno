@@ -73,6 +73,15 @@
   font: 400 13px/1.6 "DM Sans", system-ui, sans-serif;
   resize: vertical;
 }
+.contact-input {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: 400 13px/1.6 "DM Sans", system-ui, sans-serif;
+  resize: vertical;
+}
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--soft); color: var(--deep); font-size: 13px; }

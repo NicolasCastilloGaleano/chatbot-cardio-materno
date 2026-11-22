@@ -230,3 +230,58 @@ def test_no_context_sent_to_the_model_carries_the_clinician_role() -> None:
     context = reply_context("PROMPT", analysis, TurnInput("gracias", recent), "EVIDENCIA")
 
     assert all(message.role is not Role.CLINICIAN for message in context)
+
+
+# --- Contacto directo (fase 3) ------------------------------------------------------------
+
+
+def test_direct_contact_opens_carries_messages_and_closes(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clinician = review(database)
+
+    started = clinician.start_contact(case_id)
+    clinician.send_message(case_id, "  Hola, soy la enfermera. ¿Desde cuándo?  ")
+    closed = clinician.end_contact(case_id)
+
+    last = thread_messages(database, "ana")[-1]
+    assert started.case.status is CaseStatus.IN_CONTACT
+    assert (last.role, last.content) == (Role.CLINICIAN, "Hola, soy la enfermera. ¿Desde cuándo?")
+    assert closed.case.status is CaseStatus.CLOSED and closed.case.closed_at == NOW
+    assert clinician.pending_cases() == []
+
+
+def test_a_contact_case_stays_listed_until_it_closes(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clinician = review(database)
+    clinician.start_contact(case_id)
+
+    assert [found.case.status for found in clinician.pending_cases()] == [CaseStatus.IN_CONTACT]
+
+
+def test_messages_need_an_open_contact(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clinician = review(database)
+
+    with pytest.raises(CaseConflictError):
+        clinician.send_message(case_id, "Hola.")
+    with pytest.raises(CaseConflictError):
+        clinician.end_contact(case_id)
+    assert len(thread_messages(database, "ana")) == 1
+
+
+def test_an_expired_contact_cannot_receive_messages(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clock = Clock()
+    clinician = review(database, clock=clock)
+    clinician.start_contact(case_id)
+    clock.now = NOW + WINDOW
+
+    with pytest.raises(CaseConflictError):
+        clinician.send_message(case_id, "Tarde.")
+
+
+def test_whatsapp_contact_waits_for_phase_four(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana", Channel.WHATSAPP)
+
+    with pytest.raises(CaseChannelNotSupportedError):
+        review(database).start_contact(case_id)

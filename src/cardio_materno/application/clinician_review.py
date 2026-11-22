@@ -23,6 +23,7 @@ from cardio_materno.application.ports.user_thread_store import UserThreadStore
 from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.escalation import (
     CaseAction,
+    CaseStatus,
     ClinicalCase,
     DraftStatus,
     InvalidCaseTransitionError,
@@ -34,10 +35,11 @@ logger = logging.getLogger(__name__)
 MSG_EXPIRED = "El caso venció: pasó la ventana desde el último mensaje de la persona."
 MSG_CHANGED = "El caso cambió mientras lo revisabas. Vuelve a abrirlo."
 MSG_CHANNEL = "Responder por este canal estará disponible más adelante (HU-16, fase 4)."
+MSG_NOT_IN_CONTACT = "El caso no está en contacto directo."
 
 
 class ClinicianReview:
-    """Casos del profesional: listar, preparar el borrador, aprobar y modificar."""
+    """Casos del profesional: listar, borrador, aprobar, modificar y contacto directo."""
 
     def __init__(
         self,
@@ -113,6 +115,47 @@ class ClinicianReview:
         """
         return self._resolve(self.case(case_id), CaseAction.MODIFY, text.strip())
 
+    def start_contact(self, case_id: str) -> InboxCase:
+        """Abre el contacto directo: los mensajes nuevos de la persona van al profesional.
+
+        Raises:
+            CaseNotFoundError: Si no existe.
+            CaseConflictError: Si el caso ya no admite la acción o venció.
+            CaseChannelNotSupportedError: Si todavía no se puede responder por su canal.
+        """
+        return self._transition(self.case(case_id), CaseAction.START_CONTACT)
+
+    def send_message(self, case_id: str, text: str) -> InboxCase:
+        """Envía un mensaje del profesional durante el contacto directo.
+
+        Raises:
+            CaseNotFoundError: Si no existe.
+            CaseConflictError: Si el caso no está en contacto directo o venció.
+        """
+        found = self.case(case_id)
+        now = self._clock()
+        if found.case.status is not CaseStatus.IN_CONTACT:
+            raise CaseConflictError(MSG_NOT_IN_CONTACT)
+        if found.case.is_expired(now):
+            raise CaseConflictError(MSG_EXPIRED)
+        self._deliver(found, text.strip())
+        return found
+
+    def end_contact(self, case_id: str) -> InboxCase:
+        """Cierra el contacto directo: el asistente vuelve a responder en el siguiente mensaje.
+
+        Raises:
+            CaseNotFoundError: Si no existe.
+            CaseConflictError: Si el caso no está en contacto directo.
+        """
+        found = self.case(case_id)
+        try:
+            updated = apply_action(found.case, CaseAction.CLOSE, self._clock())
+        except InvalidCaseTransitionError as error:
+            raise CaseConflictError(MSG_NOT_IN_CONTACT) from error
+        self._save(found, updated)
+        return replace(found, case=updated)
+
     def _with_draft(self, case: ClinicalCase) -> ClinicalCase:
         """El caso con su borrador listo o, si el modelo falla, marcado como fallido."""
         try:
@@ -123,7 +166,13 @@ class ClinicianReview:
         return replace(case, draft=draft, draft_status=DraftStatus.READY)
 
     def _resolve(self, found: InboxCase, action: CaseAction, text: str) -> InboxCase:
-        """Aplica la acción, guarda el caso y entrega el mensaje del profesional."""
+        """Aplica la acción y entrega el mensaje del profesional."""
+        resolved = self._transition(found, action)
+        self._deliver(found, text)
+        return resolved
+
+    def _transition(self, found: InboxCase, action: CaseAction) -> InboxCase:
+        """Aplica una acción del profesional si el canal lo admite y el caso no venció."""
         if found.channel not in DIRECT_CHANNELS:
             raise CaseChannelNotSupportedError(MSG_CHANNEL)
         now = self._clock()
@@ -134,9 +183,12 @@ class ClinicianReview:
         except InvalidCaseTransitionError as error:
             raise CaseConflictError(str(error)) from error
         self._save(found, updated)
-        message = ChatMessage(Role.CLINICIAN, text, found.case.thread_id, now)
-        self._threads.scoped(found.user_id).append_message(message)
         return replace(found, case=updated)
+
+    def _deliver(self, found: InboxCase, text: str) -> None:
+        """Guarda el mensaje del profesional en el hilo del caso."""
+        message = ChatMessage(Role.CLINICIAN, text, found.case.thread_id, self._clock())
+        self._threads.scoped(found.user_id).append_message(message)
 
     def _save(self, found: InboxCase, updated: ClinicalCase) -> None:
         """Guarda el caso solo si nadie lo cambió desde que se leyó."""

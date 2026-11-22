@@ -182,7 +182,13 @@ class HandleIncomingMessage:
             logger.warning("No se pudo enviar el aviso de espera: %s", error)
 
     def _deliver_reply(self, message: IncomingMessage, user_id: str, result: TurnResult) -> None:
-        """Envía la respuesta en las partes que hagan falta."""
+        """Envía la respuesta en las partes que hagan falta (nada si quedó vacía).
+
+        En contacto directo con un profesional (HU-16) el asistente no responde: la respuesta
+        está vacía, salvo el aviso de una alarma.
+        """
+        if not result.reply:
+            return
         thread_id = result.thread.id if result.thread is not None else None
         for part in split_message(result.reply, self._config.max_message_chars):
             self._deliver(message, user_id, part, OutboundKind.REPLY, thread_id)

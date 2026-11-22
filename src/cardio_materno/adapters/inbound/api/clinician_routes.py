@@ -36,7 +36,7 @@ MAX_REPLY_CHARS = 4000
 
 
 class ModifyRequest(BaseModel):
-    """Respuesta escrita o editada por el profesional.
+    """Respuesta o mensaje escrito por el profesional.
 
     Attributes:
         text: Texto que recibirá la persona.
@@ -89,6 +89,33 @@ def add_clinician_routes(
     def modify(case_id: str, body: ModifyRequest) -> dict[str, Any]:
         """Envía el texto del profesional."""
         return case_to_dict(run_case_action(lambda: review.modify(case_id, body.text)))
+
+    add_contact_routes(app, review, guard)
+
+
+def add_contact_routes(app: FastAPI, review: ClinicianReview, guard: Any) -> None:
+    """Registra las rutas del contacto directo (fase 3 de la HU-16).
+
+    Args:
+        app: Aplicación FastAPI.
+        review: Casos del profesional.
+        guard: Dependencia que exige la clave del profesional.
+    """
+
+    @app.post("/api/clinician/cases/{case_id}/contact", dependencies=[guard])
+    def start_contact(case_id: str) -> dict[str, Any]:
+        """Abre el contacto directo: los mensajes de la persona llegan al profesional."""
+        return case_to_dict(run_case_action(lambda: review.start_contact(case_id)))
+
+    @app.post("/api/clinician/cases/{case_id}/messages", dependencies=[guard])
+    def send_message(case_id: str, body: ModifyRequest) -> dict[str, Any]:
+        """Envía un mensaje del profesional durante el contacto."""
+        return case_to_dict(run_case_action(lambda: review.send_message(case_id, body.text)))
+
+    @app.post("/api/clinician/cases/{case_id}/close", dependencies=[guard])
+    def end_contact(case_id: str) -> dict[str, Any]:
+        """Cierra el contacto: el asistente vuelve a responder."""
+        return case_to_dict(run_case_action(lambda: review.end_contact(case_id)))
 
 
 def key_checker(access_key: str) -> Callable[[str], None]:

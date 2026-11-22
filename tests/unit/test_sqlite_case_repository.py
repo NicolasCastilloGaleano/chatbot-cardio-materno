@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from cardio_materno.adapters.outbound.persistence.sqlite_case_repository import SqliteCaseStore
+from cardio_materno.adapters.outbound.persistence.sqlite_case_repository import (
+    SqliteCaseInbox,
+    SqliteCaseStore,
+)
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     IN_MEMORY,
     SCHEMA_V1,
@@ -25,7 +28,9 @@ from cardio_materno.domain.conversation import Domain, open_thread
 from cardio_materno.domain.escalation import (
     CaseAction,
     CaseSnapshot,
+    CaseStatus,
     ClinicalCase,
+    DraftStatus,
     apply_action,
     open_case,
 )
@@ -82,9 +87,26 @@ def test_updates_are_kept_and_a_closed_case_is_not_open(database: SqliteDatabase
 
     ana.save(replace(case(), gap_count=3))
     assert (current := ana.open_case()) is not None and current.gap_count == 3
-    ana.save(apply_action(case(), CaseAction.APPROVE, NOW))
+    SqliteCaseInbox(database).update_if(
+        apply_action(current, CaseAction.APPROVE, NOW), current.status
+    )
 
     assert ana.open_case() is None
+
+
+def test_a_stale_turn_never_reverts_what_the_clinician_did(database: SqliteDatabase) -> None:
+    ana, inbox = SqliteCaseStore(database).scoped("ana"), SqliteCaseInbox(database)
+    ana.save(case())
+    drafted = replace(case(), draft="Borrador.", draft_status=DraftStatus.READY)
+    inbox.update_if(drafted, CaseStatus.PENDING)
+
+    ana.save(replace(case(), gap_count=2))
+    inbox.update_if(apply_action(drafted, CaseAction.START_CONTACT, NOW), CaseStatus.PENDING)
+    ana.save(replace(case(), gap_count=5))
+
+    current = ana.open_case()
+    assert current is not None and current.status is CaseStatus.IN_CONTACT
+    assert (current.gap_count, current.draft) == (2, "Borrador.")
 
 
 def test_only_one_open_case_per_person(database: SqliteDatabase) -> None:
