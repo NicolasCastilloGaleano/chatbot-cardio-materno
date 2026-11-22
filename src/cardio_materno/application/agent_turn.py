@@ -45,35 +45,20 @@ def analysis_schema(sign_codes: Sequence[str]) -> dict[str, Any]:
     signs: dict[str, Any] = {"type": "array", "items": {"type": "string", "enum": list(sign_codes)}}
     if not sign_codes:
         signs = {"type": "array", "items": {"type": "string"}, "maxItems": 0}
-    return {
-        "type": "object",
-        "properties": {
-            "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
-            "domain": {"type": "string", "enum": [d.value for d in Domain]},
-            "summary": {"type": "string"},
-            "reported_symptoms": {"type": "array", "items": {"type": "string"}},
-            "reported_signs": signs,
-            "search_query": {"type": "string"},
-            "scope": {"type": "string", "enum": [s.value for s in Scope]},
-            "scope_reason": {"type": "string"},
-            "about_health": {"type": "boolean"},
-            "wants_guidance": {"type": "boolean"},
-            "asks_information": {"type": "boolean"},
-        },
-        "required": [
-            "thread_action",
-            "domain",
-            "summary",
-            "reported_symptoms",
-            "reported_signs",
-            "search_query",
-            "scope",
-            "scope_reason",
-            "about_health",
-            "wants_guidance",
-            "asks_information",
-        ],
+    properties: dict[str, Any] = {
+        "thread_action": {"type": "string", "enum": [a.value for a in ThreadAction]},
+        "domain": {"type": "string", "enum": [d.value for d in Domain]},
+        "summary": {"type": "string"},
+        "reported_symptoms": {"type": "array", "items": {"type": "string"}},
+        "reported_signs": signs,
+        "search_query": {"type": "string"},
+        "scope": {"type": "string", "enum": [s.value for s in Scope]},
+        "scope_reason": {"type": "string"},
+        "about_health": {"type": "boolean"},
+        "wants_guidance": {"type": "boolean"},
+        "asks_information": {"type": "boolean"},
     }
+    return {"type": "object", "properties": properties, "required": list(properties)}
 
 
 # Esquema sin códigos de signos (catálogo sin códigos o pruebas).

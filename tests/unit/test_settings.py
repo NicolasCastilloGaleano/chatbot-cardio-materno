@@ -1,6 +1,7 @@
 """Pruebas de la configuración y del cargador de `.env`."""
 
 import os
+from dataclasses import fields
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     SELECTION_MODEL_VARIABLE,
     ConfigurationError,
+    PolicyOverrides,
     WebSettings,
     load_conversation_settings,
     load_ollama_settings,
@@ -417,3 +419,9 @@ def test_escalation_is_off_by_default_and_reads_its_mode_and_window(tmp_path: Pa
     assert (active.escalation, active.escalation_window_hours) == ("activo", 12)
     with pytest.raises(ConfigurationError, match="ESCALATION_MODE"):
         load_conversation_settings({"ESCALATION_MODE": "siempre"}, tmp_path)
+
+
+def test_every_policy_override_names_a_field_of_the_evidence_policy() -> None:
+    policy_fields = {field.name for field in fields(EvidencePolicy)}
+
+    assert {field.name for field in fields(PolicyOverrides)} <= policy_fields

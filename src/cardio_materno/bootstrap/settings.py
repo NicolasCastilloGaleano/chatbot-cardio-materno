@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
 from cardio_materno.application.conversation_service import UrgentGuidanceActivation
@@ -521,25 +522,32 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
         in TRUE_VALUES,
         threads_dir=threads_dir,
         alarm_rules_file=alarm_rules_file,
-        inquiry_activation=_get_activation(
+        escalation_window_hours=_get_int(
+            env, "ESCALATION_WINDOW_HOURS", DEFAULT_ESCALATION_WINDOW_HOURS
+        ),
+        **_load_modes(env),
+    )
+
+
+def _load_modes(env: Mapping[str, str]) -> dict[str, Any]:
+    """Modos de activación de la conversación: indagación, selector, urgencia y escalamiento."""
+    return {
+        "inquiry_activation": _get_activation(
             env, INQUIRY_MODE_VARIABLE, DEFAULT_INQUIRY_MODE, InquiryActivation
         ),
-        selection_activation=_get_activation(
+        "selection_activation": _get_activation(
             env, SELECTION_MODE_VARIABLE, DEFAULT_SELECTION_MODE, SelectionActivation
         ),
-        urgent_guidance=_get_activation(
+        "urgent_guidance": _get_activation(
             env,
             URGENT_GUIDANCE_MODE_VARIABLE,
             DEFAULT_URGENT_GUIDANCE_MODE,
             UrgentGuidanceActivation,
         ),
-        escalation=_get_activation(
+        "escalation": _get_activation(
             env, ESCALATION_MODE_VARIABLE, DEFAULT_ESCALATION_MODE, EscalationMode
         ),
-        escalation_window_hours=_get_int(
-            env, "ESCALATION_WINDOW_HOURS", DEFAULT_ESCALATION_WINDOW_HOURS
-        ),
-    )
+    }
 
 
 def _get_activation[E: StrEnum](

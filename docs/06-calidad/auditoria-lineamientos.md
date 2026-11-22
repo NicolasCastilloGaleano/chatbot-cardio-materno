@@ -75,3 +75,7 @@ Revisión periódica de que el proyecto sigue sus propias reglas (AGENTS.md, la 
 **Ítems que se proponen para la checklist:**
 - **C17 (AGENTS.md §4, ADR 0023):** los datos personales temporales se borran a tiempo. Cómo: pruebas de purga de `case_addresses` y consulta a la base del PC tras cerrar un caso.
 - **C18 (AGENTS.md §1, pruebas en otro equipo):** `pytest -m live` se ejecutó en el PC antes de cada fusión que toca el agente. Cómo: fila en la bitácora con el resultado.
+
+**Correcciones aplicadas (2026-11-22, a pedido del usuario):**
+- **C01 ⚠️ → ✅:** el cliente HTTP de Ollama y `DEFAULT_KEEP_ALIVE` pasan a `adapters/outbound/shared/ollama_http.py`; ningún adaptador importa a otro. Convención agregada en AGENTS.md §2 y en los estándares de código.
+- **C02 ⚠️ → ✅:** ninguna función de `src/` pasa de 25 líneas. Se partieron el registro de rutas de la web (4 grupos) y de `/medico` (3 grupos), `analysis_schema`, `apply_policy_overrides` y `load_conversation_settings`, con una prueba nueva para `PolicyOverrides`.

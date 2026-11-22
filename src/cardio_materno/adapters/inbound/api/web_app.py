@@ -134,8 +134,10 @@ def create_app(
     app = FastAPI(title=APP_TITLE, docs_url=None, redoc_url=None, openapi_url=None)
     entry_index = {entry.id: entry for entry in entries}
     _add_page_routes(app)
-    _add_chat_routes(app, chats, audit, options)
-    _add_message_routes(app, chats, audit, entry_index, options)
+    _add_listing_routes(app, audit, options)
+    _add_chat_routes(app, chats, audit)
+    _add_read_route(app, audit, entry_index, options)
+    _add_send_route(app, chats, audit, entry_index)
     if clinician is not None:
         page = STATIC_DIR / "medico.html"
         add_clinician_routes(app, clinician.review, audit, clinician.access_key, page)
@@ -159,10 +161,8 @@ def _add_page_routes(app: FastAPI) -> None:
         return FileResponse(asset, headers=NO_CACHE_HEADERS)
 
 
-def _add_chat_routes(
-    app: FastAPI, chats: DirectChat, audit: ChatAudit, options: WebOptions
-) -> None:
-    """Registra la configuración, la lista de chats, el chat nuevo y la liberación."""
+def _add_listing_routes(app: FastAPI, audit: ChatAudit, options: WebOptions) -> None:
+    """Registra la configuración de la interfaz y la lista de chats."""
 
     @app.get("/api/config")
     def config() -> dict[str, Any]:
@@ -184,6 +184,10 @@ def _add_chat_routes(
         selected = parse_channel(channel)
         return [chat_to_dict(chat) for chat in audit.list_chats(selected, limit, offset)]
 
+
+def _add_chat_routes(app: FastAPI, chats: DirectChat, audit: ChatAudit) -> None:
+    """Registra el chat nuevo, el resumen de un chat y la liberación de una consola."""
+
     @app.post("/api/chats", status_code=201)
     def new_chat() -> dict[str, Any]:
         """Nueva sesión: crea un chat web vacío."""
@@ -204,11 +208,8 @@ def _add_chat_routes(
         return chat_to_dict(require_chat(audit, user_id))
 
 
-def _add_message_routes(
-    app: FastAPI, chats: DirectChat, audit: ChatAudit, entries: Entries, options: WebOptions
-) -> None:
-    """Registra la lectura por páginas y el envío de mensajes."""
-    locks = ChatLocks()
+def _add_read_route(app: FastAPI, audit: ChatAudit, entries: Entries, options: WebOptions) -> None:
+    """Registra la lectura de los mensajes por páginas."""
 
     @app.get("/api/chats/{user_id}/messages")
     def messages(
@@ -226,6 +227,11 @@ def _add_message_routes(
             else audit.message_page(user_id, before, size)
         )
         return page_to_dict(chat, page, audit.pending_inbound(user_id), entries)
+
+
+def _add_send_route(app: FastAPI, chats: DirectChat, audit: ChatAudit, entries: Entries) -> None:
+    """Registra el envío de mensajes, uno a la vez por chat."""
+    locks = ChatLocks()
 
     @app.post("/api/chats/{user_id}/messages")
     def send(user_id: str, request: SendMessageRequest) -> dict[str, Any]:

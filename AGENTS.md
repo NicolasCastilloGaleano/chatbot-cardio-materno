@@ -27,13 +27,14 @@ src/cardio_materno/
   adapters/
     inbound/     console, telegram, whatsapp, api (FastAPI): traducen el mensaje del canal → caso de uso
     outbound/    llm, rag, persistence, notifications: implementan los puertos
+      shared/    código común de infraestructura (p. ej., el cliente HTTP de Ollama), sin puertos
   bootstrap/     Composition root: arma las dependencias según la configuración
   prompts/       Prompts del LLM versionados (nombre_vN.md), registrados en docs/05-ia/prompts/README.md
 ```
 **Regla de dependencias (inviolable):** las dependencias van solo hacia adentro.
 - `domain` no importa nada del proyecto ni librerías de infraestructura (FastAPI, SDKs, ORM, HTTP).
 - `application` importa solo `domain`.
-- `adapters` importa `application` y `domain`, nunca otro adaptador.
+- `adapters` importa `application` y `domain`, nunca otro adaptador. Lo que dos adaptadores comparten va en `adapters/outbound/shared/`.
 - Solo `bootstrap` conoce todo.
 
 **Regla de seguridad clínica (ADR 0004):** la detección de **signos de alarma**, la **clasificación de riesgo** y la **ruta de atención** son reglas deterministas y probadas en `domain/`. El LLM **solo** interpreta el lenguaje natural y redacta las respuestas; **nunca decide** si hay alarma ni a dónde remitir.

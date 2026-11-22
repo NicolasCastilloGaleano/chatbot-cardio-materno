@@ -63,6 +63,21 @@ def add_clinician_routes(
         """Entrega la página del profesional (la API exige la clave)."""
         return FileResponse(page, headers={"Cache-Control": "no-cache"})
 
+    add_case_routes(app, review, audit, guard)
+    add_reply_routes(app, review, guard)
+    add_contact_routes(app, review, guard)
+
+
+def add_case_routes(app: FastAPI, review: ClinicianReview, audit: ChatAudit, guard: Any) -> None:
+    """Registra la lista de casos abiertos y el detalle de un caso.
+
+    Args:
+        app: Aplicación FastAPI.
+        review: Casos del profesional.
+        audit: Lectura de los chats, para mostrar la conversación del caso.
+        guard: Dependencia que exige la clave del profesional.
+    """
+
     @app.get("/api/clinician/cases", dependencies=[guard])
     def list_cases() -> list[dict[str, Any]]:
         """Casos abiertos, del más antiguo al más nuevo."""
@@ -74,6 +89,16 @@ def add_clinician_routes(
         found = run_case_action(lambda: review.case(case_id))
         view = case_view(review, found)
         return {**view, "messages": conversation(audit, found.user_id)}
+
+
+def add_reply_routes(app: FastAPI, review: ClinicianReview, guard: Any) -> None:
+    """Registra el borrador y las respuestas que resuelven el caso (aprobar o modificar).
+
+    Args:
+        app: Aplicación FastAPI.
+        review: Casos del profesional.
+        guard: Dependencia que exige la clave del profesional.
+    """
 
     @app.post("/api/clinician/cases/{case_id}/draft", dependencies=[guard])
     def prepare_draft(case_id: str) -> dict[str, Any]:
@@ -89,8 +114,6 @@ def add_clinician_routes(
     def modify(case_id: str, body: ModifyRequest) -> dict[str, Any]:
         """Envía el texto del profesional."""
         return case_view(review, run_case_action(lambda: review.modify(case_id, body.text)))
-
-    add_contact_routes(app, review, guard)
 
 
 def add_contact_routes(app: FastAPI, review: ClinicianReview, guard: Any) -> None:

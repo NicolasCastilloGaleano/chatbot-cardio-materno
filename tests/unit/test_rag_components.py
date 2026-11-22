@@ -12,7 +12,6 @@ import numpy as np
 import pytest
 from scripts.export_pilot_kb import main as export_main
 
-from cardio_materno.adapters.outbound.llm.ollama_http import OllamaTimeoutError
 from cardio_materno.adapters.outbound.rag.bm25 import Bm25Index, tokenize
 from cardio_materno.adapters.outbound.rag.hybrid_retriever import HybridRetriever, fuse_rankings
 from cardio_materno.adapters.outbound.rag.kb_index_builder import build_index
@@ -32,6 +31,7 @@ from cardio_materno.adapters.outbound.rag.vector_index import (
     load_index,
     save_index,
 )
+from cardio_materno.adapters.outbound.shared.ollama_http import OllamaTimeoutError
 from cardio_materno.application.agent_turn import AnalysisTurn, ThreadAction
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import EvidencePolicy, build_evidence_query
