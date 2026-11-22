@@ -107,6 +107,8 @@ flowchart TD
 - **Orden:** una cola con un trabajador procesa los mensajes en orden de llegada.
 
 ### Contacto directo con el profesional (HU-16, fase 3; ADR 0022)
+El ciclo completo del caso está en [flujo-escalamiento.md](flujo-escalamiento.md).
+
 Si la persona tiene un caso `en_contacto`, el turno es otro:
 1. Corre el filtro 1 de alarmas, como siempre.
 2. Sin alarma: el mensaje se guarda en el hilo del caso y **no se llama a ningún modelo**; la persona no recibe respuesta del asistente (`relayed`). Con alarma: recibe el aviso fijo de inmediato y la alerta queda en el hilo.

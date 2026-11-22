@@ -1,6 +1,6 @@
 # Auditoría de cumplimiento de lineamientos
 
-*Última actualización: 2026-10-10*
+*Última actualización: 2026-11-22*
 
 Revisión periódica de que el proyecto sigue sus propias reglas (AGENTS.md, la [DoD](../00-gestion/definition-of-done.md) y la matriz de impacto) y los *Lineamientos Generales PI II v4*. Se ejecuta con `/auditar-lineamientos` en cada Sprint Review y se agrega una sección de resultados con fecha.
 
@@ -49,3 +49,29 @@ Revisión periódica de que el proyecto sigue sus propias reglas (AGENTS.md, la 
 | C16 | ✅ | R-01 a R-08 y protección de datos al día | — |
 
 **Pendientes no delegables del equipo:** métricas de éxito del charter, roles (PO, líder técnico), responsables en la matriz de delegación del playbook y la retro del sprint 1.
+
+### 2026-11-22: auditoría 2 (Claude Code, rama `feat/hu-16-fase1-casos`; revisión humana pendiente)
+| ID | Resultado | Hallazgo | Acción propuesta |
+|---|---|---|---|
+| C01 | ⚠️ | `domain` y `application` limpios, pero `adapters/outbound/rag/ollama_embedder.py` importa de `adapters/outbound/llm` (`ollama_http`, `DEFAULT_KEEP_ALIVE`): un adaptador importa a otro (anterior a la HU-16) | Mover el cliente HTTP de Ollama y la constante a un módulo compartido (p. ej., `adapters/outbound/ollama_common.py`) o documentar la excepción en AGENTS.md §2 |
+| C02 | ⚠️ | ruff y mypy sin errores; sin `noqa` en `src/`. Seis funciones pasan de 25 líneas: `web_app._add_chat_routes` (37), `_add_message_routes` (35), `clinician_routes.add_clinician_routes` (35, HU-16), `agent_turn.analysis_schema` (32), `rag_setup.apply_policy_overrides` (31), `settings.load_conversation_settings` (27) | Partir las tres de rutas en grupos (como `add_contact_routes`); las otras tres son datos declarativos: dividir o aceptarlas como excepción en los estándares |
+| C03 | ✅ | 854 pruebas pasan sin Ollama; la HU-16 tiene pruebas por fase, incluida una de punta a punta del canal | — |
+| C04 | ✅ | Sin `.env`, `data/`, bases `.db` ni `RAG_2.xlsx` versionados; `.gitignore` los cubre | — |
+| C05 | ✅ | Cada commit de la HU-16 (fases 0 a 4) trae su entrada en el CHANGELOG y su fila en la bitácora; el hook lo exige | — |
+| C06 | ✅ | Sin referencias obsoletas a "fase 4" o "siguiente fase" en la página, el código ni las guías; esquema v4 documentado | — |
+| C07 | ✅ | ADR 0022 y 0023 con decisor humano y estado Propuesto; catálogo de alarmas marcado PROVISIONAL | El equipo y el equipo clínico deben revisarlos antes de aceptarlos |
+| C08 | ⚠️ | Conventional Commits en español y fusiones `--no-ff` aprobadas. Quedan muchas ramas locales ya fusionadas o abandonadas (`feat/fase2-3-base-v2-y-etapas`, `feat/mig-05-06-base-rag2`, `docs/plan-migracion-rag2`…) | Borrar las ramas locales ya fusionadas o abandonadas (con la aprobación del usuario) |
+| C09 | ✅ | Arquitectura con diagramas Mermaid, tabla de puertos al día (`CaseInbox`, `ClinicianOutbox`) y ADR hasta el 0023 | — |
+| C10 | ⚠️ | La columna "Responsable" de la matriz de delegación del playbook sigue en TODO (igual que en la auditoría 1) | **No delegable:** el equipo asigna responsables |
+| C11 | ⚠️ | 47 de 109 filas de la bitácora tienen el verificador en TODO; las de la HU-16 están "Pendiente de verificación" | Verificar en el PC con [el guion](../08-despliegue/prueba-escalamiento.md) y anotar el verificador |
+| C12 | ✅ | `clinical_cases`, `case_addresses` y `clinician_outbox` en el modelo y el diccionario de datos | — |
+| C13 | ⚠️ | `.github/workflows/ci.yml` existe (ruff, mypy, pytest); no se pudo ver la pestaña *Actions* (`gh` sin sesión en este equipo) | El usuario confirma en GitHub que la CI pasa en la rama antes de fusionar |
+| C14 | ⚠️ | Solo existe `sprint-01.md`, con la retro y la fecha en TODO; el charter tiene las métricas de éxito en TODO | **No delegable:** el equipo registra los sprints siguientes, la retro con el uso de IA y las métricas |
+| C15 | ⚠️ | Flujos Mermaid al día (incluido `flujo-escalamiento.md`); el único BPMN es `gestion-alerta.bpmn`, sin su `.svg`, y el escalamiento no tiene BPMN | Exportar el `.svg` y modelar el escalamiento en BPMN (demo.bpmn.io) si el equipo lo pide como entregable |
+| C16 | ✅ | Protección de datos con la sección de la HU-16 (número temporal, clave, borrador) y riesgo R-14 nuevo | — |
+
+**Pendientes no delegables del equipo:** responsables del playbook (C10), sprints, retro y métricas de éxito (C14), revisión de los ADR 0022 y 0023 y del prompt del borrador, la decisión sobre el filtro 2 durante el contacto directo, la validación clínica de las alarmas y el consentimiento (HU-01).
+
+**Ítems que se proponen para la checklist:**
+- **C17 (AGENTS.md §4, ADR 0023):** los datos personales temporales se borran a tiempo. Cómo: pruebas de purga de `case_addresses` y consulta a la base del PC tras cerrar un caso.
+- **C18 (AGENTS.md §1, pruebas en otro equipo):** `pytest -m live` se ejecutó en el PC antes de cada fusión que toca el agente. Cómo: fila en la bitácora con el resultado.

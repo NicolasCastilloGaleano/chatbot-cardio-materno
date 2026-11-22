@@ -50,6 +50,8 @@ Restricciones:
 
 **Fase 4 (2026-11-22):** WhatsApp sin exponer el número del profesional. El canal guarda la dirección del caso cuando el turno lo abre, lo suma o se desvía al profesional (`HandleIncomingMessage._remember_address`). Lo que el profesional aprueba, modifica o escribe en contacto se guarda en el hilo y, si la persona es de WhatsApp, en la bandeja `clinician_outbox`. El proceso de WhatsApp la revisa cada `OUTBOX_POLL_SECONDS` (`application/outbox_relay.py`, en un hilo `PeriodicTask`) y envía por el número del proyecto con la etiqueta "*Profesional de salud:*", partiendo los mensajes largos y registrándolos como `profesional` en `outbound_messages`. Un mensaje que falla no se reintenta. El portal muestra "ventana cerrada" y desactiva los botones si no hay dirección o pasaron 24 h.
 
+**Fase 5 (2026-11-22):** cierre documental. [Guía del profesional](../../08-despliegue/guia-profesional-salud.md), [guion de prueba de punta a punta](../../08-despliegue/prueba-escalamiento.md), [flujo del caso](../../03-procesos/flujos/flujo-escalamiento.md), protección de datos y riesgo R-14. **Pendiente para aceptar el ADR:** la prueba en el PC con el número de prueba de Meta, la revisión del equipo clínico (prompt del borrador, textos de espera y el filtro 2 durante el contacto) y el consentimiento (HU-01).
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|
