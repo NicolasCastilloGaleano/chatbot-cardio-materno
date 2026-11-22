@@ -897,3 +897,84 @@ Fuera de esta versión: la orientación de urgencia que no se envió (B-034), cu
 Riesgo: la consulta de búsqueda la reformula el análisis a partir del mensaje; si una persona escribe un dato personal en un síntoma, podría colarse. Hay que revisar el informe antes de compartirlo fuera del equipo.
 
 Estado: ✅ Aprobada por Santiago Silva (2026-11-06). Verificada en el PC de pruebas el 2026-11-06 con la base real: 4 turnos en 2 categorías, sin datos personales. Mejora pendiente: el informe identifica cada registro descartado por su primera frase, que fuera de contexto puede confundir (p. ej., un aviso de urgencias); mostrar la pregunta del registro exige guardarla en la traza.
+
+### HU-16: Escalamiento al profesional de salud cuando no hay evidencia
+**Como** persona que consulta, **quiero** que un profesional de salud revise mi pregunta cuando el asistente no tiene información validada, **para** recibir una respuesta en el mismo chat.
+**Como** profesional de salud, **quiero** ver un resumen del caso y una sugerencia de respuesta, **para** aprobarla, modificarla o hablar directamente con la persona sin exponer mi número.
+
+Decisiones del usuario (2026-11-22): el número de WhatsApp se guarda solo mientras el caso está abierto, máximo 24 h (ADR 0023); la sugerencia es un borrador del modelo marcado "sin respaldo de la base"; el profesional entra con una clave única del `.env` y el portal sigue solo en el propio equipo; mientras espera, la persona recibe un aviso de que lo revisa un profesional. Diseño en el ADR 0022.
+
+```gherkin
+Antecedentes:
+  Dado que ESCALATION_MODE es "activo"
+
+Escenario: Un turno sin evidencia pasa al profesional
+  Dado que la base no tiene información para mi consulta de salud
+  Cuando envío el mensaje
+  Entonces recibo el aviso de que un profesional de salud revisará mi consulta y me responderá en este mismo chat
+  Y el aviso me indica acudir a un servicio de salud si empeoro
+  Y se abre un caso con el resumen clínico de mi consulta
+
+Escenario: Un segundo vacío no abre otro caso
+  Dado que ya tengo un caso abierto
+  Cuando hago otra consulta sin evidencia
+  Entonces recibo un recordatorio de que mi consulta sigue en revisión
+  Y se usa el mismo caso
+
+Escenario: Una alarma nunca escala
+  Cuando mi mensaje activa una alarma
+  Entonces recibo el aviso fijo de inmediato, como hoy
+  Y no se abre ningún caso
+
+Escenario: Lo que no es un vacío no escala
+  Cuando el turno fue un saludo, fuera de alcance, una pregunta del asistente o una respuesta verificada
+  O cuando el buscador no estaba disponible
+  Entonces no se abre ningún caso
+
+Escenario: El profesional ve el caso
+  Dado que soy profesional y entré al apartado del médico con la clave
+  Cuando abro un caso pendiente
+  Entonces veo el resumen clínico, la conversación y un borrador marcado "sin respaldo de la base"
+  Y el borrador nunca se envía sin mi acción
+  Y si el borrador falla, puedo escribir la respuesta desde cero
+
+Escenario: Aprobar
+  Cuando apruebo el borrador
+  Entonces la persona lo recibe en su chat como mensaje de un "Profesional de salud"
+  Y el caso se cierra
+
+Escenario: Modificar
+  Cuando edito el borrador y lo envío
+  Entonces la persona recibe mi texto, no el borrador
+  Y el caso se cierra
+
+Escenario: Contacto directo
+  Cuando abro el contacto directo
+  Entonces los mensajes nuevos de la persona me llegan sin pasar por el asistente
+  Y mis mensajes le llegan en el mismo chat, sin mostrar mi número
+  Y cuando cierro el contacto, el asistente vuelve a responder en el siguiente mensaje
+
+Escenario: Las alarmas siguen durante el contacto directo
+  Dado que estoy en contacto directo con la persona
+  Cuando ella escribe un mensaje que activa una alarma
+  Entonces recibe el aviso fijo de inmediato
+  Y la alerta queda registrada en el caso
+
+Escenario: Sin clave no hay apartado del médico
+  Cuando entro sin la clave correcta, o CLINICIAN_ACCESS_KEY está vacía
+  Entonces no veo ningún caso
+
+Escenario: El caso vence
+  Dado que pasaron 24 h desde el último mensaje de la persona
+  Entonces el caso queda vencido
+  Y el profesional ve que la ventana se cerró y no puede enviar
+
+Escenario: El número de WhatsApp no se conserva
+  Cuando el caso se cierra o vence
+  Entonces la dirección de WhatsApp de la persona se borra de la base
+  Y el número nunca aparece en el portal, la auditoría ni los registros
+```
+
+Fuera de alcance: avisar al profesional cuando llega un caso (B-016), cuentas por profesional, plantillas de WhatsApp para escribir después de 24 h y el uso con personas reales sin consentimiento (HU-01).
+
+Estado: 📝 Propuesta (2026-11-22), pendiente de revisión del equipo y del equipo clínico. Fases: 0 especificación, 1 dominio y creación del caso, 2 apartado del médico (aprobar y modificar), 3 contacto directo, 4 WhatsApp, 5 cierre.
