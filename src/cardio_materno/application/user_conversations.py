@@ -18,7 +18,8 @@ from cardio_materno.application.ports.user_thread_store import UserThreadStore
 from cardio_materno.domain.conversation import close_thread
 from cardio_materno.domain.user import is_idle
 
-ServiceFactory = Callable[[ThreadRepository, str | None], ConversationService]
+# Crea el servicio de una persona: su id, su repositorio de hilos acotado y su hilo activo.
+ServiceFactory = Callable[[str, ThreadRepository, str | None], ConversationService]
 
 
 class UserConversations:
@@ -35,7 +36,8 @@ class UserConversations:
 
         Args:
             threads: Hilos por usuario.
-            service_factory: Crea el servicio para un repositorio acotado y un hilo activo.
+            service_factory: Crea el servicio de una persona, con su repositorio acotado y
+                su hilo activo.
             idle_timeout: Inactividad tras la cual se cierra el hilo abierto.
             clock: Reloj (UTC).
         """
@@ -52,7 +54,7 @@ class UserConversations:
         if active is not None and is_idle(active.last_activity, now, self._idle_timeout):
             repository.save_thread(close_thread(active.thread, now))
             active = None
-        return self._service_factory(repository, active.thread.id if active else None)
+        return self._service_factory(user_id, repository, active.thread.id if active else None)
 
     def close_open_thread(self, user_id: str) -> None:
         """Cierra el hilo abierto del usuario, si lo hay (fin de una sesión de consola)."""

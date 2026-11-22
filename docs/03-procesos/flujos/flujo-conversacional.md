@@ -56,7 +56,7 @@ sequenceDiagram
             S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback). Con INQUIRY_MODE observar y sin alarma nueva, la regla de indagación (HU-11) registra en trace.inquiry qué modo elegiría, sin cambiar la respuesta. Con INQUIRY_MODE activo decide el turno: responder (evidencia), indagar (preguntas verificadas; si hay un registro Solucionar sobre el umbral y el selector está activo, puede responder e indagar), abstenerse o cerrar (textos fijos). Con una urgencia inmediata ya avisada no se indaga y se quitan las preguntas (B-030)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
-                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
+                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2. Con ESCALATION_MODE activo y sin alarma, la abstención o el cierre se reemplazan por el aviso de espera y se abre un caso para el profesional (HU-16)
             else suficiente
                 opt EVIDENCE_SELECTION_MODE observar o activo, y hay registros Solucionar (HU-13)
                     S->>L1: prompt del selector + caso + últimos N mensajes + FRASES numeradas + mensaje

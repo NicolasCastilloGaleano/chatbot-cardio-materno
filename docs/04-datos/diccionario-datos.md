@@ -146,3 +146,15 @@ Clase: `domain/user.py::User`.
 | `kind` | enum | No | `respuesta`, `aviso` o `error` | No |
 | `channel_message_id` | string | No | Identificador que devolvió el canal | No |
 | `created_at` | ISO 8601 | No | Envío | No |
+
+### Tabla: `clinical_cases` (HU-16, ADR 0022, esquema v3)
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | TEXT, clave | Identificador del caso |
+| `user_id` | TEXT → `users.id` | Persona del caso (seudónimo; nunca el teléfono) |
+| `thread_id` | TEXT → `threads.id` | Hilo en el que se abrió |
+| `status` | TEXT | `pendiente`, `en_contacto`, `aprobada`, `modificada`, `cerrada` o `expirada` |
+| `notified` | INTEGER | 1 si la persona recibió el aviso de espera (`activo`); 0 si el caso solo se observa |
+| `gap_count` | INTEGER | Turnos sin evidencia que sumó el caso |
+| `snapshot_json` | TEXT | Resumen clínico: dominio, resumen del hilo, síntomas, códigos, consulta, motivo, categoría y similitud. Sin mensajes ni datos de identificación |
+| `created_at`, `expires_at`, `closed_at` | TEXT (ISO 8601) | Apertura; vencimiento (ventana desde el último mensaje); cierre o resolución |

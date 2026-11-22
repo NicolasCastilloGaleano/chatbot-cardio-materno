@@ -22,6 +22,7 @@ from cardio_materno.application.ports.user_thread_store import UserThreadStore
 from cardio_materno.application.user_conversations import UserConversations
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
+from cardio_materno.domain.escalation import ClinicalCase
 from cardio_materno.domain.knowledge import (
     EvidenceItem,
     Focus,
@@ -263,7 +264,9 @@ def make_user_conversations(
     """Servicio por usuario con el agente guionizado, reloj compartido e ids hilo-1, hilo-2…"""
     options = {"clock": clock, "new_id": SequentialIds()} | (service_config or {})
 
-    def factory(repository: ThreadRepository, active: str | None) -> ConversationService:
+    def factory(
+        user_id: str, repository: ThreadRepository, active: str | None
+    ) -> ConversationService:
         return make_service(agent, repository, options, active_thread_id=active)
 
     return UserConversations(threads, factory, idle_timeout, clock)
@@ -278,6 +281,19 @@ class FakeTimer:
     def __call__(self) -> float:
         self.now += 0.5
         return self.now
+
+
+class InMemoryCaseRepository:
+    """Casos de una persona en memoria (HU-16)."""
+
+    def __init__(self) -> None:
+        self.cases: dict[str, ClinicalCase] = {}
+
+    def open_case(self) -> ClinicalCase | None:
+        return next((case for case in self.cases.values() if case.is_open), None)
+
+    def save(self, case: ClinicalCase) -> None:
+        self.cases[case.id] = case
 
 
 class InMemoryThreadRepository:

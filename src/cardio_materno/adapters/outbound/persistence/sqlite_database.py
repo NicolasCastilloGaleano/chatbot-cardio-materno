@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -89,7 +89,25 @@ SCHEMA_V1: tuple[str, ...] = (
 
 # v2 (ADR 0016): un chat de consola abierto queda marcado para que la web no escriba en él.
 SCHEMA_V2: tuple[str, ...] = ("ALTER TABLE users ADD COLUMN live_session_at TEXT",)
-MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2}
+# v3 (HU-16, ADR 0022): casos escalados a un profesional de salud. Un caso abierto por persona.
+SCHEMA_V3: tuple[str, ...] = (
+    """CREATE TABLE clinical_cases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        thread_id TEXT NOT NULL REFERENCES threads(id),
+        status TEXT NOT NULL,
+        notified INTEGER NOT NULL,
+        gap_count INTEGER NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        closed_at TEXT
+    )""",
+    "CREATE INDEX clinical_cases_by_status ON clinical_cases(status, created_at)",
+    """CREATE UNIQUE INDEX one_open_case_per_user ON clinical_cases(user_id)
+        WHERE status IN ('pendiente', 'en_contacto')""",
+)
+MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
 
 
 class DatabaseVersionError(RuntimeError):

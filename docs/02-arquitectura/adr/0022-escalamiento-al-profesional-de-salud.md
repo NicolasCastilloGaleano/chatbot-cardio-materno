@@ -37,6 +37,9 @@ Restricciones:
 10. **Entrega por canal.** En los chats de consola y web, el mensaje del profesional se agrega al hilo y aparece con la consulta periódica que ya existe. En WhatsApp va por una **bandeja de salida** en la base compartida, que el proceso de WhatsApp envía con el número del proyecto; el profesional nunca usa su teléfono. Solo fluyen mensajes del profesional: la web sigue sin escribir como si fuera la persona (ADR 0016).
 11. **Activación aparte:** `ESCALATION_MODE` (`apagado` por defecto, `observar` crea el caso pero mantiene la abstención, `activo`).
 
+## Implementación
+**Fase 1 (2026-11-22):** `domain/escalation.py` (estados y transiciones), el puerto `CaseRepository` acotado por persona, la tabla `clinical_cases` (esquema v3) y el gancho en `ConversationService.send`: con un vacío y sin alarma, `activo` pone el aviso de espera y abre el caso, o suma el turno al caso abierto. La fábrica de servicios ahora recibe el id de la persona. Aún no hay apartado del médico ni rol `profesional`: llegan en la fase 2, cuando existen sus mensajes. Las tablas de la dirección temporal y de la bandeja de salida llegan en la fase 4, para no crear tablas que todavía no se usan.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

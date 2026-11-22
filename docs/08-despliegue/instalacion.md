@@ -227,6 +227,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `OLLAMA_SELECTION_MODEL` | (vacío = el del análisis) | Modelo del selector. Con un valor propio se pueden fijar `_NUM_CTX`, `_TIMEOUT_SECONDS`, `_THINK` y `_NUM_PREDICT` (por defecto, `300`) |
 | `OLLAMA_SELECTION_TEMPERATURE` | `0` | Temperatura del selector, aunque use el modelo del análisis. Con `0,3` el mismo caso de urgencia se decidía distinto entre corridas |
 | `EVIDENCE_SELECTION_MAX_SENTENCES` | (política: `5`) | Máximo de frases que elige el selector |
+| `ESCALATION_MODE` | `apagado` | Escalamiento al profesional de salud (HU-16, ADR 0022): `apagado`, `observar` (registra el caso y deja la abstención) o `activo` (aviso de espera). Solo con usuarios de prueba |
+| `ESCALATION_WINDOW_HOURS` | `24` | Horas desde el último mensaje de la persona hasta que vence un caso escalado |
 | `URGENT_GUIDANCE_MODE` | `apagado` | Orientación automática después del aviso de una urgencia (B-034, ADR 0021): `apagado` o `activo`. Requiere el selector activo. Por ahora solo en la consola |
 | `INQUIRY_FLOOR` | (archivo: `0.40`) | Similitud mínima de un candidato que orienta la indagación de la HU-11; los candidatos nunca son evidencia |
 | `INQUIRY_ANSWER_THRESHOLD` | (archivo: `0.68`) | Similitud con la que la evidencia es clara para responder sin indagar. Distinto de `RAG_MIN_SIMILARITY` (0,50), que decide qué cuenta como evidencia: entre 0,50 y este valor la regla indaga primero. 0,60 → 0,68 por decisión del equipo (2026-10-28) |

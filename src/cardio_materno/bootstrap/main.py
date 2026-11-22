@@ -7,6 +7,7 @@ queda para el benchmark y las pruebas en vivo.
 
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import (
@@ -115,6 +116,8 @@ def build_conversation(
         inquiry_prompt=_read(INQUIRY_PROMPT_FILE),
         selection_activation=settings.selection_activation,
         urgent_guidance=settings.urgent_guidance,
+        escalation=settings.escalation,
+        escalation_window=timedelta(hours=settings.escalation_window_hours),
         selection_prompt=_read(SELECTION_PROMPT_FILE),
         selection_max_sentences=rag.policy.selection_max_sentences,
         selected_reply_prompt=_read(SELECTED_REPLY_PROMPT_FILE),

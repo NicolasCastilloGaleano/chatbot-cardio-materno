@@ -7,6 +7,7 @@ from pathlib import Path
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
 from cardio_materno.application.conversation_service import UrgentGuidanceActivation
+from cardio_materno.application.escalation import EscalationMode
 from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.inquiry_policy import InquiryActivation
 
@@ -27,6 +28,9 @@ INQUIRY_MODE_VARIABLE = "INQUIRY_MODE"
 DEFAULT_INQUIRY_MODE = "activo"
 URGENT_GUIDANCE_MODE_VARIABLE = "URGENT_GUIDANCE_MODE"
 DEFAULT_URGENT_GUIDANCE_MODE = "apagado"
+ESCALATION_MODE_VARIABLE = "ESCALATION_MODE"
+DEFAULT_ESCALATION_MODE = "apagado"
+DEFAULT_ESCALATION_WINDOW_HOURS = "24"
 SELECTION_MODE_VARIABLE = "EVIDENCE_SELECTION_MODE"
 DEFAULT_SELECTION_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
@@ -114,6 +118,8 @@ class ConversationSettings:
         inquiry_activation: `INQUIRY_MODE`, cómo participa la regla de indagación (HU-11).
         selection_activation: `EVIDENCE_SELECTION_MODE`, cómo participa el selector (HU-13).
         urgent_guidance: `URGENT_GUIDANCE_MODE`, orientación después del aviso (ADR 0021).
+        escalation: `ESCALATION_MODE`, escalamiento al profesional (HU-16, ADR 0022).
+        escalation_window_hours: `ESCALATION_WINDOW_HOURS`, horas hasta que vence un caso.
     """
 
     context_messages: int
@@ -123,6 +129,8 @@ class ConversationSettings:
     inquiry_activation: InquiryActivation = InquiryActivation.ACTIVE
     selection_activation: SelectionActivation = SelectionActivation.ACTIVE
     urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
+    escalation: EscalationMode = EscalationMode.OFF
+    escalation_window_hours: int = int(DEFAULT_ESCALATION_WINDOW_HOURS)
 
 
 @dataclass(frozen=True)
@@ -517,6 +525,12 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
             URGENT_GUIDANCE_MODE_VARIABLE,
             DEFAULT_URGENT_GUIDANCE_MODE,
             UrgentGuidanceActivation,
+        ),
+        escalation=_get_activation(
+            env, ESCALATION_MODE_VARIABLE, DEFAULT_ESCALATION_MODE, EscalationMode
+        ),
+        escalation_window_hours=_get_int(
+            env, "ESCALATION_WINDOW_HOURS", DEFAULT_ESCALATION_WINDOW_HOURS
         ),
     )
 

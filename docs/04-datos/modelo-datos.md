@@ -118,6 +118,9 @@ Reglas:
 - **Solo lectura en la interfaz:** `whatsapp`, `telegram` e `historico` (`domain/user.py::READ_ONLY_CHANNELS`).
 - **Auditoría:** `SqliteChatAudit` lee los mensajes de un usuario a través de todos sus hilos por *keyset* sobre `messages.seq`. Las alertas de cada turno se asocian a la respuesta por (`thread_id`, `created_at`), porque el turno registra los mensajes y sus alertas con el mismo momento.
 
+## 2.2 Esquema v3: casos escalados al profesional (HU-16, ADR 0022)
+La migración 3 crea `clinical_cases`: un caso por persona y por consulta sin evidencia, con su estado (`pendiente`, `en_contacto`, `aprobada`, `modificada`, `cerrada`, `expirada`), el resumen clínico en JSON (sin datos de identificación), los turnos sin evidencia que sumó, la apertura, el vencimiento y el cierre. Un índice único parcial impide dos casos abiertos de la misma persona. La dirección temporal de WhatsApp (ADR 0023) llega en la fase 4.
+
 ## 3. Pendiente
 - `MESSAGE.content_anonymized` (anonimizar antes de guardar), `ALERT.care_route` (HU-05) y el consentimiento (HU-01).
 - Política de retención y borrado por usuario.

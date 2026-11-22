@@ -405,3 +405,15 @@ def test_analysis_context_defaults_to_6144_unless_its_variable_is_set() -> None:
     reply = load_stage_settings(general, "OLLAMA_REPLY_MODEL")
 
     assert (analysis.num_ctx, explicit.num_ctx, reply.num_ctx) == (6144, 8192, 4096)
+
+
+def test_escalation_is_off_by_default_and_reads_its_mode_and_window(tmp_path: Path) -> None:
+    default = load_conversation_settings({}, tmp_path)
+    active = load_conversation_settings(
+        {"ESCALATION_MODE": "activo", "ESCALATION_WINDOW_HOURS": "12"}, tmp_path
+    )
+
+    assert (default.escalation, default.escalation_window_hours) == ("apagado", 24)
+    assert (active.escalation, active.escalation_window_hours) == ("activo", 12)
+    with pytest.raises(ConfigurationError, match="ESCALATION_MODE"):
+        load_conversation_settings({"ESCALATION_MODE": "siempre"}, tmp_path)
