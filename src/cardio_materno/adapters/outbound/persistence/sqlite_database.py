@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -109,7 +109,34 @@ SCHEMA_V3: tuple[str, ...] = (
     """CREATE UNIQUE INDEX one_open_case_per_user ON clinical_cases(user_id)
         WHERE status IN ('pendiente', 'en_contacto')""",
 )
-MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
+# v4 (HU-16, ADR 0023): dirección temporal de WhatsApp de un caso abierto y bandeja de salida
+# de los mensajes del profesional. La dirección se borra al cerrar o vencer el caso.
+SCHEMA_V4: tuple[str, ...] = (
+    """CREATE TABLE case_addresses (
+        case_id TEXT PRIMARY KEY REFERENCES clinical_cases(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        reply_to TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""",
+    """CREATE TABLE clinician_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        case_id TEXT NOT NULL REFERENCES clinical_cases(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        thread_id TEXT NOT NULL REFERENCES threads(id),
+        text TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_code TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        finished_at TEXT
+    )""",
+    "CREATE INDEX clinician_outbox_by_status ON clinician_outbox(status, id)",
+)
+MIGRATIONS: dict[int, tuple[str, ...]] = {
+    1: SCHEMA_V1,
+    2: SCHEMA_V2,
+    3: SCHEMA_V3,
+    4: SCHEMA_V4,
+}
 
 
 class DatabaseVersionError(RuntimeError):

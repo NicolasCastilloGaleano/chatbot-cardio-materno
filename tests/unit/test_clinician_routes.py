@@ -108,7 +108,9 @@ def test_an_empty_reply_and_an_unknown_case_are_rejected(database: SqliteDatabas
     assert (empty.status_code, unknown.status_code) == (422, 404)
 
 
-def test_a_whatsapp_case_is_shown_but_cannot_be_answered_yet(database: SqliteDatabase) -> None:
+def test_a_whatsapp_case_without_an_outbox_is_shown_but_not_answerable(
+    database: SqliteDatabase,
+) -> None:
     case_id = person(database, "ana", Channel.WHATSAPP)
     api = client(database)
 

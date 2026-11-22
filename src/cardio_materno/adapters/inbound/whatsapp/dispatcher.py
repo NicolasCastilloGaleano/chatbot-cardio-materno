@@ -99,3 +99,46 @@ class ThreadingDelayedActions:
         timer.daemon = True
         timer.start()
         return timer.cancel
+
+
+class PeriodicTask:
+    """Ejecuta una acción cada cierto tiempo en un hilo propio (reenvío del profesional, HU-16).
+
+    Un error se registra y la tarea sigue: la siguiente vuelta lo intenta de nuevo.
+    """
+
+    def __init__(self, action: Callable[[], object], interval_seconds: float, name: str) -> None:
+        """Crea la tarea (sin arrancarla).
+
+        Args:
+            action: Acción de cada vuelta.
+            interval_seconds: Espera entre vueltas.
+            name: Nombre del hilo.
+        """
+        self._action = action
+        self._interval = interval_seconds
+        self._stopped = threading.Event()
+        self._thread = threading.Thread(target=self._run, name=name, daemon=True)
+
+    def start(self) -> None:
+        """Arranca el hilo."""
+        self._thread.start()
+
+    def stop(self, timeout: float = STOP_TIMEOUT_SECONDS) -> None:
+        """Detiene la tarea después de la vuelta en curso."""
+        self._stopped.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout)
+
+    def _run(self) -> None:
+        """Bucle: una vuelta, una espera, hasta que se pida parar."""
+        while not self._stopped.wait(self._interval):
+            try:
+                self._action()
+            except Exception as error:  # la tarea debe seguir con la siguiente vuelta
+                logger.error(
+                    "Falló una vuelta de %s (%s): %s",
+                    self._thread.name,
+                    type(error).__name__,
+                    error,
+                )

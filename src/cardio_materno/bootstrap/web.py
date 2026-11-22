@@ -10,6 +10,9 @@ from cardio_materno.adapters.inbound.api.web_app import ClinicianAccess, WebOpti
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaLanguageModel
 from cardio_materno.adapters.outbound.persistence.sqlite_case_repository import SqliteCaseInbox
 from cardio_materno.adapters.outbound.persistence.sqlite_chat_audit import SqliteChatAudit
+from cardio_materno.adapters.outbound.persistence.sqlite_clinician_outbox import (
+    SqliteClinicianOutbox,
+)
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     DatabaseVersionError,
     SqliteDatabase,
@@ -71,7 +74,12 @@ def _clinician_access(web: WebSettings, database: SqliteDatabase) -> ClinicianAc
         return None
     model = OllamaLanguageModel(load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     writer = ClinicianDraftWriter(model, CLINICIAN_DRAFT_PROMPT_FILE.read_text(encoding="utf-8"))
-    review = ClinicianReview(SqliteCaseInbox(database), SqliteUserThreadStore(database), writer)
+    review = ClinicianReview(
+        SqliteCaseInbox(database),
+        SqliteUserThreadStore(database),
+        writer,
+        outbox=SqliteClinicianOutbox(database),
+    )
     return ClinicianAccess(review, web.clinician_access_key)
 
 

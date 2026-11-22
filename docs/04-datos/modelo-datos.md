@@ -121,6 +121,9 @@ Reglas:
 ## 2.2 Esquema v3: casos escalados al profesional (HU-16, ADR 0022)
 La migración 3 crea `clinical_cases`: un caso por persona y por consulta sin evidencia, con su estado (`pendiente`, `en_contacto`, `aprobada`, `modificada`, `cerrada`, `expirada`), el resumen clínico en JSON (sin datos de identificación), los turnos sin evidencia que sumó, la apertura, el vencimiento y el cierre. Un índice único parcial impide dos casos abiertos de la misma persona. La dirección temporal de WhatsApp (ADR 0023) llega en la fase 4.
 
+## 2.3 Esquema v4: dirección temporal y bandeja del profesional (HU-16, ADR 0023)
+La migración 4 crea `case_addresses`, con el número de WhatsApp de una persona mientras su caso esté abierto (se borra al cerrar o vencer), y `clinician_outbox`, con los mensajes del profesional que el proceso de WhatsApp debe enviar (el texto se borra al enviarse o fallar).
+
 ## 3. Pendiente
 - `MESSAGE.content_anonymized` (anonimizar antes de guardar), `ALERT.care_route` (HU-05) y el consentimiento (HU-01).
 - Política de retención y borrado por usuario.

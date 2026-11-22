@@ -48,6 +48,8 @@ Restricciones:
 - **El hilo es el del caso,** aunque el de la persona se haya cerrado por inactividad; al cerrar el contacto, el siguiente mensaje vuelve al asistente.
 - **Cada lado escribe solo sus campos:** la persona, el aviso, las brechas, el resumen y el vencimiento (`CaseRepository.save`, que no hace nada si el estado cambió); el profesional, el estado y el borrador (`CaseInbox.update_if`). Así un turno que leyó el caso antes de que el profesional actuara no revierte su decisión, y al revés.
 
+**Fase 4 (2026-11-22):** WhatsApp sin exponer el número del profesional. El canal guarda la dirección del caso cuando el turno lo abre, lo suma o se desvía al profesional (`HandleIncomingMessage._remember_address`). Lo que el profesional aprueba, modifica o escribe en contacto se guarda en el hilo y, si la persona es de WhatsApp, en la bandeja `clinician_outbox`. El proceso de WhatsApp la revisa cada `OUTBOX_POLL_SECONDS` (`application/outbox_relay.py`, en un hilo `PeriodicTask`) y envía por el número del proyecto con la etiqueta "*Profesional de salud:*", partiendo los mensajes largos y registrándolos como `profesional` en `outbound_messages`. Un mensaje que falla no se reintenta. El portal muestra "ventana cerrada" y desactiva los botones si no hay dirección o pasaron 24 h.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

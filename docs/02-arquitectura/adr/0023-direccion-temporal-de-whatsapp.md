@@ -22,6 +22,13 @@ WhatsApp permite mensajes libres solo dentro de las **24 h** siguientes al últi
 5. **El HMAC sigue siendo la identidad** de la persona (ADR 0015). La dirección temporal solo sirve para entregar mensajes del profesional.
 6. **Sin dependencias nuevas.** No se cifra con una clave propia: se decidió guardar lo mínimo, por el menor tiempo, en lugar de agregar manejo de claves. La protección de la base (archivo local, fuera del repositorio) es la misma de hoy.
 
+## Implementación (fase 4 de la HU-16, 2026-11-22)
+- **Esquema v4:** `case_addresses` (caso, persona, `reply_to`, actualización) y `clinician_outbox` (mensajes del profesional pendientes de envío).
+- **Cuándo se guarda:** solo si el caso está abierto y la persona recibió el aviso (`notified = 1`); un caso en modo `observar` nunca guarda la dirección. El vencimiento es el del caso, que cada mensaje de la persona renueva.
+- **Cuándo se borra:** en cada vuelta del reenvío, la dirección de un caso cerrado o vencido se borra en cuanto no le queda nada por enviar. Lo pendiente de un caso vencido se marca `fallido` (`ventana_cerrada`).
+- **El texto del profesional** se borra de la bandeja apenas se envía o falla; queda solo en el hilo de la persona.
+- **El número** no sale de `case_addresses`: no se registra, no se muestra en `/medico` ni en la auditoría.
+
 ## Alternativas consideradas
 | Alternativa | Pros | Contras |
 |---|---|---|

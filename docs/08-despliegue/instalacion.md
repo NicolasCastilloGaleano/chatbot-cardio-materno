@@ -58,7 +58,7 @@ Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000` (`WEB_HOST`
 - No la expongas a una red: muestra datos de salud sin autenticación.
 
 ### Apartado del profesional de salud (HU-16)
-Con `ESCALATION_MODE=activo` y `CLINICIAN_ACCESS_KEY` en el `.env`, abre `http://127.0.0.1:8000/medico` e ingresa la clave. Verás los casos que el asistente no pudo responder, con su resumen clínico y la conversación. **Generar borrador** pide al modelo una sugerencia marcada "sin respaldo de la base"; **Aprobar borrador** la envía tal cual y **Enviar mi versión**, el texto que escribas. La persona la recibe en su chat como "Profesional de salud". **Contacto directo** abre una conversación en el mismo chat: el asistente deja de responder, lo que la persona escribe aparece en el caso y **Cerrar contacto** le devuelve la conversación al asistente. Las alarmas por palabras clave siguen saliendo de inmediato. Por ahora solo en chats de consola y web. Solo con usuarios de prueba.
+Con `ESCALATION_MODE=activo` y `CLINICIAN_ACCESS_KEY` en el `.env`, abre `http://127.0.0.1:8000/medico` e ingresa la clave. Verás los casos que el asistente no pudo responder, con su resumen clínico y la conversación. **Generar borrador** pide al modelo una sugerencia marcada "sin respaldo de la base"; **Aprobar borrador** la envía tal cual y **Enviar mi versión**, el texto que escribas. La persona la recibe en su chat como "Profesional de salud". **Contacto directo** abre una conversación en el mismo chat: el asistente deja de responder, lo que la persona escribe aparece en el caso y **Cerrar contacto** le devuelve la conversación al asistente. Las alarmas por palabras clave siguen saliendo de inmediato. En WhatsApp, el mensaje sale desde el número del proyecto con la etiqueta "Profesional de salud" unos segundos después (hace falta que `run_whatsapp.py` esté corriendo); si pasaron 24 h desde el último mensaje de la persona, el caso muestra "ventana cerrada". Solo con usuarios de prueba.
 
 ### Importar el histórico JSON (HU-10, una sola vez)
 Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):
@@ -272,6 +272,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `WHATSAPP_HOST` / `WHATSAPP_PORT` | `127.0.0.1` / `8001` | Escucha del webhook; solo loopback (ngrok publica la URL) |
 | `WHATSAPP_SEND_TIMEOUT_SECONDS` | `15` | Espera máxima de cada envío a Meta |
 | `WHATSAPP_WAIT_NOTICE_SECONDS` | `10` | Segundos antes del aviso "Estoy revisando tu mensaje" |
+| `OUTBOX_POLL_SECONDS` | `3` | Cada cuántos segundos el proceso de WhatsApp envía los mensajes del profesional (HU-16) |
 | `WHATSAPP_MAX_PENDING` | `100` | Mensajes en cola antes de pedir a Meta que reintente (503) |
 | `DATABASE_PATH` | `data/cardio_materno.db` | Base SQLite de usuarios, hilos y eventos (no se versiona) |
 | `THREAD_IDLE_TIMEOUT_HOURS` | `12` | Horas sin actividad tras las cuales se cierra el hilo abierto |

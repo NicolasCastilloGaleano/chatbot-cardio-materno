@@ -33,6 +33,7 @@ from cardio_materno.application.ports.channel_log import (
     OutboundKind,
     OutboundRecord,
 )
+from cardio_materno.application.ports.clinician_outbox import CaseAddressBook
 from cardio_materno.application.ports.message_sender import DelayedActions, MessageSender
 from cardio_materno.application.ports.user_directory import UserDirectory
 from cardio_materno.application.user_conversations import UserConversations
@@ -56,12 +57,15 @@ class ChannelPorts:
         log: Registro de mensajes recibidos y enviados.
         sender: Envío por el canal.
         delayed: Programación del aviso de espera.
+        addresses: Dirección temporal de los casos del profesional (HU-16, ADR 0023); None
+            si el canal no la guarda.
     """
 
     users: UserDirectory
     log: ChannelLog
     sender: MessageSender
     delayed: DelayedActions
+    addresses: CaseAddressBook | None = None
 
 
 @dataclass(frozen=True)
@@ -127,8 +131,17 @@ class HandleIncomingMessage:
             self._deliver(message, user_id, MODEL_ERROR_TEXT, OutboundKind.ERROR)
             self._mark(message, InboundStatus.FAILED, ERROR_MODEL)
             return
+        self._remember_address(message, user_id, result)
         self._deliver_reply(message, user_id, result)
         self._mark(message, InboundStatus.ANSWERED)
+
+    def _remember_address(self, message: IncomingMessage, user_id: str, result: TurnResult) -> None:
+        """Guarda o renueva la dirección si el turno tocó un caso del profesional (ADR 0023)."""
+        addresses = self._ports.addresses
+        if addresses is not None and result.escalated_case_id is not None:
+            addresses.remember(
+                result.escalated_case_id, user_id, message.reply_to, self._config.clock()
+            )
 
     def _converse(self, message: IncomingMessage, user_id: str) -> TurnResult | None:
         """Llama al agente con el aviso de espera programado; None si el modelo falló."""

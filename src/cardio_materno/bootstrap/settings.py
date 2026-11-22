@@ -90,6 +90,7 @@ DEFAULT_WHATSAPP_API_VERSION = "v23.0"
 DEFAULT_WHATSAPP_SEND_TIMEOUT_SECONDS = "15"
 DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS = "10"
 DEFAULT_WHATSAPP_MAX_PENDING = "100"
+DEFAULT_OUTBOX_POLL_SECONDS = "3"
 DEFAULT_THREAD_IDLE_TIMEOUT_HOURS = "12"
 DEFAULT_DATABASE_PATH = "data/cardio_materno.db"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -432,6 +433,7 @@ class WhatsAppSettings:
         max_pending: Mensajes en cola antes de pedir a Meta que reintente.
         log_level: Nivel de los registros del proceso.
         persistence: Base SQLite e inactividad.
+        outbox_poll_seconds: Cada cuánto se envían los mensajes del profesional (HU-16).
     """
 
     token: str
@@ -447,6 +449,7 @@ class WhatsAppSettings:
     max_pending: int
     log_level: str
     persistence: PersistenceSettings
+    outbox_poll_seconds: float
 
 
 def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsAppSettings:
@@ -476,6 +479,7 @@ def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsA
         max_pending=_get_int(env, "WHATSAPP_MAX_PENDING", DEFAULT_WHATSAPP_MAX_PENDING),
         log_level=_get(env, "LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
         persistence=load_persistence_settings(env, project_root),
+        outbox_poll_seconds=_get_float(env, "OUTBOX_POLL_SECONDS", DEFAULT_OUTBOX_POLL_SECONDS),
     )
 
 

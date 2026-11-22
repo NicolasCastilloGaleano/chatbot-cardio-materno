@@ -1,9 +1,9 @@
 """Revisión de los casos escalados por el profesional de salud (HU-16, ADR 0022).
 
 El profesional ve los casos abiertos, pide el borrador y decide: aprobarlo tal cual o
-modificarlo. El mensaje se guarda en el hilo de la persona con el rol `profesional`, nunca como
-del asistente. Por ahora solo se entrega en los chats de consola y web; WhatsApp llega en la
-fase 4.
+modificarlo, o abre un contacto directo. El mensaje se guarda en el hilo de la persona con el
+rol `profesional`, nunca como del asistente. En WhatsApp, además, va a la bandeja de salida que
+envía el proceso del canal, mientras haya dirección y la ventana siga abierta (ADR 0023).
 """
 
 import logging
@@ -19,6 +19,7 @@ from cardio_materno.application.errors import (
     LanguageModelError,
 )
 from cardio_materno.application.ports.case_inbox import CaseInbox, InboxCase
+from cardio_materno.application.ports.clinician_outbox import ClinicianOutbox, OutboxItem
 from cardio_materno.application.ports.user_thread_store import UserThreadStore
 from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.escalation import (
@@ -29,12 +30,13 @@ from cardio_materno.domain.escalation import (
     InvalidCaseTransitionError,
     apply_action,
 )
-from cardio_materno.domain.user import DIRECT_CHANNELS
+from cardio_materno.domain.user import DIRECT_CHANNELS, Channel
 
 logger = logging.getLogger(__name__)
 MSG_EXPIRED = "El caso venció: pasó la ventana desde el último mensaje de la persona."
 MSG_CHANGED = "El caso cambió mientras lo revisabas. Vuelve a abrirlo."
-MSG_CHANNEL = "Responder por este canal estará disponible más adelante (HU-16, fase 4)."
+MSG_CHANNEL = "No se puede responder por el canal de esta persona."
+MSG_WINDOW = "No se puede escribir por WhatsApp: no hay dirección guardada o se cerró la ventana."
 MSG_NOT_IN_CONTACT = "El caso no está en contacto directo."
 
 
@@ -47,6 +49,7 @@ class ClinicianReview:
         threads: UserThreadStore,
         writer: ClinicianDraftWriter,
         clock: Clock = utc_now,
+        outbox: ClinicianOutbox | None = None,
     ) -> None:
         """Crea el caso de uso.
 
@@ -55,11 +58,13 @@ class ClinicianReview:
             threads: Hilos por persona, para entregar el mensaje del profesional.
             writer: Redactor del borrador.
             clock: Reloj (UTC).
+            outbox: Bandeja de salida de WhatsApp; None si no se puede responder por ahí.
         """
         self._inbox = inbox
         self._threads = threads
         self._writer = writer
         self._clock = clock
+        self._outbox = outbox
 
     def pending_cases(self) -> list[InboxCase]:
         """Vence los casos cuyo plazo pasó y devuelve los abiertos."""
@@ -133,13 +138,21 @@ class ClinicianReview:
             CaseConflictError: Si el caso no está en contacto directo o venció.
         """
         found = self.case(case_id)
-        now = self._clock()
         if found.case.status is not CaseStatus.IN_CONTACT:
             raise CaseConflictError(MSG_NOT_IN_CONTACT)
-        if found.case.is_expired(now):
+        if found.case.is_expired(self._clock()):
             raise CaseConflictError(MSG_EXPIRED)
+        self._check_channel(found)
         self._deliver(found, text.strip())
         return found
+
+    def deliverable(self, found: InboxCase) -> bool:
+        """True si hoy se le puede escribir a la persona por su canal."""
+        if found.channel in DIRECT_CHANNELS:
+            return True
+        outbox = self._outbox
+        is_whatsapp = found.channel is Channel.WHATSAPP
+        return is_whatsapp and outbox is not None and outbox.reachable(found.case.id, self._clock())
 
     def end_contact(self, case_id: str) -> InboxCase:
         """Cierra el contacto directo: el asistente vuelve a responder en el siguiente mensaje.
@@ -173,8 +186,7 @@ class ClinicianReview:
 
     def _transition(self, found: InboxCase, action: CaseAction) -> InboxCase:
         """Aplica una acción del profesional si el canal lo admite y el caso no venció."""
-        if found.channel not in DIRECT_CHANNELS:
-            raise CaseChannelNotSupportedError(MSG_CHANNEL)
+        self._check_channel(found)
         now = self._clock()
         if found.case.is_expired(now):
             raise CaseConflictError(MSG_EXPIRED)
@@ -185,10 +197,23 @@ class ClinicianReview:
         self._save(found, updated)
         return replace(found, case=updated)
 
+    def _check_channel(self, found: InboxCase) -> None:
+        """Falla si hoy no se le puede escribir a la persona por su canal."""
+        if self.deliverable(found):
+            return
+        if found.channel is Channel.WHATSAPP and self._outbox is not None:
+            raise CaseChannelNotSupportedError(MSG_WINDOW)
+        raise CaseChannelNotSupportedError(MSG_CHANNEL)
+
     def _deliver(self, found: InboxCase, text: str) -> None:
-        """Guarda el mensaje del profesional en el hilo del caso."""
-        message = ChatMessage(Role.CLINICIAN, text, found.case.thread_id, self._clock())
+        """Guarda el mensaje en el hilo del caso y, si es de WhatsApp, lo deja para enviar."""
+        now = self._clock()
+        case = found.case
+        message = ChatMessage(Role.CLINICIAN, text, case.thread_id, now)
         self._threads.scoped(found.user_id).append_message(message)
+        if found.channel not in DIRECT_CHANNELS and self._outbox is not None:
+            item = OutboxItem(0, case.id, found.user_id, case.thread_id, text)
+            self._outbox.enqueue(item, now)
 
     def _save(self, found: InboxCase, updated: ClinicalCase) -> None:
         """Guarda el caso solo si nadie lo cambió desde que se leyó."""

@@ -200,7 +200,7 @@ def test_an_expired_case_is_closed_and_cannot_be_answered(database: SqliteDataba
     assert clinician.case(case_id).case.status is CaseStatus.EXPIRED
 
 
-def test_whatsapp_cases_wait_for_phase_four(database: SqliteDatabase) -> None:
+def test_without_an_outbox_whatsapp_cases_cannot_be_answered(database: SqliteDatabase) -> None:
     case_id = person(database, "ana", Channel.WHATSAPP)
 
     with pytest.raises(CaseChannelNotSupportedError):
@@ -280,7 +280,7 @@ def test_an_expired_contact_cannot_receive_messages(database: SqliteDatabase) ->
         clinician.send_message(case_id, "Tarde.")
 
 
-def test_whatsapp_contact_waits_for_phase_four(database: SqliteDatabase) -> None:
+def test_without_an_outbox_there_is_no_whatsapp_contact(database: SqliteDatabase) -> None:
     case_id = person(database, "ana", Channel.WHATSAPP)
 
     with pytest.raises(CaseChannelNotSupportedError):

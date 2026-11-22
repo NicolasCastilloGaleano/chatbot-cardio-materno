@@ -28,6 +28,7 @@ class OutboundKind(StrEnum):
     REPLY = "respuesta"
     NOTICE = "aviso"
     ERROR = "error"
+    CLINICIAN = "profesional"
 
 
 @dataclass(frozen=True)

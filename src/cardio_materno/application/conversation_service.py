@@ -314,7 +314,8 @@ class TurnResult:
         trace: Cómo se produjo la respuesta (None si no se consultó al agente).
         out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
         urgent_guidance: Orientación que el canal puede pedir después de entregar el aviso.
-        escalated_case_id: Caso del profesional que abrió o sumó el turno (HU-16).
+        escalated_case_id: Caso del profesional que abrió o sumó el turno, o al que se
+            desvió el mensaje en contacto directo (HU-16).
         relayed: True si el mensaje fue al profesional en contacto directo y el asistente
             no respondió (la respuesta está vacía, salvo el aviso de una alarma).
     """
@@ -961,7 +962,7 @@ class ConversationService:
             self._ports.cases.save(
                 renewed(case, self._config.clock(), self._config.escalation_window)
             )
-        return TurnResult(reply, thread, False, alerts, relayed=True)
+        return TurnResult(reply, thread, False, alerts, escalated_case_id=case.id, relayed=True)
 
     # --- Hilo y registro --------------------------------------------------------------
 

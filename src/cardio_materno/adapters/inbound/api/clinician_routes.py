@@ -25,7 +25,6 @@ from cardio_materno.application.errors import (
 from cardio_materno.application.ports.case_inbox import InboxCase
 from cardio_materno.application.ports.chat_audit import ChatAudit
 from cardio_materno.domain.escalation import CaseSnapshot
-from cardio_materno.domain.user import DIRECT_CHANNELS
 
 KEY_HEADER = "X-Clinician-Key"
 MSG_BAD_KEY = "Clave de profesional no válida."
@@ -67,28 +66,29 @@ def add_clinician_routes(
     @app.get("/api/clinician/cases", dependencies=[guard])
     def list_cases() -> list[dict[str, Any]]:
         """Casos abiertos, del más antiguo al más nuevo."""
-        return [case_to_dict(found) for found in review.pending_cases()]
+        return [case_view(review, found) for found in review.pending_cases()]
 
     @app.get("/api/clinician/cases/{case_id}", dependencies=[guard])
     def get_case(case_id: str) -> dict[str, Any]:
         """Un caso con la conversación de la persona."""
         found = run_case_action(lambda: review.case(case_id))
-        return {**case_to_dict(found), "messages": conversation(audit, found.user_id)}
+        view = case_view(review, found)
+        return {**view, "messages": conversation(audit, found.user_id)}
 
     @app.post("/api/clinician/cases/{case_id}/draft", dependencies=[guard])
     def prepare_draft(case_id: str) -> dict[str, Any]:
         """Genera el borrador marcado "sin respaldo de la base" (o lo devuelve si ya existe)."""
-        return case_to_dict(run_case_action(lambda: review.prepare_draft(case_id)))
+        return case_view(review, run_case_action(lambda: review.prepare_draft(case_id)))
 
     @app.post("/api/clinician/cases/{case_id}/approve", dependencies=[guard])
     def approve(case_id: str) -> dict[str, Any]:
         """Envía el borrador tal cual."""
-        return case_to_dict(run_case_action(lambda: review.approve(case_id)))
+        return case_view(review, run_case_action(lambda: review.approve(case_id)))
 
     @app.post("/api/clinician/cases/{case_id}/modify", dependencies=[guard])
     def modify(case_id: str, body: ModifyRequest) -> dict[str, Any]:
         """Envía el texto del profesional."""
-        return case_to_dict(run_case_action(lambda: review.modify(case_id, body.text)))
+        return case_view(review, run_case_action(lambda: review.modify(case_id, body.text)))
 
     add_contact_routes(app, review, guard)
 
@@ -105,17 +105,17 @@ def add_contact_routes(app: FastAPI, review: ClinicianReview, guard: Any) -> Non
     @app.post("/api/clinician/cases/{case_id}/contact", dependencies=[guard])
     def start_contact(case_id: str) -> dict[str, Any]:
         """Abre el contacto directo: los mensajes de la persona llegan al profesional."""
-        return case_to_dict(run_case_action(lambda: review.start_contact(case_id)))
+        return case_view(review, run_case_action(lambda: review.start_contact(case_id)))
 
     @app.post("/api/clinician/cases/{case_id}/messages", dependencies=[guard])
     def send_message(case_id: str, body: ModifyRequest) -> dict[str, Any]:
         """Envía un mensaje del profesional durante el contacto."""
-        return case_to_dict(run_case_action(lambda: review.send_message(case_id, body.text)))
+        return case_view(review, run_case_action(lambda: review.send_message(case_id, body.text)))
 
     @app.post("/api/clinician/cases/{case_id}/close", dependencies=[guard])
     def end_contact(case_id: str) -> dict[str, Any]:
         """Cierra el contacto: el asistente vuelve a responder."""
-        return case_to_dict(run_case_action(lambda: review.end_contact(case_id)))
+        return case_view(review, run_case_action(lambda: review.end_contact(case_id)))
 
 
 def key_checker(access_key: str) -> Callable[[str], None]:
@@ -141,7 +141,12 @@ def run_case_action(action: Callable[[], InboxCase]) -> InboxCase:
     return result
 
 
-def case_to_dict(found: InboxCase) -> dict[str, Any]:
+def case_view(review: ClinicianReview, found: InboxCase) -> dict[str, Any]:
+    """Caso para el profesional, con si hoy se le puede escribir a la persona."""
+    return case_to_dict(found, review.deliverable(found))
+
+
+def case_to_dict(found: InboxCase, deliverable: bool) -> dict[str, Any]:
     """Caso para el profesional: estado, plazos, canal, resumen y borrador."""
     case = found.case
     return {
@@ -149,7 +154,7 @@ def case_to_dict(found: InboxCase) -> dict[str, Any]:
         "status": str(case.status),
         "channel": str(found.channel),
         "channel_label": CHANNEL_LABELS.get(found.channel, str(found.channel)),
-        "deliverable": found.channel in DIRECT_CHANNELS,
+        "deliverable": deliverable,
         "gap_count": case.gap_count,
         "created_at": case.created_at.isoformat(),
         "expires_at": case.expires_at.isoformat(),

@@ -9,6 +9,7 @@ const DOMAINS = { cardiovascular: "Cardiovascular", materno_infantil: "Materno-i
 const ROLES = { user: "Persona", assistant: "Asistente", clinician: "Profesional de salud" };
 const IN_CONTACT = "en_contacto";
 const SENT_TEXT = "Respuesta enviada a la persona. El caso quedó cerrado.";
+const WINDOW_CLOSED_TEXT = "Ventana cerrada: no se puede escribir por WhatsApp (pasaron 24 horas desde el último mensaje de la persona o no hay dirección guardada). Si la persona vuelve a escribir, se abre de nuevo.";
 const CLOSED_TEXT = "Contacto cerrado. El asistente vuelve a responder a la persona.";
 
 const nodes = {
@@ -184,8 +185,9 @@ function draftSection(item) {
 }
 
 function draftNotice(item) {
-  if (!item.deliverable) return "Responder por este canal estará disponible más adelante.";
+  if (!item.deliverable) return item.channel === "whatsapp" ? WINDOW_CLOSED_TEXT : "No se puede responder por el canal de esta persona.";
   if (item.draft_status === "fallido") return "No se pudo generar el borrador. Puedes escribir la respuesta y enviarla con Modificar.";
+  if (item.channel === "whatsapp") return "La respuesta saldrá por el número del proyecto en unos segundos, con la etiqueta «Profesional de salud». Tu número nunca se muestra.";
   return "";
 }
 
@@ -214,6 +216,7 @@ function contactSection(item) {
   const notice = element("p", null, "notice");
   notice.hidden = true;
   const send = actionButton("Enviar", () => sendContactMessage(item.id, text, notice));
+  send.disabled = !item.deliverable;
   text.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) send.click();
   });
@@ -222,6 +225,7 @@ function contactSection(item) {
   row.append(send, close);
   section.append(
     element("h3", "Contacto directo"),
+    item.deliverable ? "" : element("p", WINDOW_CLOSED_TEXT, "notice error"),
     element("p", "La persona lee tus mensajes como «Profesional de salud» en su mismo chat. Mientras dure el contacto el asistente no le responde, pero sus avisos de alarma siguen saliendo de inmediato. Ctrl+Enter envía.", "muted"),
     text, row, notice,
   );
