@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-*Última actualización: 2026-11-08 (HU-13 aceptada y verificada; HU-15 verificada)*
+*Última actualización: 2026-11-16 (HU-18 implementada y apagada; HU-01, HU-16 y HU-17 implementadas, pendientes de aprobación)*
 
 Une los requisitos con su implementación y su verificación. Se actualiza cada vez que se crea o modifica una HU, una regla o una prueba.
 
@@ -107,3 +107,18 @@ Une los requisitos con su implementación y su verificación. Se actualiza cada 
 | HU-07 | Saludos: sin RAG, nunca abren un hilo y no cambian el hilo activo | `_converse`, `continued_domain` | `test_conversational_message_replies_without_rag`, `test_greeting_inside_a_thread_keeps_the_thread_domain`, `test_greeting_never_opens_a_thread_nor_changes_the_active_one`, `test_conversational_message_without_thread_is_not_recorded` | ✅ (automática) |
 | HU-07 | Las alarmas tienen prioridad sobre el alcance | `_route` | `test_priority_alarm_is_never_discarded_as_out_of_scope`, `test_urgent_alarm_wins_over_out_of_scope` | ✅ (automática) |
 | HU-07 | Clasificación real (contexto ajeno, ajenos, saludos, seguimiento) | `analysis_prompt_v2.md` | `tests/live/test_live_scope.py` | ✅ en vivo (2026-10-10) |
+| HU-01 | Solicitud, aceptación, rechazo y respuesta no clara en el canal | `domain/consent.py`, `handle_incoming_message.py::_request_consent`, `channel_messages.py` | `tests/unit/test_consent.py` | 🟡 (automática; apagada por defecto, texto pendiente) |
+| HU-01 | Consentimiento en la web: sin aceptar no se atiende ni se guarda | `application/citizen_chat.py`, `adapters/inbound/api/citizen_routes.py` | `test_citizen_view.py` (`test_without_consent_…`, `test_accepting_…`, `test_rejecting_…`) | 🟡 (automática) |
+| HU-16 | Respuesta con fuentes y sin datos de auditoría; urgencia marcada; turnos que no se guardan | `citizen_routes.py`, `serializers.py::citizen_*`, `static/ciudadano.*` | `test_citizen_view.py` | 🟡 (automática + recorrido visual sintético) |
+| HU-16 | Solo la conversación propia del canal web | `citizen_chat.py::_user` | `test_a_person_cannot_reach_chats_of_other_channels` | 🟡 (automática) |
+| HU-16 | Identificadores personales fuera del modelo y de la base | `domain/privacy.py`, `ConversationService.send` | `tests/unit/test_privacy.py`, `test_identifiers_are_removed_before_the_message_is_stored` | 🟡 (automática; patrones pendientes de revisión) |
+| HU-16 / HU-10 | Procedencia de cada registro (lote, revisión, fuentes) | `domain/provenance.py`, `adapters/outbound/rag/provenance_file.py`, `scripts/build_kb_provenance.py`, `knowledge/kb/provenance.json` | `test_consent.py` (`test_real_provenance_file_…`, `test_missing_…`, `test_broken_…`), `test_evidence_in_the_team_view_carries_its_provenance` | 🟡 (automática) |
+| HU-17 | Bandeja de alertas con su chat | `ChatAudit.recent_alerts`, `sqlite_chat_audit.py`, `web_app.py::_add_supervision_routes`, `static/equipo.*` | `test_alert_inbox_lists_recent_alerts_with_their_chat` | 🟡 (automática) |
+| HU-18 | Solo lo declarado: estados desconocidos y contradictorios, sin deducir pasos | `domain/care_access.py` | `test_care_access.py` (`test_treatment_does_not_imply_…`, `test_opposite_statements_…`, `test_a_gap_needs_every_statement_…`) | 🟡 (automática) |
+| HU-18 | Aviso de la barrera dicha ahora, sin repetir; urgencia sin preguntas; una sola pregunta de contexto | `application/care_access.py` | `test_care_access.py` (`test_a_barrier_said_…`, `test_an_emergency_gets_…`, `test_the_cascade_is_a_single_follow_up_…`, `test_no_question_when_…`) | 🟡 (automática) |
+| HU-18 | Invariancia: no cambia alarma, alcance, búsqueda, hilo, abstención ni llamadas | `ConversationService._with_care_access` | `test_observing_changes_nothing_…`, `test_active_only_adds_text_…`, `test_pending_texts_are_never_shown_…` (8 escenarios cada una) | 🟡 (automática; falta en vivo) |
+| HU-18 | Apagado: esquema y traza guardada sin cambios; `access_facts` mal formado no rompe el turno | `agent_turn.py`, `trace_codec.py` | `test_the_schema_is_untouched_…`, `test_malformed_access_facts_…`, `test_trace_round_trip_…` | 🟡 (automática) |
+| HU-18 | Códigos solo con autorización para informes, también en `observar` | `domain/trace.py::without_facts`, `UserConversations`, `domain/consent.py` | `test_codes_are_not_stored_without_…`, `test_codes_of_people_who_did_not_authorize_…`, `test_the_team_sees_live_codes_…` | 🟡 (automática) |
+| HU-18 | Informe por persona, meses cerrados, umbral, supresión y redondeo | `application/care_access_report.py`, `scripts/export_care_access.py` | `test_care_access_report.py` | 🟡 (automática) |
+| HU-18 | Migración v3 sin tocar datos | `sqlite_database.py`, `sqlite_user_directory.py` | `test_version_2_database_is_migrated_…` | 🟡 (automática) |
+| HU-18 / HU-01 | Emergencias sin sesión ni consentimiento; autorización aparte del consentimiento | `citizen_routes.py`, `knowledge/public_info.json` | `test_emergency_information_needs_no_session_…`, `test_research_authorization_is_separate_…` | 🟡 (automática + recorrido visual sintético) |

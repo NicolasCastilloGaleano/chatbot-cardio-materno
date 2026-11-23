@@ -58,6 +58,12 @@ from cardio_materno.application.alarm_policy import (
     compose_reply,
     reminder_for,
 )
+from cardio_materno.application.care_access import (
+    AccessTurn,
+    CareAccessActivation,
+    decide_care_access,
+    render_care_access,
+)
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.application.evidence import (
     build_evidence_query,
@@ -102,6 +108,7 @@ from cardio_materno.application.scope import (
 from cardio_materno.application.stage_timer import StageTimer, Timer
 from cardio_materno.application.turn_context import TurnInput, analysis_context, reply_context
 from cardio_materno.domain.alarms import AlarmRule, Alert, AlertOrigin, Severity
+from cardio_materno.domain.care_access import CareAccessCatalog, NoticeRoute
 from cardio_materno.domain.conversation import (
     ChatMessage,
     ConversationThread,
@@ -118,6 +125,7 @@ from cardio_materno.domain.grounding import (
     unstated_details,
 )
 from cardio_materno.domain.knowledge import Focus, RetrievalResult, RetrievalStatus
+from cardio_materno.domain.privacy import redact_identifiers
 from cardio_materno.domain.trace import (
     EvidenceRef,
     GroundingCheck,
@@ -234,6 +242,8 @@ class ConversationConfig:
         selection_max_sentences: Máximo de frases que elige el selector.
         selected_reply_prompt: Instrucciones del redactor con frases seleccionadas (HU-13).
         urgent_guidance: Si se orienta después del aviso de una urgencia (ADR 0021).
+        care_access: Catálogo de datos de acceso (ADR 0023); None si la regla está apagada.
+        care_access_activation: Cómo participa la regla de acceso (`CARE_ACCESS_MODE`).
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -253,6 +263,8 @@ class ConversationConfig:
     selection_max_sentences: int = DEFAULT_SELECTION_MAX_SENTENCES
     selected_reply_prompt: str = ""
     urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
+    care_access: CareAccessCatalog | None = None
+    care_access_activation: CareAccessActivation = CareAccessActivation.OFF
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -346,6 +358,7 @@ class ConversationService:
         ports: ConversationPorts,
         config: ConversationConfig,
         active_thread_id: str | None = None,
+        keep_access_facts: bool = False,
     ) -> None:
         """Crea el servicio.
 
@@ -354,12 +367,16 @@ class ConversationService:
             config: Prompts, contexto, alarmas, reloj, ids y medidor de tiempos.
             active_thread_id: Hilo abierto que retoma la sesión (canales de chat continuo,
                 ADR 0015). None para empezar sin hilo activo, como la consola.
+            keep_access_facts: True solo si la persona autorizó usar sus datos de acceso
+                en informes agregados (ADR 0023). Sin eso, los códigos no se guardan.
         """
         self._ports = ports
         self._config = config
         self._active_thread_id = active_thread_id
         self._sign_codes = config.alarm_policy.codes
-        self._analysis_schema = analysis_schema(self._sign_codes)
+        self._fact_codes = care_access_codes(config)
+        self._keep_access_facts = keep_access_facts
+        self._analysis_schema = analysis_schema(self._sign_codes, self._fact_codes)
         self._selector = (
             None
             if config.selection_activation is SelectionActivation.OFF
@@ -373,6 +390,8 @@ class ConversationService:
     def send(self, user_text: str) -> TurnResult:
         """Procesa un mensaje del usuario y devuelve la respuesta.
 
+        Antes de cualquier etapa se quitan del texto los identificadores personales
+        (`domain/privacy.py`): ni las reglas, ni el modelo, ni la base los reciben.
         Si el modelo falla y no hay alarma, no se guarda nada y el hilo activo no cambia.
         Si hay alarma, el mensaje fijo se muestra aunque el modelo falle.
 
@@ -380,12 +399,14 @@ class ConversationService:
             LanguageModelError: Si el modelo falla (o responde mal) y no hay alarma.
         """
         current = self._active_thread()
+        user_text = redact_identifiers(user_text)
         turn = TurnInput(user_text, self._recent(current))
         pre = self._config.alarm_policy.evaluate([user_text], AlertOrigin.USER)
         if pre is not None and pre.is_immediate:
             outcome = TurnOutcome(compose_reply([pre], None), (pre,))
         else:
             outcome = self._consult_agent(current, turn, pre)
+        outcome = self._with_care_access(turn, outcome)
         result = self._finish(current, turn, outcome)
         return replace(result, urgent_guidance=self._guidance_request(turn, outcome, result))
 
@@ -831,7 +852,7 @@ class ConversationService:
         """Llamada de análisis: sin evidencia (ADR 0008)."""
         context = analysis_context(self._config.analysis_prompt, current, turn)
         data = self._ports.analyzer.complete_json(context, self._analysis_schema)
-        return parse_analysis(data, self._sign_codes)
+        return parse_analysis(data, self._sign_codes, self._fact_codes)
 
     def _conversational_reply(self, analysis: AnalysisTurn, turn: TurnInput) -> ReplyTurn:
         """Llamada de respuesta sin evidencia (saludos): texto simple, sin citas."""
@@ -849,6 +870,33 @@ class ConversationService:
         context = reply_context(self._config.reply_prompt, analysis, turn, evidence_text)
         data = self._ports.responder.complete_json(context, grounded_reply_schema(retrieval.labels))
         return parse_grounded_reply(data, retrieval.labels)
+
+    def _with_care_access(self, turn: TurnInput, outcome: TurnOutcome) -> TurnOutcome:
+        """Aviso de acceso o pregunta de contexto sobre el turno ya decidido (ADR 0023).
+
+        Solo agrega texto y traza: la alarma, el alcance, la evidencia y el hilo no cambian.
+        No se evalúa con la regla apagada, fuera de alcance ni en saludos. Un texto que el
+        equipo no ha aprobado nunca se muestra, ni siquiera en modo activo.
+        """
+        catalog = self._config.care_access
+        skipped = not outcome.record or outcome.conversational
+        if catalog is None or not self._fact_codes or skipped:
+            return outcome
+        decision = decide_care_access(access_turn(turn, outcome), catalog)
+        active = self._config.care_access_activation is CareAccessActivation.ACTIVE
+        chosen = bool(decision.notice or decision.question)
+        applied = active and chosen and not decision.pending_approval
+        reply = render_care_access(outcome.reply, decision, catalog) if applied else outcome.reply
+        trace = outcome.trace
+        if trace is not None:
+            trace = replace(trace, care_access=replace(decision, applied=applied))
+        return replace(outcome, reply=reply, trace=trace)
+
+    def _storable(self, trace: ReplyTrace | None) -> ReplyTrace | None:
+        """Traza que se guarda: sin los códigos de acceso si la persona no autorizó su uso."""
+        if trace is None or trace.care_access is None or self._keep_access_facts:
+            return trace
+        return replace(trace, care_access=trace.care_access.without_facts())
 
     def _post_filter(
         self, analysis: AnalysisTurn, pre: AlarmDecision | None
@@ -950,7 +998,9 @@ class ConversationService:
         repository = self._ports.repository
         repository.append_message(ChatMessage(Role.USER, user_text, thread_id, now))
         repository.append_message(
-            ChatMessage(Role.ASSISTANT, outcome.reply, thread_id, now, outcome.trace)
+            ChatMessage(
+                Role.ASSISTANT, outcome.reply, thread_id, now, self._storable(outcome.trace)
+            )
         )
         alerts = tuple(Alert(d.rule_ids, d.severity, d.origin, now) for d in outcome.decisions)
         for alert in alerts:
@@ -1174,3 +1224,43 @@ def with_unstated_details(outcome: TurnOutcome, turn: TurnInput) -> TurnOutcome:
 def continued_domain(current: Domain, analyzed: Domain) -> Domain:
     """Dominio de un hilo que continúa: un mensaje sin dominio ("gracias") no borra el del caso."""
     return current if analyzed is Domain.NONE else analyzed
+
+
+def care_access_codes(config: ConversationConfig) -> tuple[str, ...]:
+    """Códigos de acceso que el análisis puede marcar; vacío si la regla está apagada."""
+    off = config.care_access_activation is CareAccessActivation.OFF
+    return () if config.care_access is None or off else config.care_access.codes
+
+
+def access_turn(turn: TurnInput, outcome: TurnOutcome) -> AccessTurn:
+    """Lo que la regla de acceso lee del turno: el mensaje, el hilo y la ruta ya decidida.
+
+    Un tema nuevo no arrastra los textos del hilo anterior.
+    """
+    analysis = outcome.analysis
+    continues = analysis is None or analysis.thread_action is ThreadAction.CONTINUE
+    recent = turn.recent if continues else ()
+    return AccessTurn(
+        message=turn.user_text,
+        earlier_messages=tuple(m.content for m in recent if m.role is Role.USER),
+        assistant_texts=tuple(m.content for m in recent if m.role is Role.ASSISTANT),
+        analysis_facts=analysis.access_facts if analysis else (),
+        route=access_route(outcome),
+        has_question=has_question(split_sentences(outcome.reply)),
+        informational=bool(analysis and analysis.asks_information),
+    )
+
+
+def access_route(outcome: TurnOutcome) -> NoticeRoute | None:
+    """Variante del aviso según lo que el turno **ya** decidió; esta regla nunca la decide.
+
+    Urgencias si hay una urgencia inmediata o se acompaña una ya avisada; consulta si hay
+    una alarma prioritaria o la respuesta orientó con evidencia; None en los demás turnos.
+    """
+    trace = outcome.trace
+    urgent = trace is not None and trace.urgent_accompaniment
+    if urgent or any(decision.is_immediate for decision in outcome.decisions):
+        return NoticeRoute.EMERGENCY
+    if outcome.decisions or (trace is not None and bool(trace.cited_evidence)):
+        return NoticeRoute.CONSULTATION
+    return None

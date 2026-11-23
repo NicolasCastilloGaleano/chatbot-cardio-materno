@@ -4,7 +4,7 @@ Se guarda junto a cada respuesta del asistente para poder explicar después qué
 identificó el agente, qué evidencia se le ofreció, cuál citó y cuánto tardó cada etapa.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 
@@ -137,6 +137,54 @@ class InquiryTrace:
 
 
 @dataclass(frozen=True)
+class CareAccessTrace:
+    """Datos de acceso a la atención de un turno y lo que se decidió con ellos (HU-18).
+
+    Attributes:
+        stated_facts: Códigos que un patrón encontró en el texto de la persona.
+        interpreted_facts: Códigos que marcó el análisis sin que un patrón los
+            confirme: son una interpretación del modelo, no una cita de la persona.
+        contradictions: Pasos de la cascada con declaraciones contradictorias.
+        route: Variante del aviso según la ruta que ya decidió el turno ("" si no orienta).
+        notice: Aviso de acceso elegido ("" si ninguno).
+        question: Paso de la cascada por el que se preguntaría ("" si ninguno).
+        applied: True si el aviso o la pregunta se mostraron a la persona.
+        pending_approval: True si el texto elegido aún no está aprobado (no se muestra).
+        facts_withheld: True si los códigos no se guardaron porque la persona no
+            autorizó su uso en informes agregados.
+    """
+
+    stated_facts: tuple[str, ...] = ()
+    interpreted_facts: tuple[str, ...] = ()
+    contradictions: tuple[str, ...] = ()
+    route: str = ""
+    notice: str = ""
+    question: str = ""
+    applied: bool = False
+    pending_approval: bool = False
+    facts_withheld: bool = False
+
+    @property
+    def facts(self) -> tuple[str, ...]:
+        """Todos los códigos del turno: declarados e interpretados."""
+        return (*self.stated_facts, *self.interpreted_facts)
+
+    def without_facts(self) -> "CareAccessTrace":
+        """Lo que se guarda sin autorización para informes: nunca un dato codificado nuevo.
+
+        Un aviso o una pregunta que **sí** se mostró queda registrado, porque su texto ya
+        está en la respuesta guardada. Lo que solo se habría mostrado (modo observar o texto
+        pendiente) no se guarda: el código de un aviso nombra la barrera de la persona.
+        """
+        stripped = replace(
+            self, stated_facts=(), interpreted_facts=(), contradictions=(), facts_withheld=True
+        )
+        if self.applied:
+            return stripped
+        return replace(stripped, route="", notice="", question="", pending_approval=False)
+
+
+@dataclass(frozen=True)
 class EvidenceRef:
     """Referencia a un registro de evidencia ofrecido al agente.
 
@@ -235,6 +283,7 @@ class ReplyTrace:
         urgent_accompaniment: True si el turno acompañó una urgencia inmediata ya avisada:
             sin indagar y sin preguntas (B-030).
         selection: Lo que hizo el selector de evidencia (HU-13); None si no corrió.
+        care_access: Datos de acceso a la atención del turno (HU-18); None si no se evaluó.
         urgent_follow_up: True si es la orientación automática que sigue al aviso de una
             urgencia (B-034, ADR 0021).
     """
@@ -259,6 +308,7 @@ class ReplyTrace:
     urgent_accompaniment: bool = False
     selection: SelectionTrace | None = None
     urgent_follow_up: bool = False
+    care_access: CareAccessTrace | None = None
 
     @property
     def uncited(self) -> bool:

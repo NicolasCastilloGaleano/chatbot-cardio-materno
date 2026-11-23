@@ -19,6 +19,7 @@ class InboundStatus(StrEnum):
     PROCESSING = "procesando"
     ANSWERED = "respondido"
     IGNORED = "ignorado"
+    CONSENT = "consentimiento"  # Solicitud o decisión de consentimiento: no se atiende.
     FAILED = "fallido"
 
 

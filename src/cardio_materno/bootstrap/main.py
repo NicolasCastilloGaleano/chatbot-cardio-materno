@@ -13,6 +13,10 @@ from cardio_materno.adapters.outbound.clinical_rules.json_alarm_catalog import (
     AlarmCatalogError,
     load_alarm_policy,
 )
+from cardio_materno.adapters.outbound.clinical_rules.json_care_access_catalog import (
+    CareAccessCatalogError,
+    load_care_access_catalog,
+)
 from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
@@ -22,6 +26,10 @@ from cardio_materno.adapters.outbound.persistence.json_file_thread_repository im
 )
 from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError
 from cardio_materno.application.alarm_policy import AlarmPolicy, render_system_prompt
+from cardio_materno.application.care_access import (
+    CareAccessActivation,
+    render_care_access_prompt,
+)
 from cardio_materno.application.conversation_service import (
     ConversationConfig,
     ConversationPorts,
@@ -41,19 +49,28 @@ from cardio_materno.bootstrap.settings import (
     load_selection_settings,
     load_stage_settings,
 )
+from cardio_materno.domain.care_access import CareAccessCatalog
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = PACKAGE_DIR.parents[1]
 ENV_FILE = PROJECT_ROOT / ".env"
 PROMPTS_DIR = PACKAGE_DIR / "prompts"
 ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v8.md"
+# Con la regla de acceso en observar o activo: el v8 más el campo `access_facts` (ADR 0023).
+CARE_ACCESS_ANALYSIS_PROMPT_FILE = PROMPTS_DIR / "analysis_prompt_v9.md"
 REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v4.md"
 INQUIRY_PROMPT_FILE = PROMPTS_DIR / "inquiry_prompt_v1.md"
 SELECTION_PROMPT_FILE = PROMPTS_DIR / "evidence_selection_prompt_v1.md"
 SELECTED_REPLY_PROMPT_FILE = PROMPTS_DIR / "reply_prompt_v5.md"
 EXIT_OK = 0
 EXIT_ERROR = 1
-STARTUP_ERRORS = (ConfigurationError, AlarmCatalogError, KnowledgeBaseError, LanguageModelError)
+STARTUP_ERRORS = (
+    ConfigurationError,
+    AlarmCatalogError,
+    CareAccessCatalogError,
+    KnowledgeBaseError,
+    LanguageModelError,
+)
 
 
 def use_utf8_streams() -> None:
@@ -98,13 +115,16 @@ def build_conversation(
         Puertos y configuración del servicio conversacional.
     """
     alarm_policy = _load_alarm_policy(settings)
+    care_access = load_care_access(settings)
     analyzer = _connect("análisis", load_stage_settings(os.environ, ANALYSIS_MODEL_VARIABLE))
     responder = _connect("respuesta", load_stage_settings(os.environ, REPLY_MODEL_VARIABLE))
     rag = _setup_rag()
     selector = _selection_model(settings)
     ports = ConversationPorts(analyzer, responder, repository, rag.retriever, selector)
     config = ConversationConfig(
-        analysis_prompt=render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy),
+        analysis_prompt=analysis_prompt(alarm_policy, care_access),
+        care_access=care_access,
+        care_access_activation=settings.care_access,
         reply_prompt=_read(REPLY_PROMPT_FILE),
         context_messages=settings.context_messages,
         alarm_policy=alarm_policy,
@@ -120,6 +140,21 @@ def build_conversation(
         selected_reply_prompt=_read(SELECTED_REPLY_PROMPT_FILE),
     )
     return ports, config
+
+
+def load_care_access(settings: ConversationSettings) -> CareAccessCatalog | None:
+    """Catálogo de acceso, o None con la regla apagada (el análisis no cambia)."""
+    if settings.care_access is CareAccessActivation.OFF:
+        return None
+    return load_care_access_catalog(settings.care_access_file)
+
+
+def analysis_prompt(alarm_policy: AlarmPolicy, care_access: CareAccessCatalog | None) -> str:
+    """Prompt de análisis: el v8, o el v9 con la tabla de datos de acceso si la regla corre."""
+    if care_access is None:
+        return render_system_prompt(_read(ANALYSIS_PROMPT_FILE), alarm_policy)
+    template = render_system_prompt(_read(CARE_ACCESS_ANALYSIS_PROMPT_FILE), alarm_policy)
+    return render_care_access_prompt(template, care_access)
 
 
 def _selection_model(settings: ConversationSettings) -> OllamaLanguageModel | None:

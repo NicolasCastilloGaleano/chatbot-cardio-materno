@@ -1,8 +1,10 @@
-"""Interfaz web local de auditoría multicanal y chat directo (HU-08, HU-10, ADR 0013 y 0016).
+"""Interfaz web local: vista ciudadana y vista del equipo (HU-08, HU-10, HU-16, ADR 0022).
 
-Audita los chats de todos los canales (uno por persona) y permite seguir conversando en los
-de consola y web. WhatsApp, Telegram y el histórico son de solo lectura: el servidor rechaza
-los envíos a esos chats, no solo la interfaz.
+`/` es la vista ciudadana: la conversación propia de una persona, con su consentimiento y
+las fuentes de cada respuesta (`citizen_routes.py`). `/equipo` es la vista del equipo:
+audita los chats de todos los canales, muestra las alertas para supervisión y permite
+seguir conversando en los de consola y web. WhatsApp, Telegram y el histórico son de solo
+lectura: el servidor rechaza los envíos a esos chats, no solo la interfaz.
 """
 
 import logging
@@ -15,14 +17,18 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from cardio_materno.adapters.inbound.api.citizen_routes import add_citizen_routes
+from cardio_materno.adapters.inbound.api.local_only import add_local_only_guard
 from cardio_materno.adapters.inbound.api.serializers import (
     CHANNEL_LABELS,
     LOCK_TEXTS,
-    Entries,
+    Knowledge,
+    alert_record_to_dict,
     chat_to_dict,
     entry_to_dict,
     turn_to_dict,
 )
+from cardio_materno.application.citizen_chat import CitizenChat
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.direct_chat import DirectChat
 from cardio_materno.application.errors import (
@@ -31,7 +37,6 @@ from cardio_materno.application.errors import (
     LanguageModelError,
 )
 from cardio_materno.application.ports.chat_audit import ChatAudit, ChatPage, ChatSummary
-from cardio_materno.domain.knowledge import KnowledgeEntry
 from cardio_materno.domain.user import Channel, ChatLock, chat_lock
 
 logger = logging.getLogger(__name__)
@@ -39,7 +44,7 @@ STATIC_DIR = Path(__file__).with_name("static")
 # El navegador revalida la página y sus archivos en cada carga: tras actualizar la rama no hace
 # falta forzar la recarga (2026-10-27: un app.js viejo en caché escondía el saludo sin hilo).
 NO_CACHE_HEADERS = {"Cache-Control": "no-cache"}
-APP_TITLE = "Chat cardio-materno: auditoría multicanal"
+APP_TITLE = "Cardio materno: orientación y auditoría"
 ERROR_MODEL_MESSAGE = "No se pudo generar la respuesta. Puedes intentarlo de nuevo."
 CHAT_NOT_FOUND = "Chat no encontrado"
 # En la terminal del servidor: etapa y causa técnica, nunca el texto de la persona.
@@ -50,6 +55,8 @@ CHAT_BUSY = "Ya se está procesando un mensaje en este chat. Espera la respuesta
 NOT_LIVE = "El chat no está en uso en una consola."
 EMPTY_TEXT = "El mensaje no puede estar vacío"
 MAX_LIMIT = 200
+DEFAULT_ALERT_LIMIT = 50
+CITIZEN_PAGE, TEAM_PAGE = "ciudadano.html", "equipo.html"
 DEFAULT_CHAT_LIMIT = 50
 
 
@@ -97,25 +104,40 @@ class ChatLocks:
         self._locks[user_id].release()
 
 
-def create_app(
-    chats: DirectChat, audit: ChatAudit, entries: list[KnowledgeEntry], options: WebOptions
-) -> FastAPI:
+@dataclass(frozen=True)
+class WebServices:
+    """Casos de uso y lecturas que necesita la interfaz.
+
+    Attributes:
+        chats: Chats directos de consola y web (crear, escribir, liberar).
+        citizen: Conversación propia de una persona, con su consentimiento.
+        audit: Lectura de los chats y las alertas de todos los canales.
+    """
+
+    chats: DirectChat
+    citizen: CitizenChat
+    audit: ChatAudit
+
+
+def create_app(services: WebServices, knowledge: Knowledge, options: WebOptions) -> FastAPI:
     """Construye la aplicación HTTP con sus dependencias inyectadas.
 
     Args:
-        chats: Chats directos de consola y web (crear, escribir, liberar).
-        audit: Lectura de los chats de todos los canales.
-        entries: Registros de conocimiento para ampliar la evidencia de la auditoría.
+        services: Casos de uso y lecturas de la interfaz.
+        knowledge: Registros y procedencia para explicar la evidencia.
         options: Tamaño de página y frecuencia de actualización.
 
     Returns:
-        Aplicación FastAPI lista para servir en loopback.
+        Aplicación FastAPI lista para servir en loopback; rechaza las peticiones que no
+        vienen de la propia máquina (`local_only.py`).
     """
     app = FastAPI(title=APP_TITLE, docs_url=None, redoc_url=None, openapi_url=None)
-    entry_index = {entry.id: entry for entry in entries}
+    add_local_only_guard(app)
     _add_page_routes(app)
-    _add_chat_routes(app, chats, audit, options)
-    _add_message_routes(app, chats, audit, entry_index, options)
+    add_citizen_routes(app, services.citizen, services.audit, knowledge)
+    _add_chat_routes(app, services.chats, services.audit, options)
+    _add_supervision_routes(app, services.audit)
+    _add_message_routes(app, services.chats, services.audit, knowledge, options)
     return app
 
 
@@ -123,9 +145,14 @@ def _add_page_routes(app: FastAPI) -> None:
     """Registra la página y los archivos estáticos locales."""
 
     @app.get("/", include_in_schema=False)
-    def home() -> FileResponse:
-        """Entrega el cliente web."""
-        return FileResponse(STATIC_DIR / "index.html", headers=NO_CACHE_HEADERS)
+    def citizen_page() -> FileResponse:
+        """Entrega la vista ciudadana."""
+        return FileResponse(STATIC_DIR / CITIZEN_PAGE, headers=NO_CACHE_HEADERS)
+
+    @app.get("/equipo", include_in_schema=False)
+    def team_page() -> FileResponse:
+        """Entrega la vista del equipo (auditoría y supervisión)."""
+        return FileResponse(STATIC_DIR / TEAM_PAGE, headers=NO_CACHE_HEADERS)
 
     @app.get("/static/{asset_name}", include_in_schema=False)
     def static_asset(asset_name: str) -> FileResponse:
@@ -181,8 +208,19 @@ def _add_chat_routes(
         return chat_to_dict(require_chat(audit, user_id))
 
 
+def _add_supervision_routes(app: FastAPI, audit: ChatAudit) -> None:
+    """Registra la bandeja de alertas del equipo."""
+
+    @app.get("/api/alerts")
+    def alerts(
+        limit: int = Query(DEFAULT_ALERT_LIMIT, ge=1, le=MAX_LIMIT),
+    ) -> list[dict[str, Any]]:
+        """Últimas alertas de todos los chats, para la supervisión del equipo."""
+        return [alert_record_to_dict(record) for record in audit.recent_alerts(limit)]
+
+
 def _add_message_routes(
-    app: FastAPI, chats: DirectChat, audit: ChatAudit, entries: Entries, options: WebOptions
+    app: FastAPI, chats: DirectChat, audit: ChatAudit, knowledge: Knowledge, options: WebOptions
 ) -> None:
     """Registra la lectura por páginas y el envío de mensajes."""
     locks = ChatLocks()
@@ -202,7 +240,7 @@ def _add_message_routes(
             if after is not None
             else audit.message_page(user_id, before, size)
         )
-        return page_to_dict(chat, page, audit.pending_inbound(user_id), entries)
+        return page_to_dict(chat, page, audit.pending_inbound(user_id), knowledge)
 
     @app.post("/api/chats/{user_id}/messages")
     def send(user_id: str, request: SendMessageRequest) -> dict[str, Any]:
@@ -219,7 +257,7 @@ def _add_message_routes(
             locks.release(user_id)
         page = audit.messages_after(user_id, request.after, MAX_LIMIT)
         chat = require_chat(audit, user_id)
-        return {"turn": turn_to_dict(turn, entries), **page_to_dict(chat, page, 0, entries)}
+        return {"turn": turn_to_dict(turn, knowledge), **page_to_dict(chat, page, 0, knowledge)}
 
 
 def run_turn(chats: DirectChat, chat: ChatSummary, text: str) -> TurnResult:
@@ -244,7 +282,7 @@ def run_turn(chats: DirectChat, chat: ChatSummary, text: str) -> TurnResult:
 
 
 def page_to_dict(
-    chat: ChatSummary, page: ChatPage, pending: int, entries: Entries
+    chat: ChatSummary, page: ChatPage, pending: int, knowledge: Knowledge
 ) -> dict[str, Any]:
     """Página de mensajes con el estado actual del chat.
 
@@ -252,14 +290,14 @@ def page_to_dict(
         chat: Resumen del chat (puede haber cambiado, p. ej., al cerrarse la consola).
         page: Mensajes leídos.
         pending: Mensajes del canal aún en proceso.
-        entries: Registros para completar la evidencia.
+        knowledge: Registros para completar la evidencia.
 
     Returns:
         `chat`, `messages`, `next_before` y `pending`.
     """
     return {
         "chat": chat_to_dict(chat),
-        "messages": [entry_to_dict(entry, entries) for entry in page.entries],
+        "messages": [entry_to_dict(entry, knowledge) for entry in page.entries],
         "next_before": page.next_before,
         "pending": pending,
     }

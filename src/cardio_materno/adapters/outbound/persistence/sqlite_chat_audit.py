@@ -15,7 +15,12 @@ from cardio_materno.adapters.outbound.persistence.sqlite_thread_repository impor
     message_from_row,
 )
 from cardio_materno.application.ports.channel_log import InboundStatus
-from cardio_materno.application.ports.chat_audit import ChatEntry, ChatPage, ChatSummary
+from cardio_materno.application.ports.chat_audit import (
+    AlertRecord,
+    ChatEntry,
+    ChatPage,
+    ChatSummary,
+)
 from cardio_materno.domain.alarms import Alert
 from cardio_materno.domain.conversation import (
     ConversationThread,
@@ -38,6 +43,14 @@ ENTRY_SELECT = """
         t.domain AS t_domain, t.summary AS t_summary, t.status AS t_status,
         t.created_at AS t_created_at, t.updated_at AS t_updated_at
     FROM messages m JOIN threads t ON t.id = m.thread_id
+"""
+# Alertas con su chat. El canal es el de la primera identidad del usuario, como en la lista.
+RECENT_ALERTS = f"""
+    SELECT {ALERT_COLUMNS}, t.user_id, t.domain AS t_domain, t.summary AS t_summary,
+        (SELECT c.channel FROM channel_identities c WHERE c.user_id = t.user_id
+         ORDER BY c.created_at LIMIT 1) AS channel
+    FROM alerts a JOIN threads t ON t.id = a.thread_id
+    WHERE t.user_id IS NOT NULL ORDER BY a.seq DESC LIMIT ?
 """
 UNFINISHED = (str(InboundStatus.RECEIVED), str(InboundStatus.PROCESSING))
 
@@ -88,6 +101,21 @@ class SqliteChatAudit:
             (user_id, after, limit),
         )
         return ChatPage(self._entries(rows))
+
+    def recent_alerts(self, limit: int) -> list[AlertRecord]:
+        """Las últimas `limit` alertas de todos los chats, de la más reciente a la más antigua."""
+        rows = self._db.query(RECENT_ALERTS, (limit,))
+        return [
+            AlertRecord(
+                alert_from_row(row),
+                row["user_id"],
+                Channel(row["channel"]),
+                row["thread_id"],
+                row["t_domain"],
+                row["t_summary"],
+            )
+            for row in rows
+        ]
 
     def pending_inbound(self, user_id: str) -> int:
         """Mensajes del canal recibidos y aún en proceso."""

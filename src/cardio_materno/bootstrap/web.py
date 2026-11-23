@@ -6,13 +6,25 @@ import sys
 import uvicorn
 from fastapi import FastAPI
 
-from cardio_materno.adapters.inbound.api.web_app import WebOptions, create_app
+from cardio_materno.adapters.inbound.api.serializers import Knowledge
+from cardio_materno.adapters.inbound.api.web_app import WebOptions, WebServices, create_app
+from cardio_materno.adapters.outbound.clinical_rules.json_care_access_catalog import (
+    load_public_emergency_info,
+)
 from cardio_materno.adapters.outbound.persistence.sqlite_chat_audit import SqliteChatAudit
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     DatabaseVersionError,
     SqliteDatabase,
 )
+from cardio_materno.adapters.outbound.persistence.sqlite_user_directory import (
+    SqliteUserDirectory,
+)
 from cardio_materno.adapters.outbound.rag.knowledge_files import KnowledgeBaseError, load_entries
+from cardio_materno.adapters.outbound.rag.provenance_file import (
+    load_provenance,
+    provenance_path,
+)
+from cardio_materno.application.citizen_chat import CitizenChat, CitizenPolicy
 from cardio_materno.bootstrap.console import build_direct_chat
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.main import (
@@ -21,15 +33,16 @@ from cardio_materno.bootstrap.main import (
     EXIT_OK,
     PROJECT_ROOT,
     STARTUP_ERRORS,
+    load_care_access,
     use_utf8_streams,
 )
 from cardio_materno.bootstrap.settings import (
     WebSettings,
+    load_conversation_settings,
     load_persistence_settings,
     load_rag_settings,
     load_web_settings,
 )
-from cardio_materno.domain.knowledge import KnowledgeEntry
 
 
 def create_web_app(web: WebSettings, database: SqliteDatabase) -> FastAPI:
@@ -40,26 +53,33 @@ def create_web_app(web: WebSettings, database: SqliteDatabase) -> FastAPI:
         database: Base SQLite abierta (la misma que usan la consola y WhatsApp).
 
     Returns:
-        Aplicación FastAPI de auditoría y chat directo.
+        Aplicación FastAPI con la vista ciudadana y la del equipo.
 
     Raises:
         ConfigurationError: Si la configuración no es válida.
     """
     persistence = load_persistence_settings(os.environ, PROJECT_ROOT)
-    return create_app(
-        build_direct_chat(database, persistence),
-        SqliteChatAudit(database),
-        _knowledge_entries(),
-        WebOptions(web.page_size, web.poll_seconds),
-    )
+    chats = build_direct_chat(database, persistence)
+    knowledge = _knowledge()
+    research_text = knowledge.care_access.research_text if knowledge.care_access else ""
+    policy = CitizenPolicy(persistence.consent_required, research_text)
+    citizen = CitizenChat(chats, SqliteUserDirectory(database), policy)
+    services = WebServices(chats, citizen, SqliteChatAudit(database))
+    return create_app(services, knowledge, WebOptions(web.page_size, web.poll_seconds))
 
 
-def _knowledge_entries() -> list[KnowledgeEntry]:
-    """Registros de la base para mostrar la evidencia completa (vacío si no está)."""
+def _knowledge() -> Knowledge:
+    """Registros y procedencia para explicar la evidencia (vacío si la base no está)."""
+    entries_file = load_rag_settings(os.environ, PROJECT_ROOT).entries_file
+    settings = load_conversation_settings(os.environ, PROJECT_ROOT)
+    access = load_care_access(settings)
+    emergency = load_public_emergency_info(settings.public_info_file)
     try:
-        return load_entries(load_rag_settings(os.environ, PROJECT_ROOT).entries_file)
+        entries = {entry.id: entry for entry in load_entries(entries_file)}
+        provenance = load_provenance(provenance_path(entries_file))
     except KnowledgeBaseError:
-        return []
+        return Knowledge(care_access=access, emergency=emergency)
+    return Knowledge(entries, provenance, access, emergency)
 
 
 def main() -> int:
@@ -78,7 +98,8 @@ def main() -> int:
     except (*STARTUP_ERRORS, DatabaseVersionError) as error:
         print(f"No se pudo iniciar la interfaz web: {error}", file=sys.stderr)
         return EXIT_ERROR
-    print(f"Interfaz local disponible en http://{web.host}:{web.port}")
+    print(f"Vista ciudadana: http://{web.host}:{web.port}/")
+    print(f"Vista del equipo: http://{web.host}:{web.port}/equipo")
     try:
         uvicorn.run(app, host=web.host, port=web.port)
     finally:

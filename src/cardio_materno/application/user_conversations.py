@@ -18,7 +18,14 @@ from cardio_materno.application.ports.user_thread_store import UserThreadStore
 from cardio_materno.domain.conversation import close_thread
 from cardio_materno.domain.user import is_idle
 
-ServiceFactory = Callable[[ThreadRepository, str | None], ConversationService]
+# Repositorio acotado, hilo activo y si se guardan los códigos de acceso (ADR 0023).
+ServiceFactory = Callable[[ThreadRepository, str | None, bool], ConversationService]
+ResearchCheck = Callable[[str], bool]
+
+
+def no_research(user_id: str) -> bool:
+    """Nadie autorizó el uso en informes: los códigos de acceso no se guardan."""
+    return False
 
 
 class UserConversations:
@@ -30,6 +37,7 @@ class UserConversations:
         service_factory: ServiceFactory,
         idle_timeout: timedelta,
         clock: Clock = utc_now,
+        research_authorized: ResearchCheck = no_research,
     ) -> None:
         """Crea el componente.
 
@@ -38,8 +46,11 @@ class UserConversations:
             service_factory: Crea el servicio para un repositorio acotado y un hilo activo.
             idle_timeout: Inactividad tras la cual se cierra el hilo abierto.
             clock: Reloj (UTC).
+            research_authorized: Dice si un usuario autorizó usar sus datos de acceso en
+                informes agregados (ADR 0023).
         """
         self._threads = threads
+        self._research_authorized = research_authorized
         self._service_factory = service_factory
         self._idle_timeout = idle_timeout
         self._clock = clock
@@ -52,7 +63,8 @@ class UserConversations:
         if active is not None and is_idle(active.last_activity, now, self._idle_timeout):
             repository.save_thread(close_thread(active.thread, now))
             active = None
-        return self._service_factory(repository, active.thread.id if active else None)
+        thread_id = active.thread.id if active else None
+        return self._service_factory(repository, thread_id, self._research_authorized(user_id))
 
     def close_open_thread(self, user_id: str) -> None:
         """Cierra el hilo abierto del usuario, si lo hay (fin de una sesión de consola)."""

@@ -4,14 +4,26 @@ Convierte turnos, chats, mensajes y trazas al formato que consume el cliente web
 evidencia se completa con la pregunta y la respuesta del registro de la base.
 """
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from cardio_materno.application.conversation_service import TurnResult
-from cardio_materno.application.ports.chat_audit import ChatEntry, ChatSummary
-from cardio_materno.domain.alarms import Alert
-from cardio_materno.domain.conversation import ChatMessage, ConversationThread
+from cardio_materno.application.ports.chat_audit import (
+    AlertRecord,
+    ChatEntry,
+    ChatSummary,
+)
+from cardio_materno.domain.alarms import Alert, Severity
+from cardio_materno.domain.care_access import (
+    CareAccessCatalog,
+    NoticeRoute,
+    PublicEmergencyInfo,
+)
+from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Role
 from cardio_materno.domain.knowledge import KnowledgeEntry
+from cardio_materno.domain.provenance import EntryProvenance, Provenance, SourceRef
 from cardio_materno.domain.trace import (
+    CareAccessTrace,
     EvidenceRef,
     GroundingCheck,
     InquiryTrace,
@@ -36,6 +48,26 @@ LOCK_TEXTS = {
 }
 
 Entries = dict[str, KnowledgeEntry]
+# Tipo de mensaje que ve la persona en la vista ciudadana.
+KIND_URGENT, KIND_PRIORITY, KIND_REPLY = "urgencia", "prioritaria", "respuesta"
+CITIZEN_KINDS = {Severity.IMMEDIATE: KIND_URGENT, Severity.PRIORITY: KIND_PRIORITY}
+
+
+@dataclass(frozen=True)
+class Knowledge:
+    """Base de conocimiento que la interfaz usa para explicar la evidencia.
+
+    Attributes:
+        knowledge: Registros por identificador, para mostrar su texto.
+        provenance: Lote, revisión y fuentes de cada registro.
+        care_access: Catálogo de acceso (None con la regla apagada).
+        emergency: Información pública de emergencias (None si no se cargó).
+    """
+
+    entries: Entries = field(default_factory=dict)
+    provenance: Provenance = Provenance()
+    care_access: CareAccessCatalog | None = None
+    emergency: PublicEmergencyInfo | None = None
 
 
 def chat_to_dict(chat: ChatSummary) -> dict[str, Any]:
@@ -65,30 +97,30 @@ def chat_to_dict(chat: ChatSummary) -> dict[str, Any]:
     }
 
 
-def entry_to_dict(entry: ChatEntry, entries: Entries) -> dict[str, Any]:
+def entry_to_dict(entry: ChatEntry, knowledge: Knowledge) -> dict[str, Any]:
     """Serializa un mensaje del chat con su posición, su hilo y las alertas de su turno.
 
     Args:
         entry: Mensaje leído para la auditoría.
-        entries: Registros usados para completar el texto de evidencia.
+        knowledge: Registros usados para completar el texto de evidencia.
 
     Returns:
         El mensaje con `seq`, `thread` y `alerts`.
     """
     return {
         "seq": entry.seq,
-        **message_to_dict(entry.message, entries),
+        **message_to_dict(entry.message, knowledge),
         "thread": thread_to_dict(entry.thread),
         "alerts": [alert_to_dict(alert) for alert in entry.alerts],
     }
 
 
-def turn_to_dict(result: TurnResult, entries: Entries) -> dict[str, Any]:
+def turn_to_dict(result: TurnResult, knowledge: Knowledge) -> dict[str, Any]:
     """Convierte el turno y las alertas al contrato HTTP del cliente.
 
     Args:
         result: Turno procesado por el caso de uso.
-        entries: Registros usados para completar el texto de evidencia.
+        knowledge: Registros usados para completar el texto de evidencia.
 
     Returns:
         Datos JSON de la respuesta, el hilo, las alertas y la traza.
@@ -99,7 +131,7 @@ def turn_to_dict(result: TurnResult, entries: Entries) -> dict[str, Any]:
         "is_new_thread": result.is_new_thread,
         "out_of_scope": result.out_of_scope,
         "alerts": [alert_to_dict(alert) for alert in result.alerts],
-        "trace": trace_to_dict(result.trace, entries) if result.trace else None,
+        "trace": trace_to_dict(result.trace, knowledge) if result.trace else None,
     }
 
 
@@ -122,12 +154,12 @@ def thread_to_dict(thread: ConversationThread) -> dict[str, str]:
     }
 
 
-def message_to_dict(message: ChatMessage, entries: Entries) -> dict[str, Any]:
+def message_to_dict(message: ChatMessage, knowledge: Knowledge) -> dict[str, Any]:
     """Serializa un mensaje y su traza, si existe.
 
     Args:
         message: Mensaje persistido.
-        entries: Registros usados para completar el texto de evidencia.
+        knowledge: Registros usados para completar el texto de evidencia.
 
     Returns:
         Mensaje con el rol, contenido, fecha y traza opcional.
@@ -136,16 +168,16 @@ def message_to_dict(message: ChatMessage, entries: Entries) -> dict[str, Any]:
         "role": str(message.role),
         "content": message.content,
         "created_at": message.created_at.isoformat() if message.created_at else None,
-        "trace": trace_to_dict(message.trace, entries) if message.trace else None,
+        "trace": trace_to_dict(message.trace, knowledge) if message.trace else None,
     }
 
 
-def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
+def trace_to_dict(trace: ReplyTrace, knowledge: Knowledge) -> dict[str, Any]:
     """Serializa la traza y resuelve la evidencia recuperada.
 
     Args:
         trace: Traza persistida del turno.
-        entries: Registros de conocimiento indexados por identificador.
+        knowledge: Registros de conocimiento indexados por identificador.
 
     Returns:
         Datos de auditoría con evidencia, citas, verificación y tiempos.
@@ -161,7 +193,7 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "scope_reason": trace.scope_reason,
         "retrieval_status": str(trace.retrieval_status) if trace.retrieval_status else None,
         "best_score": trace.best_score,
-        "evidence": [evidence_to_dict(ref, entries) for ref in trace.evidence],
+        "evidence": [evidence_to_dict(ref, knowledge) for ref in trace.evidence],
         "cited_evidence": list(trace.cited_evidence),
         "uncited": trace.uncited,
         "grounding": grounding_to_dict(trace.grounding) if trace.grounding else None,
@@ -172,20 +204,21 @@ def trace_to_dict(trace: ReplyTrace, entries: Entries) -> dict[str, Any]:
         "model_usage": [usage_to_dict(usage) for usage in trace.model_usage],
         "selection": selection_to_dict(trace.selection) if trace.selection else None,
         "urgent_follow_up": trace.urgent_follow_up,
+        "care_access": care_access_to_dict(trace.care_access, knowledge.care_access),
     }
 
 
-def evidence_to_dict(ref: EvidenceRef, entries: Entries) -> dict[str, Any]:
+def evidence_to_dict(ref: EvidenceRef, knowledge: Knowledge) -> dict[str, Any]:
     """Serializa una referencia de evidencia con la pregunta y la respuesta del registro.
 
     Args:
         ref: Referencia guardada en la traza (etiqueta, id, puntaje, categoría).
-        entries: Registros de conocimiento indexados por identificador.
+        knowledge: Registros de conocimiento indexados por identificador.
 
     Returns:
         La referencia con el texto del registro, o un aviso si ya no está en la base.
     """
-    entry = entries.get(ref.entry_id)
+    entry = knowledge.entries.get(ref.entry_id)
     return {
         "label": ref.label,
         "entry_id": ref.entry_id,
@@ -193,6 +226,117 @@ def evidence_to_dict(ref: EvidenceRef, entries: Entries) -> dict[str, Any]:
         "category": ref.category,
         "question": entry.question if entry else MISSING_ENTRY_TEXT,
         "answer": entry.answer if entry else "",
+        "provenance": provenance_to_dict(knowledge.provenance.of(ref.entry_id)),
+    }
+
+
+def provenance_to_dict(provenance: EntryProvenance) -> dict[str, Any]:
+    """Serializa el lote, la revisión y las fuentes de un registro."""
+    return {
+        "batch": provenance.batch_label,
+        "review": provenance.review,
+        "review_label": provenance.review_label,
+        "sources": [source_to_dict(source) for source in provenance.sources],
+    }
+
+
+def source_to_dict(source: SourceRef) -> dict[str, str]:
+    """Serializa una fuente del catálogo."""
+    return {
+        "id": source.id,
+        "entity": source.entity,
+        "title": source.title,
+        "version": source.version,
+        "url": source.url,
+    }
+
+
+def cited_sources(trace: ReplyTrace | None, knowledge: Knowledge) -> list[dict[str, str]]:
+    """Fuentes de los registros que respaldan una respuesta, sin repetir.
+
+    Args:
+        trace: Traza del turno (None si el agente no participó).
+        knowledge: Base con la procedencia de cada registro.
+
+    Returns:
+        Fuentes de los registros citados, en orden de aparición. Vacío si la respuesta
+        no cita evidencia o sus registros no traen fuente individual.
+    """
+    if trace is None:
+        return []
+    cited = set(trace.cited_evidence)
+    sources: dict[str, SourceRef] = {}
+    for ref in trace.evidence:
+        if ref.label in cited:
+            for source in knowledge.provenance.of(ref.entry_id).sources:
+                sources.setdefault(source.id, source)
+    return [source_to_dict(source) for source in sources.values()]
+
+
+def citizen_kind(alerts: tuple[Alert, ...]) -> str:
+    """Tipo de respuesta para la persona: aviso de urgencia, prioritario o normal."""
+    severities = {alert.severity for alert in alerts}
+    if Severity.IMMEDIATE in severities:
+        return KIND_URGENT
+    return KIND_PRIORITY if severities else KIND_REPLY
+
+
+def citizen_message_to_dict(entry: ChatEntry, knowledge: Knowledge) -> dict[str, Any]:
+    """Serializa un mensaje guardado para la vista ciudadana, sin datos de auditoría.
+
+    Args:
+        entry: Mensaje de la conversación de la persona.
+        knowledge: Base con la procedencia de cada registro.
+
+    Returns:
+        Posición, rol, texto, fecha, tipo de respuesta y fuentes que la respaldan.
+    """
+    message = entry.message
+    is_reply = message.role is Role.ASSISTANT
+    return {
+        "seq": entry.seq,
+        "role": str(message.role),
+        "content": message.content,
+        "created_at": message.created_at.isoformat() if message.created_at else None,
+        "kind": citizen_kind(entry.alerts) if is_reply else None,
+        "grounded": bool(message.trace and message.trace.cited_evidence),
+        "sources": cited_sources(message.trace, knowledge),
+        "access_notice": access_notice_to_dict(message.trace, knowledge.care_access),
+    }
+
+
+def citizen_turn_to_dict(result: TurnResult, knowledge: Knowledge) -> dict[str, Any]:
+    """Serializa la respuesta de un turno para la vista ciudadana.
+
+    Args:
+        result: Turno procesado.
+        knowledge: Base con la procedencia de cada registro.
+
+    Returns:
+        Texto de la respuesta, tipo, fuentes y si el turno quedó guardado (un saludo
+        sin hilo o un mensaje fuera de alcance no se guardan, HU-07).
+    """
+    return {
+        "reply": result.reply,
+        "kind": citizen_kind(result.alerts),
+        "grounded": bool(result.trace and result.trace.cited_evidence),
+        "sources": cited_sources(result.trace, knowledge),
+        "access_notice": access_notice_to_dict(result.trace, knowledge.care_access),
+        "saved": result.thread is not None and not result.out_of_scope,
+    }
+
+
+def alert_record_to_dict(record: AlertRecord) -> dict[str, Any]:
+    """Serializa una alerta de la bandeja de supervisión, con su chat y su hilo."""
+    return {
+        **alert_to_dict(record.alert),
+        "chat_id": record.user_id,
+        "short_id": record.user_id[:SHORT_ID_CHARS],
+        "channel": str(record.channel),
+        "channel_label": CHANNEL_LABELS[record.channel],
+        "thread_id": record.thread_id,
+        "domain": record.domain,
+        "summary": record.summary,
     }
 
 
@@ -278,4 +422,71 @@ def alert_to_dict(alert: Alert) -> dict[str, Any]:
         "severity": str(alert.severity),
         "origin": str(alert.origin),
         "created_at": alert.created_at.isoformat(),
+    }
+
+
+def care_access_to_dict(
+    access: CareAccessTrace | None, catalog: CareAccessCatalog | None
+) -> dict[str, Any] | None:
+    """Serializa los datos de acceso del turno para la vista del equipo.
+
+    Args:
+        access: Lo que registró la regla de acceso (None si no corrió).
+        catalog: Catálogo, para mostrar el significado de cada código.
+
+    Returns:
+        Códigos declarados e interpretados con su significado, contradicciones y lo decidido.
+    """
+    if access is None:
+        return None
+    return {
+        "stated_facts": [labeled_fact(code, catalog) for code in access.stated_facts],
+        "interpreted_facts": [labeled_fact(code, catalog) for code in access.interpreted_facts],
+        "contradictions": list(access.contradictions),
+        "route": access.route,
+        "notice": access.notice,
+        "question": access.question,
+        "applied": access.applied,
+        "pending_approval": access.pending_approval,
+        "facts_withheld": access.facts_withheld,
+    }
+
+
+def labeled_fact(code: str, catalog: CareAccessCatalog | None) -> dict[str, str]:
+    """Código de acceso con su significado."""
+    fact = catalog.fact(code) if catalog else None
+    return {"code": code, "label": fact.label if fact else code}
+
+
+def access_notice_to_dict(
+    trace: ReplyTrace | None, catalog: CareAccessCatalog | None
+) -> dict[str, Any] | None:
+    """Aviso de acceso que se mostró en una respuesta, para destacarlo aparte de la evidencia.
+
+    Args:
+        trace: Traza del turno.
+        catalog: Catálogo de acceso.
+
+    Returns:
+        Naturaleza, texto y sustento del aviso; None si el turno no mostró ninguno.
+    """
+    access = trace.care_access if trace else None
+    notice = catalog.notices.get(access.notice) if catalog and access and access.applied else None
+    if notice is None or access is None:
+        return None
+    return {
+        "kind": str(notice.kind),
+        "text": notice.texts.get(NoticeRoute(access.route), ""),
+        "basis": list(notice.basis),
+    }
+
+
+def emergency_to_dict(info: PublicEmergencyInfo) -> dict[str, Any]:
+    """Serializa la información pública de emergencias."""
+    return {
+        "version": info.version,
+        "title": info.title,
+        "phone": info.phone,
+        "lines": list(info.lines),
+        "disclaimer": info.disclaimer,
     }

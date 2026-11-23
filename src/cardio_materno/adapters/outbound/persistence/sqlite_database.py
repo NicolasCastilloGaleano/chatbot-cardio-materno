@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -89,7 +89,16 @@ SCHEMA_V1: tuple[str, ...] = (
 
 # v2 (ADR 0016): un chat de consola abierto queda marcado para que la web no escriba en él.
 SCHEMA_V2: tuple[str, ...] = ("ALTER TABLE users ADD COLUMN live_session_at TEXT",)
-MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2}
+# v3 (ADR 0023): autorización aparte y opcional para los informes agregados de acceso a la
+# atención. Solo agrega columnas con valor por defecto: no toca ni borra datos existentes.
+SCHEMA_V3: tuple[str, ...] = (
+    "ALTER TABLE users ADD COLUMN research_consent TEXT NOT NULL DEFAULT 'pendiente'",
+    "ALTER TABLE users ADD COLUMN research_at TEXT",
+)
+MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
+
+
+BACKUP_NAME = "{stem}.respaldo-v{version}{suffix}"
 
 
 class DatabaseVersionError(RuntimeError):
@@ -110,6 +119,7 @@ class SqliteDatabase:
         """
         self._lock = threading.RLock()
         self._connection = _connect(path)
+        self._path = None if str(path) == IN_MEMORY else Path(path)
         self._migrate()
 
     @contextmanager
@@ -150,7 +160,8 @@ class SqliteDatabase:
         """Aplica las versiones pendientes del esquema; rechaza esquemas desconocidos.
 
         La versión se vuelve a leer dentro de la transacción: si otro proceso (p. ej., la
-        web y WhatsApp a la vez) ya migró, no se repite.
+        web y WhatsApp a la vez) ya migró, no se repite. Antes de subir el esquema de una
+        base que ya tiene datos, se guarda una copia.
         """
         with self.transaction() as connection:
             version = int(connection.execute("PRAGMA user_version").fetchone()[0])
@@ -159,10 +170,33 @@ class SqliteDatabase:
                     f"La base tiene el esquema {version} y esta versión solo conoce hasta "
                     f"el {SCHEMA_VERSION}."
                 )
+            if 0 < version < SCHEMA_VERSION:
+                self._back_up(version)
             for step in range(version + 1, SCHEMA_VERSION + 1):
                 for statement in MIGRATIONS[step]:
                     connection.execute(statement)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+    def _back_up(self, version: int) -> None:
+        """Copia la base antes de subirle el esquema, para poder volver a la versión anterior.
+
+        Una versión anterior del programa no abre una base con un esquema más nuevo. La
+        copia queda junto a la base (`<nombre>.respaldo-v<esquema>.db`), contiene los mismos
+        datos sensibles y no se sobrescribe si ya existe.
+        """
+        if self._path is None:
+            return
+        target = self._path.with_name(
+            BACKUP_NAME.format(stem=self._path.stem, version=version, suffix=self._path.suffix)
+        )
+        if target.exists():
+            return
+        source, copy = sqlite3.connect(str(self._path)), sqlite3.connect(str(target))
+        try:
+            source.backup(copy)
+        finally:
+            source.close()
+            copy.close()
 
 
 def _connect(path: Path | str) -> sqlite3.Connection:

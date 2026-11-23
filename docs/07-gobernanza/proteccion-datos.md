@@ -42,7 +42,34 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - No se usan los canales con personas (WhatsApp) en MN5.
 - TODO: si algún día se procesan allí datos de personas reales, se requiere la autorización correspondiente a una transferencia internacional (Ley 1581, art. 26).
 
+## Consentimiento y minimización (ADR 0022, 2026-11-15)
+- **Consentimiento (HU-01):** con `CONSENT_MODE=requerido`, WhatsApp y la vista ciudadana no procesan ni guardan nada hasta que la persona acepta; se guarda el estado y su fecha. Está **apagado por defecto** hasta que se apruebe el texto. Con personas reales es obligatorio activarlo.
+- **Minimización (`domain/privacy.py`):** antes de las alarmas, del modelo y del guardado se reemplazan por una marca los teléfonos, correos, documentos, direcciones urbanas y nombres declarados ("me llamo …"). Límite conocido: un nombre o un dato escrito de otra forma no se detecta; no reemplaza la política de retención.
+- **Vista ciudadana:** su API no entrega trazas ni chats de otras personas. El identificador de la conversación se guarda en el navegador de la persona; quien lo tenga puede leer esa conversación, por eso la interfaz sigue limitada a la propia máquina.
+
+## Datos de acceso a la atención (ADR 0023, 2026-11-16)
+Lo que una persona cuenta sobre su afiliación, sus dificultades para atenderse o su colesterol es un dato sensible. Se distinguen tres finalidades:
+
+| Finalidad | Base | Qué se guarda |
+|---|---|---|
+| Atender la conversación | Consentimiento de la HU-01 | Los mensajes (ya minimizados) y la traza del turno |
+| Operar la regla de acceso | La misma atención | Nada codificado. Solo el aviso que sí se mostró, cuyo texto ya está en la respuesta |
+| Informes agregados | Autorización **aparte, opcional y revocable** (`users.research_consent`) | Los códigos de lo que dijo, en la traza |
+
+- El modo `observar` no guarda códigos sin esa autorización: el equipo los ve solo en el turno en curso.
+- El informe cuenta personas y no hilos, por el mes de cada mensaje y solo meses cerrados; omite los meses con menos de 10 personas, lista siempre todos los indicadores ("<5" incluye el cero), suprime un dato compartido por casi todo el mes y redondea los demás a múltiplos de 5.
+- Estos controles reducen el riesgo, **no garantizan anonimato**. Si alguien retira su autorización, dos exportaciones del mismo mes pueden diferir en sus indicadores: cada mes cerrado se publica una sola vez (pendiente 20).
+- Rechazar o retirar el consentimiento retira también la autorización para informes. En la web se hace desde «Mis datos»; en WhatsApp todavía no hay forma (pendiente 22).
+- La copia que se crea antes de migrar el esquema (`*.respaldo-v*.db`) tiene los mismos datos que la base y se guarda y se borra con el mismo cuidado.
+- **No es una estimación de Caldas** ni de un municipio: describe a quienes usaron el asistente y lo autorizaron.
+- Riesgo residual: en un municipio pequeño, la combinación de mes e indicador raro puede acercarse a una persona aunque el conteo esté redondeado. Por eso el informe no desagrega por municipio ni por canal.
+- La información general de emergencias (`/api/public/emergency`) se entrega sin sesión y sin recibir ningún dato.
+
 ## Pendientes
+- TODO: borrar los códigos ya guardados de quien retira la autorización para informes (hoy deja de contar, pero siguen en sus trazas).
+- TODO: ofrecer la autorización para informes también en WhatsApp, cuando se apruebe su texto.
+- TODO: revisar los patrones de minimización y aprobar los textos del consentimiento (pendientes 9 y 14).
+- TODO: cifrado de la base SQLite y control de acceso si la interfaz deja de ser local.
 - TODO: texto del aviso de privacidad validado por los aliados.
 - TODO: política de retención y eliminación (incluye borrar todos los datos de un usuario a petición suya).
 - TODO: autorización de los aliados si alguna vez se usan datos reales con servicios de IA.

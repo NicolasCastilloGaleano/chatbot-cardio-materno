@@ -75,7 +75,10 @@ def create_whatsapp_runtime(
     """
     use_case = HandleIncomingMessage(
         _channel_ports(settings, database),
-        ChannelConfig(wait_notice_seconds=settings.wait_notice_seconds),
+        ChannelConfig(
+            wait_notice_seconds=settings.wait_notice_seconds,
+            consent_required=settings.persistence.consent_required,
+        ),
         build_user_conversations(
             database, timedelta(hours=settings.persistence.idle_timeout_hours)
         ),

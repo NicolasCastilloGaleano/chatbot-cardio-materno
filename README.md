@@ -23,6 +23,8 @@ Asistente de **teleorientación con IA** en **salud cardiovascular y materno‑i
 | **Informe de vacíos de la base para el equipo clínico** (HU-15, B-032): `python scripts/report_gaps.py > vacios.md` | ✅ Verificado en el PC de pruebas el 2026-11-06 |
 | **Respuesta pertinente: selector de evidencia y redactor supervisor** (HU-13, ADR 0019) | ✅ Hecho (pasos 1.1 a 1.3 verificados en el PC de pruebas, el último el 2026-11-06; activo por defecto). Responder e indagar casi no se activa con la base actual |
 | Flujo conversacional clínico por **consola** | ⏳ Pendiente |
+| **Vista ciudadana, consentimiento, minimización y procedencia** (HU-01, HU-16, HU-17, ADR 0022) | 🟡 Implementado (2026-11-15) y probado sin Ollama; `CONSENT_MODE` apagado por defecto. Pendiente: aprobación del equipo, textos y recorrido con Ollama |
+| **Barreras de acceso y cascada del colesterol** (HU-18, ADR 0023): avisos fijos con estado de aprobación e informe agregado con autorización aparte | 🟡 Implementado (2026-11-16) y **apagado** (`CARE_ACCESS_MODE`); todos los textos pendientes de aprobación; sin medir con Ollama |
 | Canal **Telegram** (pruebas multiusuario) | ⏳ Pendiente |
 | Canal **WhatsApp** (prototipo final, HU-09, ADR 0014 y 0015) | ✅ Hecho con el número de prueba de Meta (verificado el 2026-10-18). Antes de personas reales: consentimiento (HU-01), política de privacidad y token permanente |
 
@@ -49,7 +51,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env
 .venv/bin/python run_build_kb_index.py   # índice de la base de conocimiento (una vez)
 .venv/bin/python run_console.py
-# Interfaz web local de demostración: http://127.0.0.1:8000
+# Interfaz web local: vista ciudadana en http://127.0.0.1:8000 y vista del equipo en /equipo
 .venv/bin/python run_web.py
 # Canal WhatsApp (requiere la app de Meta, la sección 9 de .env y ngrok)
 .venv/bin/python run_whatsapp.py

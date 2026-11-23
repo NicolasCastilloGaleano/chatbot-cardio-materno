@@ -103,12 +103,14 @@ flowchart LR
     KR -.-> HR[HybridRetriever<br/>coseno numpy + BM25 + RRF]
     HR --> EM{{Embedder}} -.-> OE[OllamaEmbedder<br/>qwen3-embedding:8b]
     HR --> VI[(data/kb_index<br/>embeddings.npy + manifest)]
-    KB[(knowledge/kb/entries.jsonl<br/>1.600 registros)] -. run_build_kb_index .-> VI
+    KB[(knowledge/kb/entries.jsonl<br/>4.049 registros)] -. run_build_kb_index .-> VI
     TR -.-> JR[JsonFileThreadRepository<br/>mensajes con trace]
     OL1 & OL2 & OE --> OLL[(Ollama local)]
 ```
 - **Interfaz local (HU-08, HU-10):** se inicia con `python run_web.py` (`bootstrap/web.py`). `WEB_HOST` solo admite loopback (`load_web_settings`).
   - **Desde la HU-10** lee y escribe en la base SQLite de todos los canales: `DirectChat` para escribir y `SqliteChatAudit` para leer.
+  - Desde el ADR 0022 hay dos vistas: `/` (ciudadana, `citizen_routes.py` + `application/citizen_chat.py`, solo `/api/me/*`, sin trazas) y `/equipo` (auditoría y bandeja de alertas). `domain/privacy.py` quita los identificadores al entrar al turno, `domain/consent.py` es la barrera de la HU-01 y `domain/provenance.py` + `provenance_file.py` dan el lote, la revisión y las fuentes de cada registro.
+  - Datos de acceso a la atención (ADR 0023, apagado por defecto): `domain/care_access.py` (códigos, estados declarados de la cascada), `application/care_access.py` (un aviso o una pregunta sobre el turno ya decidido), `application/care_access_report.py` + `scripts/export_care_access.py` (informe por persona) y `adapters/outbound/clinical_rules/json_care_access_catalog.py`. `GET /api/public/emergency` no necesita sesión.
   - La API está en `adapters/inbound/api/web_app.py` y el contrato JSON en `serializers.py`:
 
     | Ruta | Uso |
