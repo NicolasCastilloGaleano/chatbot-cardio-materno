@@ -23,14 +23,14 @@ from cardio_materno.domain.user import Channel
 
 CASE_COLUMNS = (
     "id, thread_id, status, notified, gap_count, snapshot_json, created_at, expires_at, "
-    "closed_at, draft_text, draft_status"
+    "closed_at, draft_text, draft_status, draft_note"
 )
 # Del lado de la persona solo cambian el aviso, las brechas, el resumen y el vencimiento. El
 # estado y el borrador son del profesional (`update_if`): un turno que leyó el caso antes de que
 # el profesional actuara no los revierte, y si el estado ya cambió, no se toca nada.
 UPSERT_CASE = f"""
     INSERT INTO clinical_cases (user_id, {CASE_COLUMNS})
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET notified = excluded.notified,
         gap_count = excluded.gap_count,
         snapshot_json = excluded.snapshot_json, expires_at = excluded.expires_at
@@ -48,7 +48,8 @@ INBOX_SELECT = f"""
 # El profesional solo cambia el estado y el borrador: las brechas, el resumen y el vencimiento
 # son del lado de la persona (`UPSERT_CASE`), así ninguno revierte lo que escribió el otro.
 UPDATE_IF_STATUS = """
-    UPDATE clinical_cases SET status = ?, closed_at = ?, draft_text = ?, draft_status = ?
+    UPDATE clinical_cases SET status = ?, closed_at = ?, draft_text = ?, draft_status = ?,
+        draft_note = ?
     WHERE id = ? AND status = ?
 """
 
@@ -165,6 +166,7 @@ def case_values(case: ClinicalCase) -> tuple[Any, ...]:
         case.closed_at.isoformat() if case.closed_at else None,
         case.draft,
         str(case.draft_status),
+        case.draft_note,
     )
 
 
@@ -183,6 +185,7 @@ def case_from_row(row: sqlite3.Row) -> ClinicalCase:
         closed_at=datetime.fromisoformat(closed) if closed else None,
         draft=row["draft_text"],
         draft_status=DraftStatus(row["draft_status"]),
+        draft_note=row["draft_note"],
     )
 
 

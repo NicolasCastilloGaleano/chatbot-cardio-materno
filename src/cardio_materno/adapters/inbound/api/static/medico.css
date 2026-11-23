@@ -90,3 +90,7 @@
 @media (max-width: 860px) {
   .clinician-workspace { grid-template-columns: 1fr; }
 }
+/* Nota del modelo solo para el profesional (prompt del borrador v2). */
+.note-box { margin-bottom: 12px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; background: var(--soft); }
+.note-box .draft-label { margin: 0 0 6px; color: #8c2f40; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+.note-box .note-text { margin: 0; white-space: pre-wrap; color: var(--deep); line-height: 1.45; }

@@ -47,6 +47,7 @@ NOW = datetime(2026, 11, 22, 10, 0, tzinfo=UTC)
 WINDOW = timedelta(hours=24)
 PERSON_TEXT = "me llamo Ana y me arde el estómago"
 DRAFT = "Te recomiendo consultar con tu EPS. Si empeora, acude a urgencias o llama al 123."
+NOTE = "Considerar gastritis o reflujo. Preguntar por vómito con sangre o heces negras."
 SNAPSHOT = CaseSnapshot(
     Domain.CARDIOVASCULAR, "Ardor de estómago.", ("ardor",), (), "ardor", "sin información", "", 0.5
 )
@@ -57,6 +58,7 @@ class DraftModel:
     """Modelo falso del borrador: devuelve el texto o falla, y guarda lo que recibió."""
 
     reply: str | Exception = DRAFT
+    note: str | None = NOTE
     calls: list[list[ChatMessage]] = field(default_factory=list)
 
     def complete_json(
@@ -65,7 +67,9 @@ class DraftModel:
         self.calls.append(list(messages))
         if isinstance(self.reply, Exception):
             raise self.reply
-        return {"draft": self.reply}
+        if self.note is None:
+            return {"draft": self.reply}
+        return {"note": self.note, "draft": self.reply}
 
     def last_usage(self) -> ModelUsage | None:
         return None
@@ -137,6 +141,7 @@ def test_the_draft_is_written_once_from_the_summary_only(database: SqliteDatabas
     second = clinician.prepare_draft(case_id)
 
     assert (first.case.draft, first.case.draft_status) == (DRAFT, DraftStatus.READY)
+    assert first.case.draft_note == NOTE
     assert second.case.draft == DRAFT and len(model.calls) == 1
     sent = "\n".join(message.content for message in model.calls[0])
     assert "Ardor de estómago." in sent and PERSON_TEXT not in sent and "Ana" not in sent
@@ -149,6 +154,24 @@ def test_a_failed_draft_is_marked_and_cannot_be_approved(database: SqliteDatabas
     assert clinician.prepare_draft(case_id).case.draft_status is DraftStatus.FAILED
     with pytest.raises(DraftNotReadyError):
         clinician.approve(case_id)
+
+
+def test_the_note_is_kept_with_the_case(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clinician = review(database)
+    clinician.prepare_draft(case_id)
+
+    reloaded = clinician.case(case_id)
+
+    assert reloaded.case.draft_note == NOTE and reloaded.case.draft == DRAFT
+
+
+def test_a_draft_without_a_note_is_still_ready(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+
+    drafted = review(database, DraftModel(note=None)).prepare_draft(case_id)
+
+    assert drafted.case.draft_status is DraftStatus.READY and drafted.case.draft_note == ""
 
 
 # --- Aprobar y modificar ------------------------------------------------------------------
@@ -166,6 +189,7 @@ def test_approving_sends_the_draft_as_the_clinician_and_closes_the_case(
     last = thread_messages(database, "ana")[-1]
     assert resolved.case.status is CaseStatus.APPROVED and resolved.case.closed_at == NOW
     assert (last.role, last.content) == (Role.CLINICIAN, DRAFT)
+    assert all(NOTE not in message.content for message in thread_messages(database, "ana"))
     assert clinician.pending_cases() == []
 
 

@@ -20,7 +20,7 @@ Un caso dura **24 horas desde el último mensaje de la persona**. Si nadie lo at
 La lista de la izquierda muestra los casos abiertos, del más antiguo al más nuevo, con el canal (Web, Consola o WhatsApp) y cuándo vencen. Al abrir uno ves:
 - **Resumen clínico:** motivo, dominio, resumen, síntomas y signos que el sistema entendió. No tiene datos de identificación.
 - **Conversación:** los últimos mensajes de la persona, del asistente y tuyos.
-- **Respuesta:** el borrador y las acciones.
+- **Respuesta:** la nota para ti, el borrador y las acciones.
 
 ## 4. Tres formas de responder
 | Acción | Cuándo usarla | Qué pasa |
@@ -30,6 +30,8 @@ La lista de la izquierda muestra los casos abiertos, del más antiguo al más nu
 | **Contacto directo** | Necesitas preguntarle algo o conversar | Se abre un chat. El caso sigue abierto hasta que pulses **Cerrar contacto** |
 
 **El borrador no tiene respaldo de la base.** Lo escribe el modelo a partir del resumen y está marcado así. Léelo completo antes de aprobarlo: no debe tener diagnósticos, medicamentos ni dosis. Si lo editas, el botón Aprobar se desactiva y tienes que usar **Enviar mi versión**.
+
+**La nota es solo para ti.** Al generar el borrador, el modelo escribe también una nota con posibles explicaciones a considerar, qué conviene preguntar o confirmar y qué signos de alarma descartar. Es una propuesta sin respaldo de la base, no un diagnóstico: úsala como lista de verificación. La nota **nunca se envía** a la persona. El resumen que recibe el modelo puede traer datos que solo se le preguntaron a la persona; revísalo con la conversación.
 
 ## 5. Contacto directo
 - La persona lee tus mensajes en su mismo chat como **"Profesional de salud"**. En WhatsApp salen desde el número del proyecto, así que **tu número nunca se muestra**.

@@ -185,6 +185,7 @@ def case_to_dict(found: InboxCase, deliverable: bool) -> dict[str, Any]:
         "snapshot": snapshot_to_dict(case.snapshot),
         "draft": case.draft,
         "draft_status": str(case.draft_status),
+        "draft_note": case.draft_note,
     }
 
 

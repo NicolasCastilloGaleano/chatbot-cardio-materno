@@ -159,10 +159,11 @@ Clase: `domain/user.py::User`.
 | `snapshot_json` | TEXT | Resumen clínico: dominio, resumen del hilo, síntomas, códigos, consulta, motivo, categoría y similitud. Sin mensajes ni datos de identificación |
 | `created_at`, `expires_at`, `closed_at` | TEXT (ISO 8601) | Apertura; vencimiento (ventana desde el último mensaje); cierre o resolución |
 | `draft_text`, `draft_status` | TEXT | Borrador del profesional, sin respaldo de la base, y su estado: `sin_generar`, `listo` o `fallido` (fase 2) |
+| `draft_note` | TEXT | Nota del modelo solo para el profesional (posibles explicaciones, qué preguntar y qué descartar). Nunca se envía a la persona. `''` si no hay (esquema v6, 2026-11-23) |
 
 En `messages.role` se agrega `clinician`: mensaje de un profesional de salud en un caso escalado. Nunca llega así al modelo: se convierte en un mensaje del asistente con el prefijo "Profesional de salud:".
 
-Cada lado escribe solo sus campos (fase 3): el turno de la persona, `notified`, `gap_count`, `snapshot_json` y `expires_at`, y solo si `status` no cambió; el profesional, `status`, `closed_at`, `draft_text` y `draft_status`, con la condición de que `status` siga siendo el que leyó.
+Cada lado escribe solo sus campos (fase 3): el turno de la persona, `notified`, `gap_count`, `snapshot_json` y `expires_at`, y solo si `status` no cambió; el profesional, `status`, `closed_at`, `draft_text`, `draft_status` y `draft_note`, con la condición de que `status` siga siendo el que leyó.
 
 ### Tabla: `case_addresses` (HU-16, ADR 0023, esquema v5 en la rama de integración; v4 en la rama de Santiago)
 | Campo | Tipo | Descripción |

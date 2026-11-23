@@ -98,6 +98,8 @@ class ClinicalCase:
         closed_at: Cierre, aprobación, modificación o vencimiento (None si sigue abierto).
         draft: Borrador de respuesta del modelo, sin respaldo de la base ("" si no hay).
         draft_status: Si el borrador está por generar, listo o falló.
+        draft_note: Nota del modelo solo para el profesional (posibles explicaciones, qué
+            preguntar y qué descartar). Nunca se envía a la persona ("" si no hay).
     """
 
     id: str
@@ -111,6 +113,7 @@ class ClinicalCase:
     closed_at: datetime | None = None
     draft: str = ""
     draft_status: DraftStatus = DraftStatus.NOT_READY
+    draft_note: str = ""
 
     @property
     def is_open(self) -> bool:

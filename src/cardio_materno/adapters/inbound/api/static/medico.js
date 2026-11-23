@@ -181,7 +181,15 @@ function draftSection(item) {
   const notice = element("p", draftNotice(item), "notice");
   notice.hidden = !draftNotice(item);
   section.append(element("h3", "Respuesta"), box, actions(item, text, notice), notice);
+  if (item.draft_note) section.prepend(noteBox(item.draft_note));
   return section;
+}
+
+// Nota del modelo para el profesional: solo se lee aquí y nunca se envía a la persona.
+function noteBox(note) {
+  const box = element("div", null, "note-box");
+  box.append(element("p", "NOTA PARA EL PROFESIONAL · SIN RESPALDO DE LA BASE · NO SE ENVÍA", "draft-label"), element("p", note, "note-text"));
+  return box;
 }
 
 function draftNotice(item) {

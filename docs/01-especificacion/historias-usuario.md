@@ -1090,6 +1090,12 @@ Escenario: El profesional ve el caso
   Y el borrador nunca se envía sin mi acción
   Y si el borrador falla, puedo escribir la respuesta desde cero
 
+Escenario: Nota del modelo para el profesional (2026-11-23)
+  Dado que pedí el borrador de un caso
+  Entonces veo, aparte del borrador, una nota solo para mí con posibles explicaciones a considerar, qué preguntar o confirmar y qué signos de alarma descartar
+  Y la nota está marcada "sin respaldo de la base" y "no se envía"
+  Y la nota nunca llega a la persona, ni al aprobar el borrador ni al enviar mi versión
+
 Escenario: Aprobar
   Cuando apruebo el borrador
   Entonces la persona lo recibe en su chat como mensaje de un "Profesional de salud"

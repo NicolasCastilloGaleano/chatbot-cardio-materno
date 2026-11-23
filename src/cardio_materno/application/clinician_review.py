@@ -170,13 +170,15 @@ class ClinicianReview:
         return replace(found, case=updated)
 
     def _with_draft(self, case: ClinicalCase) -> ClinicalCase:
-        """El caso con su borrador listo o, si el modelo falla, marcado como fallido."""
+        """El caso con su borrador y su nota listos o, si el modelo falla, marcado como fallido."""
         try:
-            draft = self._writer.write(case.snapshot)
+            written = self._writer.write(case.snapshot)
         except LanguageModelError as error:
             logger.warning("No se pudo generar el borrador del caso %s: %s", case.id, error)
             return replace(case, draft_status=DraftStatus.FAILED)
-        return replace(case, draft=draft, draft_status=DraftStatus.READY)
+        return replace(
+            case, draft=written.reply, draft_note=written.note, draft_status=DraftStatus.READY
+        )
 
     def _resolve(self, found: InboxCase, action: CaseAction, text: str) -> InboxCase:
         """Aplica la acción y entrega el mensaje del profesional."""

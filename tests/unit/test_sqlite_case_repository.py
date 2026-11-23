@@ -16,6 +16,9 @@ from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     IN_MEMORY,
     SCHEMA_V1,
     SCHEMA_V2,
+    SCHEMA_V3,
+    SCHEMA_V4,
+    SCHEMA_V5,
     SqliteDatabase,
 )
 from cardio_materno.adapters.outbound.persistence.sqlite_user_directory import (
@@ -140,3 +143,23 @@ def test_version_2_database_gets_the_cases_table(tmp_path: Path) -> None:
     database.close()
 
     assert "clinical_cases" in tables
+
+
+def test_version_5_database_gets_an_empty_note_on_existing_cases(tmp_path: Path) -> None:
+    path = tmp_path / "v5.db"
+    connection = sqlite3.connect(path)
+    for statement in (*SCHEMA_V1, *SCHEMA_V2, *SCHEMA_V3, *SCHEMA_V4, *SCHEMA_V5):
+        connection.execute(statement)
+    connection.execute("PRAGMA user_version = 5")
+    connection.commit()
+    connection.close()
+    database = SqliteDatabase(path)
+    SqliteUserDirectory(database).register(new_user("ana", NOW), Channel.WEB, "hash-ana")
+    thread = open_thread("t-ana", Domain.CARDIOVASCULAR, "", NOW)
+    SqliteUserThreadStore(database).scoped("ana").save_thread(thread)
+    SqliteCaseStore(database).scoped("ana").save(case("caso-1"))
+
+    rows = database.query("SELECT draft_note FROM clinical_cases")
+    database.close()
+
+    assert [row["draft_note"] for row in rows] == [""]

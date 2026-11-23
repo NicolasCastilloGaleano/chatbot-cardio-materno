@@ -1,12 +1,15 @@
-"""Borrador de respuesta para el profesional de salud (HU-16, ADR 0022).
+"""Nota y borrador de respuesta para el profesional de salud (HU-16, ADR 0022).
 
 El modelo de respuesta escribe con su propio conocimiento, porque la base no tenía
 información: por eso el borrador va marcado "sin respaldo de la base" y nunca llega a la
-persona sin que el profesional lo apruebe o lo edite. Recibe solo el resumen clínico del caso,
-nunca los mensajes de la persona, para no enviar datos personales al modelo (AGENTS.md §4).
+persona sin que el profesional lo apruebe o lo edite. La nota (posibles explicaciones, qué
+preguntar y qué descartar) es solo para el profesional y nunca se envía (prompt v2,
+2026-11-23). Recibe solo el resumen clínico del caso, nunca los mensajes de la persona, para no
+enviar datos personales al modelo (AGENTS.md §4).
 """
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from cardio_materno.application.errors import LanguageModelError
@@ -15,13 +18,27 @@ from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.escalation import CaseSnapshot
 
 DRAFT_FIELD = "draft"
+NOTE_FIELD = "note"
 DRAFT_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": {DRAFT_FIELD: {"type": "string"}},
-    "required": [DRAFT_FIELD],
+    "properties": {NOTE_FIELD: {"type": "string"}, DRAFT_FIELD: {"type": "string"}},
+    "required": [NOTE_FIELD, DRAFT_FIELD],
 }
 CASE_TEMPLATE = "CASO (resumen sin datos de identificación, JSON):\n{case_json}"
 MSG_EMPTY_DRAFT = "El modelo no devolvió un borrador."
+
+
+@dataclass(frozen=True)
+class ClinicianDraft:
+    """Lo que escribe el modelo para un caso.
+
+    Attributes:
+        reply: Borrador para la persona; el profesional lo aprueba o lo edita.
+        note: Nota solo para el profesional ("" si el modelo no la escribió).
+    """
+
+    reply: str
+    note: str = ""
 
 
 class ClinicianDraftWriter:
@@ -32,19 +49,19 @@ class ClinicianDraftWriter:
 
         Args:
             model: Modelo que escribe (el de respuesta).
-            prompt: Instrucciones (`clinician_draft_prompt_v1.md`).
+            prompt: Instrucciones (`clinician_draft_prompt_v2.md`).
         """
         self._model = model
         self._prompt = prompt
 
-    def write(self, snapshot: CaseSnapshot) -> str:
-        """Borrador para el caso.
+    def write(self, snapshot: CaseSnapshot) -> ClinicianDraft:
+        """Nota y borrador para el caso.
 
         Args:
             snapshot: Resumen clínico del caso.
 
         Returns:
-            El texto del borrador.
+            El borrador para la persona y la nota para el profesional.
 
         Raises:
             LanguageModelError: Si el modelo falla o no devuelve un borrador.
@@ -53,10 +70,11 @@ class ClinicianDraftWriter:
             ChatMessage(Role.SYSTEM, self._prompt),
             ChatMessage(Role.USER, CASE_TEMPLATE.format(case_json=case_json(snapshot))),
         ]
-        draft = self._model.complete_json(messages, DRAFT_SCHEMA).get(DRAFT_FIELD)
+        data = self._model.complete_json(messages, DRAFT_SCHEMA)
+        draft, note = data.get(DRAFT_FIELD), data.get(NOTE_FIELD)
         if not isinstance(draft, str) or not draft.strip():
             raise LanguageModelError(MSG_EMPTY_DRAFT)
-        return draft.strip()
+        return ClinicianDraft(draft.strip(), note.strip() if isinstance(note, str) else "")
 
 
 def case_json(snapshot: CaseSnapshot) -> str:

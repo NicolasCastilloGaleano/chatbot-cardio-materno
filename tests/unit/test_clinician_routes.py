@@ -28,7 +28,7 @@ from cardio_materno.application.clinician_review import ClinicianReview
 from cardio_materno.application.direct_chat import DirectChat
 from cardio_materno.domain.user import Channel
 from tests.unit.fakes import FakeClock, ScriptedAgent, make_user_conversations
-from tests.unit.test_clinician_review import DRAFT, NOW, Clock, DraftModel, person
+from tests.unit.test_clinician_review import DRAFT, NOTE, NOW, Clock, DraftModel, person
 
 KEY = "clave-de-prueba"
 # La interfaz solo atiende peticiones de la propia máquina (local_only.py, ADR 0022 de Juan).
@@ -87,9 +87,11 @@ def test_the_clinician_reviews_drafts_and_approves_a_case(database: SqliteDataba
     assert detail["snapshot"]["query"] == "ardor" and detail["deliverable"] is True
     assert [message["role"] for message in detail["messages"]] == ["user"]
     assert (drafted["draft"], drafted["draft_status"]) == (DRAFT, "listo")
+    assert drafted["draft_note"] == NOTE
     assert approved.status_code == 200 and approved.json()["status"] == "aprobada"
     chat = api.get("/api/chats/ana/messages").json()["messages"]
     assert (chat[-1]["role"], chat[-1]["content"]) == ("clinician", DRAFT)
+    assert all(NOTE not in message["content"] for message in chat)
 
 
 def test_approving_without_a_draft_or_twice_is_a_conflict(database: SqliteDatabase) -> None:

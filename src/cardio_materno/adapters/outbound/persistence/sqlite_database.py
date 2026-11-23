@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -139,6 +139,11 @@ SCHEMA_V5: tuple[str, ...] = (
     )""",
     "CREATE INDEX clinician_outbox_by_status ON clinician_outbox(status, id)",
 )
+# v6 (HU-16, prompt del borrador v2): nota del modelo solo para el profesional. Agrega una
+# columna con valor por defecto: no toca ni borra datos existentes.
+SCHEMA_V6: tuple[str, ...] = (
+    "ALTER TABLE clinical_cases ADD COLUMN draft_note TEXT NOT NULL DEFAULT ''",
+)
 # Integración (chore/integracion-pruebas): v3 es la de la rama de Juan y los casos de la
 # rama de Santiago pasan a v4 y v5. Una base migrada con una sola de las dos ramas no es
 # compatible con este orden: usar una copia anterior a esas ramas.
@@ -148,6 +153,7 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
     3: SCHEMA_V3,
     4: SCHEMA_V4,
     5: SCHEMA_V5,
+    6: SCHEMA_V6,
 }
 
 BACKUP_NAME = "{stem}.respaldo-v{version}{suffix}"
