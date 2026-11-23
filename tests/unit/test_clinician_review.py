@@ -25,6 +25,7 @@ from cardio_materno.application.errors import (
     CaseChannelNotSupportedError,
     CaseConflictError,
     DraftNotReadyError,
+    DraftRegenerationError,
     LanguageModelError,
 )
 from cardio_materno.application.turn_context import (
@@ -172,6 +173,53 @@ def test_a_draft_without_a_note_is_still_ready(database: SqliteDatabase) -> None
     drafted = review(database, DraftModel(note=None)).prepare_draft(case_id)
 
     assert drafted.case.draft_status is DraftStatus.READY and drafted.case.draft_note == ""
+
+
+def test_regenerating_replaces_the_draft_and_the_note(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    model = DraftModel()
+    clinician = review(database, model)
+    clinician.prepare_draft(case_id)
+    model.reply, model.note = "Borrador nuevo.", "Nota nueva."
+
+    regenerated = clinician.regenerate_draft(case_id)
+
+    assert (regenerated.case.draft, regenerated.case.draft_note) == (
+        "Borrador nuevo.",
+        "Nota nueva.",
+    )
+    assert clinician.case(case_id).case.draft == "Borrador nuevo." and len(model.calls) == 2
+
+
+def test_a_failed_regeneration_keeps_the_previous_draft(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    model = DraftModel()
+    clinician = review(database, model)
+    clinician.prepare_draft(case_id)
+    model.reply = LanguageModelError("sin modelo")
+
+    with pytest.raises(DraftRegenerationError):
+        clinician.regenerate_draft(case_id)
+
+    kept = clinician.case(case_id).case
+    assert (kept.draft, kept.draft_note, kept.draft_status) == (DRAFT, NOTE, DraftStatus.READY)
+
+
+def test_regenerating_without_a_draft_writes_the_first_one(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+
+    drafted = review(database).regenerate_draft(case_id)
+
+    assert (drafted.case.draft, drafted.case.draft_status) == (DRAFT, DraftStatus.READY)
+
+
+def test_a_closed_case_cannot_be_redrafted(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    clinician = review(database)
+    clinician.modify(case_id, "Respuesta.")
+
+    with pytest.raises(CaseConflictError):
+        clinician.regenerate_draft(case_id)
 
 
 # --- Aprobar y modificar ------------------------------------------------------------------

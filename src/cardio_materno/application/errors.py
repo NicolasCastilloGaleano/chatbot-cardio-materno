@@ -57,3 +57,7 @@ class CaseChannelNotSupportedError(Exception):
 
 class DraftNotReadyError(Exception):
     """No hay un borrador listo para aprobar: hay que prepararlo o escribir la respuesta."""
+
+
+class DraftRegenerationError(Exception):
+    """El modelo no pudo escribir un borrador nuevo; el caso conserva el anterior (HU-16)."""

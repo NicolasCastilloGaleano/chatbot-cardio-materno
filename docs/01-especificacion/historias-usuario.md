@@ -1096,6 +1096,12 @@ Escenario: Nota del modelo para el profesional (2026-11-23)
   Y la nota está marcada "sin respaldo de la base" y "no se envía"
   Y la nota nunca llega a la persona, ni al aprobar el borrador ni al enviar mi versión
 
+Escenario: Regenerar el borrador (2026-11-23)
+  Dado que un caso abierto ya tiene borrador
+  Cuando pulso "Regenerar borrador"
+  Entonces el borrador y la nota se reemplazan por unos nuevos
+  Y si el modelo falla, veo un aviso y se conservan el borrador y la nota anteriores
+
 Escenario: Aprobar
   Cuando apruebo el borrador
   Entonces la persona lo recibe en su chat como mensaje de un "Profesional de salud"

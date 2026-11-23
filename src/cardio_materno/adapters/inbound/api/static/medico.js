@@ -202,8 +202,10 @@ function draftNotice(item) {
 function actions(item, text, notice) {
   const row = element("div", null, "actions");
   const ready = item.draft_status === "listo";
-  const draft = actionButton("Generar borrador", () => run(`/api/clinician/cases/${item.id}/draft`, null, notice, true));
-  draft.disabled = ready;
+  const draft = ready
+    ? actionButton("Regenerar borrador", () => run(`/api/clinician/cases/${item.id}/redraft`, null, notice, true))
+    : actionButton("Generar borrador", () => run(`/api/clinician/cases/${item.id}/draft`, null, notice, true));
+  if (ready) draft.title = "Reemplaza el borrador y la nota por unos nuevos. Si lo editaste, tu texto se pierde.";
   const approve = actionButton("Aprobar borrador", () => run(`/api/clinician/cases/${item.id}/approve`, null, notice, false));
   approve.disabled = !ready || !item.deliverable || text.value.trim() !== (item.draft || "").trim();
   const modify = actionButton("Enviar mi versión", () => run(`/api/clinician/cases/${item.id}/modify`, { text: text.value }, notice, false));

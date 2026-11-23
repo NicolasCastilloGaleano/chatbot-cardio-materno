@@ -21,6 +21,7 @@ from cardio_materno.application.errors import (
     CaseConflictError,
     CaseNotFoundError,
     DraftNotReadyError,
+    DraftRegenerationError,
 )
 from cardio_materno.application.ports.case_inbox import InboxCase
 from cardio_materno.application.ports.chat_audit import ChatAudit
@@ -30,6 +31,7 @@ KEY_HEADER = "X-Clinician-Key"
 MSG_BAD_KEY = "Clave de profesional no válida."
 MSG_NOT_FOUND = "Caso no encontrado."
 MSG_NO_DRAFT = "Primero genera el borrador, o escribe la respuesta con Modificar."
+MSG_REDRAFT_FAILED = "No se pudo generar un borrador nuevo. Se conserva el anterior."
 CONVERSATION_LIMIT = 50
 MAX_REPLY_CHARS = 4000
 
@@ -105,6 +107,11 @@ def add_reply_routes(app: FastAPI, review: ClinicianReview, guard: Any) -> None:
         """Genera el borrador marcado "sin respaldo de la base" (o lo devuelve si ya existe)."""
         return case_view(review, run_case_action(lambda: review.prepare_draft(case_id)))
 
+    @app.post("/api/clinician/cases/{case_id}/redraft", dependencies=[guard])
+    def regenerate_draft(case_id: str) -> dict[str, Any]:
+        """Reemplaza el borrador y la nota por unos nuevos; si falla, conserva los anteriores."""
+        return case_view(review, run_case_action(lambda: review.regenerate_draft(case_id)))
+
     @app.post("/api/clinician/cases/{case_id}/approve", dependencies=[guard])
     def approve(case_id: str) -> dict[str, Any]:
         """Envía el borrador tal cual."""
@@ -159,6 +166,8 @@ def run_case_action(action: Callable[[], InboxCase]) -> InboxCase:
         raise HTTPException(status_code=404, detail=MSG_NOT_FOUND) from error
     except DraftNotReadyError as error:
         raise HTTPException(status_code=409, detail=MSG_NO_DRAFT) from error
+    except DraftRegenerationError as error:
+        raise HTTPException(status_code=502, detail=MSG_REDRAFT_FAILED) from error
     except (CaseConflictError, CaseChannelNotSupportedError) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     return result

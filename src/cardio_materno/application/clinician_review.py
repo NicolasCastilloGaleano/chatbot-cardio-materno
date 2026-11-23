@@ -16,6 +16,7 @@ from cardio_materno.application.errors import (
     CaseConflictError,
     CaseNotFoundError,
     DraftNotReadyError,
+    DraftRegenerationError,
     LanguageModelError,
 )
 from cardio_materno.application.ports.case_inbox import CaseInbox, InboxCase
@@ -38,6 +39,7 @@ MSG_CHANGED = "El caso cambió mientras lo revisabas. Vuelve a abrirlo."
 MSG_CHANNEL = "No se puede responder por el canal de esta persona."
 MSG_WINDOW = "No se puede escribir por WhatsApp: no hay dirección guardada o se cerró la ventana."
 MSG_NOT_IN_CONTACT = "El caso no está en contacto directo."
+MSG_CLOSED = "El caso ya está cerrado."
 
 
 class ClinicianReview:
@@ -93,6 +95,28 @@ class ClinicianReview:
         if found.case.draft_status is DraftStatus.READY:
             return found
         updated = self._with_draft(found.case)
+        self._save(found, updated)
+        return replace(found, case=updated)
+
+    def regenerate_draft(self, case_id: str) -> InboxCase:
+        """Reemplaza el borrador y la nota por unos nuevos (p. ej., tras cambiar el prompt).
+
+        Sin borrador listo, equivale a `prepare_draft`. Si el modelo falla, el caso conserva el
+        borrador y la nota anteriores.
+
+        Raises:
+            CaseNotFoundError: Si no existe.
+            CaseConflictError: Si el caso está cerrado o cambió mientras se generaba.
+            DraftRegenerationError: Si el modelo no pudo escribir uno nuevo.
+        """
+        found = self.case(case_id)
+        if not found.case.is_open:
+            raise CaseConflictError(MSG_CLOSED)
+        if found.case.draft_status is not DraftStatus.READY:
+            return self.prepare_draft(case_id)
+        updated = self._with_draft(found.case)
+        if updated.draft_status is DraftStatus.FAILED:
+            raise DraftRegenerationError(case_id)
         self._save(found, updated)
         return replace(found, case=updated)
 

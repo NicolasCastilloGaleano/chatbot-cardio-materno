@@ -31,6 +31,8 @@ La lista de la izquierda muestra los casos abiertos, del más antiguo al más nu
 
 **El borrador no tiene respaldo de la base.** Lo escribe el modelo a partir del resumen y está marcado así. Léelo completo antes de aprobarlo: no debe tener diagnósticos, medicamentos ni dosis. Si lo editas, el botón Aprobar se desactiva y tienes que usar **Enviar mi versión**.
 
+**Regenerar borrador:** cuando el caso ya tiene borrador, el botón de generar cambia a **Regenerar borrador**, que pide al modelo un borrador y una nota nuevos y reemplaza los anteriores (si lo habías editado sin enviar, tu texto se pierde). Si el modelo falla, aparece un aviso y se conservan los anteriores.
+
 **La nota es solo para ti.** Al generar el borrador, el modelo escribe también una nota con posibles explicaciones a considerar, qué conviene preguntar o confirmar y qué signos de alarma descartar. Es una propuesta sin respaldo de la base, no un diagnóstico: úsala como lista de verificación. La nota **nunca se envía** a la persona. El resumen que recibe el modelo puede traer datos que solo se le preguntaron a la persona; revísalo con la conversación.
 
 ## 5. Contacto directo

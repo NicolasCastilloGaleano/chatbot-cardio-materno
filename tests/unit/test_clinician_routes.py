@@ -148,3 +148,15 @@ def test_the_clinician_talks_directly_with_the_person(database: SqliteDatabase) 
     assert sent.status_code == 200 and closed["status"] == "cerrada"
     chat = api.get("/api/chats/ana/messages").json()["messages"]
     assert (chat[-1]["role"], chat[-1]["content"]) == ("clinician", "¿Desde cuándo?")
+
+
+def test_the_clinician_can_regenerate_a_draft(database: SqliteDatabase) -> None:
+    case_id = person(database, "ana")
+    api = client(database)
+    api.post(f"/api/clinician/cases/{case_id}/draft", headers=HEADERS)
+
+    redrafted = api.post(f"/api/clinician/cases/{case_id}/redraft", headers=HEADERS)
+
+    assert redrafted.status_code == 200
+    assert (redrafted.json()["draft"], redrafted.json()["draft_status"]) == (DRAFT, "listo")
+    assert api.post(f"/api/clinician/cases/{case_id}/redraft").status_code == 401
