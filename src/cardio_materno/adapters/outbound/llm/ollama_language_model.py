@@ -1,7 +1,7 @@
 """Adaptador de Ollama para el puerto LanguageModel (ADR 0005).
 
 Usa `/api/chat` con salida restringida por un JSON Schema. El transporte HTTP y la
-traducción de errores viven en `ollama_http.py`.
+traducción de errores viven en `adapters/outbound/shared/ollama_http.py`.
 """
 
 import logging
@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.request import urlopen
 
-from cardio_materno.adapters.outbound.llm.ollama_http import (
+from cardio_materno.adapters.outbound.shared.ollama_http import (
+    DEFAULT_KEEP_ALIVE,
     MSG_INVALID_RESPONSE,
     OllamaHttpClient,
     OllamaInvalidResponseError,
@@ -41,7 +42,6 @@ MSG_CUT_BY_LIMIT = (
     "Ollama cortó la respuesta por el límite de contexto o de tokens. Sube "
     "OLLAMA_<ETAPA>_NUM_CTX o OLLAMA_<ETAPA>_NUM_PREDICT (ANALYSIS o REPLY) en el .env."
 )
-DEFAULT_KEEP_ALIVE = "30m"
 UNLOAD_KEEP_ALIVE = 0
 
 

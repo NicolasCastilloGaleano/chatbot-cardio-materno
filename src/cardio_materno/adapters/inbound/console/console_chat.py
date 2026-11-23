@@ -102,7 +102,8 @@ class ConsoleChat:
 
     def _show(self, result: TurnResult) -> None:
         """Muestra la respuesta del asistente y, si se pidió, las líneas de depuración."""
-        self._write(f"{ASSISTANT_LABEL}{result.reply}")
+        if result.reply:
+            self._write(f"{ASSISTANT_LABEL}{result.reply}")
         if self._show_thread_debug:
             for line in debug_lines(result):
                 self._write(line)

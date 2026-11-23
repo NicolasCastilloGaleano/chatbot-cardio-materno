@@ -1,6 +1,6 @@
 """Armado del RAG al arrancar: base, índice, política y modelo de embeddings (ADR 0008)."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 
 from cardio_materno.adapters.outbound.rag.hybrid_retriever import HybridRetriever
 from cardio_materno.adapters.outbound.rag.knowledge_files import (
@@ -66,39 +66,17 @@ def load_effective_policy(settings: RagSettings) -> EvidencePolicy:
 
 
 def apply_policy_overrides(policy: EvidencePolicy, overrides: PolicyOverrides) -> EvidencePolicy:
-    """Reemplaza en la política los umbrales que vienen de .env (los vacíos no cambian)."""
+    """Reemplaza en la política los umbrales que vienen de .env (los vacíos no cambian).
 
-    def pick[T](value: T | None, current: T) -> T:
-        return current if value is None else value
-
-    return replace(
-        policy,
-        min_similarity=pick(overrides.min_similarity, policy.min_similarity),
-        top_k=pick(overrides.top_k, policy.top_k),
-        candidate_k=pick(overrides.candidate_k, policy.candidate_k),
-        min_support=pick(overrides.min_support, policy.min_support),
-        max_free_sentences=pick(overrides.max_free_sentences, policy.max_free_sentences),
-        max_free_words=pick(overrides.max_free_words, policy.max_free_words),
-        literal_min_overlap=pick(overrides.literal_min_overlap, policy.literal_min_overlap),
-        inquiry_floor=pick(overrides.inquiry_floor, policy.inquiry_floor),
-        inquiry_answer_threshold=pick(
-            overrides.inquiry_answer_threshold, policy.inquiry_answer_threshold
-        ),
-        inquiry_min_margin=pick(overrides.inquiry_min_margin, policy.inquiry_min_margin),
-        inquiry_min_agreement=pick(overrides.inquiry_min_agreement, policy.inquiry_min_agreement),
-        inquiry_progress_delta=pick(
-            overrides.inquiry_progress_delta, policy.inquiry_progress_delta
-        ),
-        inquiry_max_turns=pick(overrides.inquiry_max_turns, policy.inquiry_max_turns),
-        inquiry_max_stalled=pick(overrides.inquiry_max_stalled, policy.inquiry_max_stalled),
-        inquiry_max_sentences=pick(overrides.inquiry_max_sentences, policy.inquiry_max_sentences),
-        inquiry_max_questions_with_answer=pick(
-            overrides.inquiry_max_questions_with_answer, policy.inquiry_max_questions_with_answer
-        ),
-        selection_max_sentences=pick(
-            overrides.selection_max_sentences, policy.selection_max_sentences
-        ),
-    )
+    Cada campo de `PolicyOverrides` se llama igual que el de `EvidencePolicy` que reemplaza
+    (lo comprueba `test_settings.py`).
+    """
+    changes = {
+        field.name: value
+        for field in fields(overrides)
+        if (value := getattr(overrides, field.name)) is not None
+    }
+    return replace(policy, **changes)
 
 
 def setup_rag(settings: RagSettings, base_url: str) -> RagSetup:

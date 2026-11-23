@@ -56,7 +56,7 @@ sequenceDiagram
             S->>K: consulta = search_query (o mensaje + resumen + síntomas si viene vacía), en el dominio del análisis; si es insuficiente, se repite en los dos dominios (domain_fallback). Con INQUIRY_MODE observar y sin alarma nueva, la regla de indagación (HU-11) registra en trace.inquiry qué modo elegiría, sin cambiar la respuesta. Con INQUIRY_MODE activo decide el turno: responder (evidencia), indagar (preguntas verificadas; si hay un registro Solucionar sobre el umbral y el selector está activo, puede responder e indagar), abstenerse o cerrar (textos fijos). Con una urgencia inmediata ya avisada no se indaga y se quitan las preguntas (B-030)
             K-->>S: evidencia [E1..E3] o insuficiente / no disponible
             alt insuficiente o no disponible
-                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2
+                S-->>U: abstención fija (o solo el mensaje ⚠️ si hay prioritaria), SIN llamada 2. Con ESCALATION_MODE activo y sin alarma, la abstención o el cierre se reemplazan por el aviso de espera y se abre un caso para el profesional (HU-16)
             else suficiente
                 opt EVIDENCE_SELECTION_MODE observar o activo, y hay registros Solucionar (HU-13)
                     S->>L1: prompt del selector + caso + últimos N mensajes + FRASES numeradas + mensaje
@@ -105,3 +105,13 @@ flowchart TD
 - **Un hilo abierto por persona.** Dentro del chat, el análisis decide `continuar` o `nuevo`, como en la consola. Además, la inactividad cierra el hilo, lo que equivale a escribir "salir".
 - **Sin mezcla de personas:** el agente solo ve el hilo de quien escribió (repositorio acotado por usuario).
 - **Orden:** una cola con un trabajador procesa los mensajes en orden de llegada.
+
+### Contacto directo con el profesional (HU-16, fase 3; ADR 0022)
+El ciclo completo del caso está en [flujo-escalamiento.md](flujo-escalamiento.md).
+
+Si la persona tiene un caso `en_contacto`, el turno es otro:
+1. Corre el filtro 1 de alarmas, como siempre.
+2. Sin alarma: el mensaje se guarda en el hilo del caso y **no se llama a ningún modelo**; la persona no recibe respuesta del asistente (`relayed`). Con alarma: recibe el aviso fijo de inmediato y la alerta queda en el hilo.
+3. El vencimiento del caso se renueva.
+
+El filtro 2 no corre durante el contacto (riesgo aceptado en el ADR 0022). Cuando el profesional cierra el contacto, el siguiente mensaje vuelve al turno normal.

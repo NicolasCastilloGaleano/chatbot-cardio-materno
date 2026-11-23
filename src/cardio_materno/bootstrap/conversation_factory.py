@@ -4,6 +4,7 @@ import os
 from dataclasses import replace
 from datetime import timedelta
 
+from cardio_materno.adapters.outbound.persistence.sqlite_case_repository import SqliteCaseStore
 from cardio_materno.adapters.outbound.persistence.sqlite_database import SqliteDatabase
 from cardio_materno.adapters.outbound.persistence.sqlite_thread_repository import (
     SqliteThreadRepository,
@@ -49,14 +50,18 @@ def build_user_conversations(
 
 
 def service_factory(database: SqliteDatabase) -> ServiceFactory:
-    """Fábrica de servicios: mismos modelos, prompts y RAG; repositorio acotado por usuario."""
+    """Fábrica de servicios: mismos modelos, prompts y RAG; hilos y casos acotados por usuario."""
     settings = load_conversation_settings(os.environ, PROJECT_ROOT)
     base_ports, config = build_conversation(settings, SqliteThreadRepository(database, None))
+    cases = SqliteCaseStore(database)
 
     def create(
-        repository: ThreadRepository, active_thread_id: str | None, keep_access_facts: bool
+        user_id: str,
+        repository: ThreadRepository,
+        active_thread_id: str | None,
+        keep_access_facts: bool,
     ) -> ConversationService:
-        ports = replace(base_ports, repository=repository)
+        ports = replace(base_ports, repository=repository, cases=cases.scoped(user_id))
         return ConversationService(ports, config, active_thread_id, keep_access_facts)
 
     return create

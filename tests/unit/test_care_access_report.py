@@ -337,7 +337,7 @@ def test_version_2_database_is_migrated_without_touching_its_data(tmp_path: Path
     users = SqliteUserDirectory(db)
     owner = users.get("ana")
 
-    assert db.query("PRAGMA user_version")[0][0] == SCHEMA_VERSION == 3
+    assert db.query("PRAGMA user_version")[0][0] == SCHEMA_VERSION
     assert owner is not None and owner.user.consent_status is ConsentStatus.ACCEPTED
     assert owner.user.consent_at == NOW
     assert owner.user.research_consent is ConsentStatus.PENDING and owner.user.research_at is None

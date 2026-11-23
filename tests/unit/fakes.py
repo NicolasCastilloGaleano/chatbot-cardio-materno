@@ -1,6 +1,7 @@
 """Dobles de prueba compartidos para los puertos de la aplicación."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -26,6 +27,7 @@ from cardio_materno.application.user_conversations import (
 )
 from cardio_materno.domain.alarms import AlarmRule, Alert, Severity, compile_pattern
 from cardio_materno.domain.conversation import ChatMessage, ConversationThread, Domain
+from cardio_materno.domain.escalation import ClinicalCase
 from cardio_materno.domain.knowledge import (
     EvidenceItem,
     Focus,
@@ -275,7 +277,7 @@ def make_user_conversations(
     options: dict[str, Any] = {"clock": clock, "new_id": SequentialIds()} | (service_config or {})
 
     def factory(
-        repository: ThreadRepository, active: str | None, keep_facts: bool = False
+        user_id: str, repository: ThreadRepository, active: str | None, keep_facts: bool = False
     ) -> ConversationService:
         config = options | {KEEP_ACCESS_FACTS: keep_facts}
         return make_service(agent, repository, config, active_thread_id=active)
@@ -293,6 +295,25 @@ class FakeTimer:
     def __call__(self) -> float:
         self.now += 0.5
         return self.now
+
+
+class InMemoryCaseRepository:
+    """Casos de una persona en memoria (HU-16)."""
+
+    def __init__(self) -> None:
+        self.cases: dict[str, ClinicalCase] = {}
+
+    def open_case(self) -> ClinicalCase | None:
+        return next((case for case in self.cases.values() if case.is_open), None)
+
+    def save(self, case: ClinicalCase) -> None:
+        stored = self.cases.get(case.id)
+        if stored is None:
+            self.cases[case.id] = case
+        elif stored.status is case.status:
+            self.cases[case.id] = replace(
+                case, draft=stored.draft, draft_status=stored.draft_status
+            )
 
 
 class InMemoryThreadRepository:

@@ -1,6 +1,7 @@
 """Pruebas de la configuración y del cargador de `.env`."""
 
 import os
+from dataclasses import fields
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from cardio_materno.bootstrap.settings import (
     DEFAULT_OLLAMA_MODEL,
     SELECTION_MODEL_VARIABLE,
     ConfigurationError,
+    PolicyOverrides,
     WebSettings,
     load_conversation_settings,
     load_ollama_settings,
@@ -405,3 +407,21 @@ def test_analysis_context_defaults_to_6144_unless_its_variable_is_set() -> None:
     reply = load_stage_settings(general, "OLLAMA_REPLY_MODEL")
 
     assert (analysis.num_ctx, explicit.num_ctx, reply.num_ctx) == (6144, 8192, 4096)
+
+
+def test_escalation_is_off_by_default_and_reads_its_mode_and_window(tmp_path: Path) -> None:
+    default = load_conversation_settings({}, tmp_path)
+    active = load_conversation_settings(
+        {"ESCALATION_MODE": "activo", "ESCALATION_WINDOW_HOURS": "12"}, tmp_path
+    )
+
+    assert (default.escalation, default.escalation_window_hours) == ("apagado", 24)
+    assert (active.escalation, active.escalation_window_hours) == ("activo", 12)
+    with pytest.raises(ConfigurationError, match="ESCALATION_MODE"):
+        load_conversation_settings({"ESCALATION_MODE": "siempre"}, tmp_path)
+
+
+def test_every_policy_override_names_a_field_of_the_evidence_policy() -> None:
+    policy_fields = {field.name for field in fields(EvidencePolicy)}
+
+    assert {field.name for field in fields(PolicyOverrides)} <= policy_fields

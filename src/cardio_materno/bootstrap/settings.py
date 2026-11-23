@@ -4,10 +4,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from cardio_materno.adapters.outbound.llm.ollama_language_model import OllamaSettings
 from cardio_materno.application.care_access import CareAccessActivation
 from cardio_materno.application.conversation_service import UrgentGuidanceActivation
+from cardio_materno.application.escalation import EscalationMode
 from cardio_materno.application.evidence_selection import SelectionActivation
 from cardio_materno.application.inquiry_policy import InquiryActivation
 
@@ -38,6 +40,9 @@ DEFAULT_CONSENT_MODE = "apagado"
 DEFAULT_INQUIRY_MODE = "activo"
 URGENT_GUIDANCE_MODE_VARIABLE = "URGENT_GUIDANCE_MODE"
 DEFAULT_URGENT_GUIDANCE_MODE = "apagado"
+ESCALATION_MODE_VARIABLE = "ESCALATION_MODE"
+DEFAULT_ESCALATION_MODE = "apagado"
+DEFAULT_ESCALATION_WINDOW_HOURS = "24"
 SELECTION_MODE_VARIABLE = "EVIDENCE_SELECTION_MODE"
 DEFAULT_SELECTION_MODE = "activo"
 DEFAULT_RAG_ENABLED = "true"
@@ -97,6 +102,7 @@ DEFAULT_WHATSAPP_API_VERSION = "v23.0"
 DEFAULT_WHATSAPP_SEND_TIMEOUT_SECONDS = "15"
 DEFAULT_WHATSAPP_WAIT_NOTICE_SECONDS = "10"
 DEFAULT_WHATSAPP_MAX_PENDING = "100"
+DEFAULT_OUTBOX_POLL_SECONDS = "3"
 DEFAULT_THREAD_IDLE_TIMEOUT_HOURS = "12"
 DEFAULT_DATABASE_PATH = "data/cardio_materno.db"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -128,6 +134,8 @@ class ConversationSettings:
         care_access: `CARE_ACCESS_MODE`, cómo participa la regla de acceso (ADR 0023).
         care_access_file: Catálogo de datos de acceso (`CARE_ACCESS_FILE`).
         public_info_file: Información pública de emergencias (`PUBLIC_INFO_FILE`).
+        escalation: `ESCALATION_MODE`, escalamiento al profesional (HU-16, ADR 0022).
+        escalation_window_hours: `ESCALATION_WINDOW_HOURS`, horas hasta que vence un caso.
     """
 
     context_messages: int
@@ -140,6 +148,8 @@ class ConversationSettings:
     care_access: CareAccessActivation = CareAccessActivation.OFF
     care_access_file: Path = Path(DEFAULT_CARE_ACCESS_FILE)
     public_info_file: Path = Path(DEFAULT_PUBLIC_INFO_FILE)
+    escalation: EscalationMode = EscalationMode.OFF
+    escalation_window_hours: int = int(DEFAULT_ESCALATION_WINDOW_HOURS)
 
 
 @dataclass(frozen=True)
@@ -360,16 +370,18 @@ class WebSettings:
         port: Puerto TCP.
         page_size: Mensajes por página al abrir un chat o subir con el scroll.
         poll_seconds: Cada cuánto la interfaz busca mensajes nuevos.
+        clinician_access_key: Clave del apartado del profesional (HU-16); vacía, no existe.
     """
 
     host: str
     port: int
     page_size: int = int(DEFAULT_WEB_PAGE_SIZE)
     poll_seconds: float = float(DEFAULT_WEB_POLL_SECONDS)
+    clinician_access_key: str = ""
 
 
 def load_web_settings(env: Mapping[str, str]) -> WebSettings:
-    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE` y `WEB_POLL_SECONDS`.
+    """Lee `WEB_HOST`, `WEB_PORT`, `WEB_PAGE_SIZE`, `WEB_POLL_SECONDS` y `CLINICIAN_ACCESS_KEY`.
 
     Raises:
         ConfigurationError: Si el host no es local (la interfaz no se expone en la red), el
@@ -390,6 +402,7 @@ def load_web_settings(env: Mapping[str, str]) -> WebSettings:
         _get_port(env, "WEB_PORT", DEFAULT_WEB_PORT),
         page_size,
         poll_seconds,
+        env.get("CLINICIAN_ACCESS_KEY", "").strip(),
     )
 
 
@@ -451,6 +464,7 @@ class WhatsAppSettings:
         max_pending: Mensajes en cola antes de pedir a Meta que reintente.
         log_level: Nivel de los registros del proceso.
         persistence: Base SQLite e inactividad.
+        outbox_poll_seconds: Cada cuánto se envían los mensajes del profesional (HU-16).
     """
 
     token: str
@@ -466,6 +480,7 @@ class WhatsAppSettings:
     max_pending: int
     log_level: str
     persistence: PersistenceSettings
+    outbox_poll_seconds: float
 
 
 def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsAppSettings:
@@ -495,6 +510,7 @@ def load_whatsapp_settings(env: Mapping[str, str], project_root: Path) -> WhatsA
         max_pending=_get_int(env, "WHATSAPP_MAX_PENDING", DEFAULT_WHATSAPP_MAX_PENDING),
         log_level=_get(env, "LOG_LEVEL", DEFAULT_LOG_LEVEL).upper(),
         persistence=load_persistence_settings(env, project_root),
+        outbox_poll_seconds=_get_float(env, "OUTBOX_POLL_SECONDS", DEFAULT_OUTBOX_POLL_SECONDS),
     )
 
 
@@ -536,24 +552,37 @@ def load_conversation_settings(env: Mapping[str, str], project_root: Path) -> Co
         in TRUE_VALUES,
         threads_dir=threads_dir,
         alarm_rules_file=alarm_rules_file,
-        inquiry_activation=_get_activation(
+        escalation_window_hours=_get_int(
+            env, "ESCALATION_WINDOW_HOURS", DEFAULT_ESCALATION_WINDOW_HOURS
+        ),
+        care_access_file=_get_path(env, "CARE_ACCESS_FILE", DEFAULT_CARE_ACCESS_FILE, project_root),
+        public_info_file=_get_path(env, "PUBLIC_INFO_FILE", DEFAULT_PUBLIC_INFO_FILE, project_root),
+        **_load_modes(env),
+    )
+
+
+def _load_modes(env: Mapping[str, str]) -> dict[str, Any]:
+    """Modos de activación: indagación, selector, urgencia, acceso a la atención y escalamiento."""
+    return {
+        "inquiry_activation": _get_activation(
             env, INQUIRY_MODE_VARIABLE, DEFAULT_INQUIRY_MODE, InquiryActivation
         ),
-        selection_activation=_get_activation(
+        "selection_activation": _get_activation(
             env, SELECTION_MODE_VARIABLE, DEFAULT_SELECTION_MODE, SelectionActivation
         ),
-        urgent_guidance=_get_activation(
+        "urgent_guidance": _get_activation(
             env,
             URGENT_GUIDANCE_MODE_VARIABLE,
             DEFAULT_URGENT_GUIDANCE_MODE,
             UrgentGuidanceActivation,
         ),
-        care_access=_get_activation(
+        "care_access": _get_activation(
             env, CARE_ACCESS_MODE_VARIABLE, DEFAULT_CARE_ACCESS_MODE, CareAccessActivation
         ),
-        care_access_file=_get_path(env, "CARE_ACCESS_FILE", DEFAULT_CARE_ACCESS_FILE, project_root),
-        public_info_file=_get_path(env, "PUBLIC_INFO_FILE", DEFAULT_PUBLIC_INFO_FILE, project_root),
-    )
+        "escalation": _get_activation(
+            env, ESCALATION_MODE_VARIABLE, DEFAULT_ESCALATION_MODE, EscalationMode
+        ),
+    }
 
 
 def _get_activation[E: StrEnum](

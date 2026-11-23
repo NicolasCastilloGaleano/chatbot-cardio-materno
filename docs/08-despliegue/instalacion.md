@@ -59,6 +59,9 @@ Ejecuta `.venv/bin/python run_web.py` y abre `http://127.0.0.1:8000/equipo` (`WE
 - Los mensajes fuera de alcance no se guardan (HU-07) y no aparecen al auditar.
 - No la expongas a una red: muestra datos de salud sin autenticación.
 
+### Apartado del profesional de salud (HU-16)
+Con `ESCALATION_MODE=activo` y `CLINICIAN_ACCESS_KEY` en el `.env`, abre `http://127.0.0.1:8000/medico` e ingresa la clave. Verás los casos que el asistente no pudo responder, con su resumen clínico y la conversación. **Generar borrador** pide al modelo una sugerencia marcada "sin respaldo de la base"; **Aprobar borrador** la envía tal cual y **Enviar mi versión**, el texto que escribas. La persona la recibe en su chat como "Profesional de salud". **Contacto directo** abre una conversación en el mismo chat: el asistente deja de responder, lo que la persona escribe aparece en el caso y **Cerrar contacto** le devuelve la conversación al asistente. Las alarmas por palabras clave siguen saliendo de inmediato. En WhatsApp, el mensaje sale desde el número del proyecto con la etiqueta "Profesional de salud" unos segundos después (hace falta que `run_whatsapp.py` esté corriendo); si pasaron 24 h desde el último mensaje de la persona, el caso muestra "ventana cerrada". Solo con usuarios de prueba. Más detalle en la [guía del profesional](guia-profesional-salud.md); para verificar todo, el [guion de prueba](prueba-escalamiento.md).
+
 ### Importar el histórico JSON (HU-10, una sola vez)
 Los hilos de consola y web anteriores a la migración están en `data/threads/*.json`. Para verlos en la interfaz de auditoría, impórtalos a la base SQLite (`DATABASE_PATH`):
 ```bash
@@ -231,6 +234,8 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `OLLAMA_SELECTION_MODEL` | (vacío = el del análisis) | Modelo del selector. Con un valor propio se pueden fijar `_NUM_CTX`, `_TIMEOUT_SECONDS`, `_THINK` y `_NUM_PREDICT` (por defecto, `300`) |
 | `OLLAMA_SELECTION_TEMPERATURE` | `0` | Temperatura del selector, aunque use el modelo del análisis. Con `0,3` el mismo caso de urgencia se decidía distinto entre corridas |
 | `EVIDENCE_SELECTION_MAX_SENTENCES` | (política: `5`) | Máximo de frases que elige el selector |
+| `ESCALATION_MODE` | `apagado` | Escalamiento al profesional de salud (HU-16, ADR 0022): `apagado`, `observar` (registra el caso y deja la abstención) o `activo` (aviso de espera). Solo con usuarios de prueba |
+| `ESCALATION_WINDOW_HOURS` | `24` | Horas desde el último mensaje de la persona hasta que vence un caso escalado |
 | `URGENT_GUIDANCE_MODE` | `apagado` | Orientación automática después del aviso de una urgencia (B-034, ADR 0021): `apagado` o `activo`. Requiere el selector activo. Por ahora solo en la consola |
 | `INQUIRY_FLOOR` | (archivo: `0.40`) | Similitud mínima de un candidato que orienta la indagación de la HU-11; los candidatos nunca son evidencia |
 | `INQUIRY_ANSWER_THRESHOLD` | (archivo: `0.68`) | Similitud con la que la evidencia es clara para responder sin indagar. Distinto de `RAG_MIN_SIMILARITY` (0,50), que decide qué cuenta como evidencia: entre 0,50 y este valor la regla indaga primero. 0,60 → 0,68 por decisión del equipo (2026-10-28) |
@@ -248,6 +253,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `WEB_HOST` | `127.0.0.1` | Dirección de escucha. Solo `127.0.0.1`, `localhost` o `::1`: cualquier otra impide arrancar, porque la interfaz muestra datos de salud sin autenticación |
 | `WEB_PORT` | `8000` | Puerto |
 | `WEB_PAGE_SIZE` | `30` | Mensajes por página al abrir un chat o subir con el scroll (1 a 200) |
+| `CLINICIAN_ACCESS_KEY` | (vacía) | Clave del apartado del profesional en `/medico` (HU-16). Vacía, el apartado no existe. Es un secreto |
 | `WEB_POLL_SECONDS` | `3` | Segundos entre consultas de mensajes nuevos (actualización automática) |
 
 **6. Alarmas, hilos y consola**
@@ -270,6 +276,7 @@ Meta inicial: ≥ 13 de 16 consultas con la categoría esperada en el top-3. Ade
 | `WHATSAPP_HOST` / `WHATSAPP_PORT` | `127.0.0.1` / `8001` | Escucha del webhook; solo loopback (ngrok publica la URL) |
 | `WHATSAPP_SEND_TIMEOUT_SECONDS` | `15` | Espera máxima de cada envío a Meta |
 | `WHATSAPP_WAIT_NOTICE_SECONDS` | `10` | Segundos antes del aviso "Estoy revisando tu mensaje" |
+| `OUTBOX_POLL_SECONDS` | `3` | Cada cuántos segundos el proceso de WhatsApp envía los mensajes del profesional (HU-16) |
 | `WHATSAPP_MAX_PENDING` | `100` | Mensajes en cola antes de pedir a Meta que reintente (503) |
 | `DATABASE_PATH` | `data/cardio_materno.db` | Base SQLite de usuarios, hilos y eventos (no se versiona). Al abrirla con una versión que trae un esquema más nuevo se migra sola y antes se guarda una copia junto a ella (`cardio_materno.respaldo-v2.db`). Una versión anterior del programa no abre la base migrada: para volver a ella, se usa la copia (los mensajes posteriores a la migración no están en la copia) |
 | `THREAD_IDLE_TIMEOUT_HOURS` | `12` | Horas sin actividad tras las cuales se cierra el hilo abierto |

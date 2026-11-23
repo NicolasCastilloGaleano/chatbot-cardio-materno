@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from cardio_materno.adapters.inbound.whatsapp.dispatcher import (
     MessageDispatcher,
+    PeriodicTask,
     ThreadingDelayedActions,
 )
 from cardio_materno.adapters.inbound.whatsapp.payload import parse_messages
@@ -20,6 +21,9 @@ from cardio_materno.adapters.inbound.whatsapp.webhook import (
     create_whatsapp_app,
 )
 from cardio_materno.adapters.outbound.persistence.sqlite_channel_log import SqliteChannelLog
+from cardio_materno.adapters.outbound.persistence.sqlite_clinician_outbox import (
+    SqliteClinicianOutbox,
+)
 from cardio_materno.adapters.outbound.persistence.sqlite_database import (
     DatabaseVersionError,
     SqliteDatabase,
@@ -37,6 +41,7 @@ from cardio_materno.application.handle_incoming_message import (
     HandleIncomingMessage,
 )
 from cardio_materno.application.incoming_message import make_identity_hasher
+from cardio_materno.application.outbox_relay import OutboxRelay
 from cardio_materno.bootstrap.conversation_factory import build_user_conversations
 from cardio_materno.bootstrap.env_file import load_env_file
 from cardio_materno.bootstrap.main import (
@@ -54,6 +59,7 @@ from cardio_materno.bootstrap.settings import (
 )
 
 INTERRUPTED_ERROR = "interrumpido"
+RELAY_THREAD = "reenvio-profesional"
 
 
 def idle_timeout(persistence: PersistenceSettings) -> timedelta:
@@ -63,18 +69,21 @@ def idle_timeout(persistence: PersistenceSettings) -> timedelta:
 
 def create_whatsapp_runtime(
     settings: WhatsAppSettings, database: SqliteDatabase
-) -> tuple[FastAPI, MessageDispatcher]:
-    """Arma el webhook y la cola con el agente y la persistencia por usuario.
+) -> tuple[FastAPI, MessageDispatcher, PeriodicTask]:
+    """Arma el webhook, la cola y el reenvío del profesional.
 
     Args:
         settings: Configuración del canal.
         database: Base SQLite abierta.
 
     Returns:
-        La aplicación del webhook y la cola (sin arrancar).
+        La aplicación del webhook, la cola y la tarea de reenvío (sin arrancar).
     """
+    ports = _channel_ports(settings, database)
+    relay = OutboxRelay(SqliteClinicianOutbox(database), ports.sender, ports.log)
+    task = PeriodicTask(relay.run_once, settings.outbox_poll_seconds, RELAY_THREAD)
     use_case = HandleIncomingMessage(
-        _channel_ports(settings, database),
+        ports,
         ChannelConfig(
             wait_notice_seconds=settings.wait_notice_seconds,
             consent_required=settings.persistence.consent_required,
@@ -90,7 +99,7 @@ def create_whatsapp_runtime(
         partial(parse_messages, hasher=hasher),
         dispatcher.submit,
     )
-    return app, dispatcher
+    return app, dispatcher, task
 
 
 def _channel_ports(settings: WhatsAppSettings, database: SqliteDatabase) -> ChannelPorts:
@@ -108,6 +117,7 @@ def _channel_ports(settings: WhatsAppSettings, database: SqliteDatabase) -> Chan
         SqliteChannelLog(database),
         sender,
         ThreadingDelayedActions(),
+        SqliteClinicianOutbox(database),
     )
 
 
@@ -124,7 +134,8 @@ def main() -> int:
         logging.basicConfig(level=settings.log_level, format="%(levelname)s %(name)s: %(message)s")
         database = SqliteDatabase(settings.persistence.database_path)
         interrupted = SqliteChannelLog(database).fail_unfinished(INTERRUPTED_ERROR)
-        app, dispatcher = create_whatsapp_runtime(settings, database)
+        interrupted += SqliteClinicianOutbox(database).fail_interrupted()
+        app, dispatcher, relay = create_whatsapp_runtime(settings, database)
     except (*STARTUP_ERRORS, DatabaseVersionError) as error:
         print(f"No se pudo iniciar el canal de WhatsApp: {error}", file=sys.stderr)
         return EXIT_ERROR
@@ -132,9 +143,11 @@ def main() -> int:
         print(f"Mensajes sin terminar de la ejecución anterior (marcados fallidos): {interrupted}")
     print(f"Webhook en http://{settings.host}:{settings.port}{WEBHOOK_PATH} (publícalo con ngrok)")
     dispatcher.start()
+    relay.start()
     try:
         uvicorn.run(app, host=settings.host, port=settings.port)
     finally:
+        relay.stop()
         dispatcher.stop()
         database.close()
     return EXIT_OK

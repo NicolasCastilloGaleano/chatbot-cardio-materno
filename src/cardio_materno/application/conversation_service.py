@@ -32,7 +32,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 from cardio_materno.application.agent_turn import (
@@ -65,6 +65,14 @@ from cardio_materno.application.care_access import (
     render_care_access,
 )
 from cardio_materno.application.errors import LanguageModelError
+from cardio_materno.application.escalation import (
+    ALREADY_WAITING_TEXT,
+    WAITING_TEXT,
+    EscalationMode,
+    escalation_gap,
+    snapshot_of,
+    with_waiting_text,
+)
 from cardio_materno.application.evidence import (
     build_evidence_query,
     format_candidates_context,
@@ -77,6 +85,7 @@ from cardio_materno.application.evidence_selection import (
     selected_evidence,
     shown_sentences,
 )
+from cardio_materno.application.gaps import Gap
 from cardio_materno.application.grounded_reply import (
     CLOSING_TEXT,
     abstention_text,
@@ -97,6 +106,7 @@ from cardio_materno.application.inquiry_policy import (
     search_signals,
 )
 from cardio_materno.application.inquiry_turn import compose_inquiry, verified_question
+from cardio_materno.application.ports.case_repository import CaseRepository
 from cardio_materno.application.ports.knowledge_retriever import EvidenceQuery, KnowledgeRetriever
 from cardio_materno.application.ports.language_model import LanguageModel
 from cardio_materno.application.ports.thread_repository import ThreadRepository
@@ -117,6 +127,13 @@ from cardio_materno.domain.conversation import (
     close_thread,
     open_thread,
     update_thread,
+)
+from cardio_materno.domain.escalation import (
+    CaseStatus,
+    ClinicalCase,
+    open_case,
+    renewed,
+    with_new_gap,
 )
 from cardio_materno.domain.grounding import (
     GroundingPolicy,
@@ -162,6 +179,9 @@ ANSWERED_CONTEXT = (
     "YA LE DISTE ESTA ORIENTACIÓN EN ESTE MISMO MENSAJE (no la repitas). Haz solo una pregunta, "
     "la que más ayude a afinar el caso:\n{answer}"
 )
+
+# Ventana de un caso escalado: la de WhatsApp para mensajes libres (ADR 0023).
+DEFAULT_ESCALATION_WINDOW = timedelta(hours=24)
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +233,8 @@ class ConversationPorts:
         repository: Repositorio de hilos.
         retriever: Buscador de evidencia (nulo si el RAG está desactivado).
         selector: Modelo del selector de evidencia (HU-13); None usa el de respuesta.
+        cases: Casos de la persona para el escalamiento al profesional (HU-16); None si
+            el canal no lo admite.
     """
 
     analyzer: LanguageModel
@@ -220,6 +242,7 @@ class ConversationPorts:
     repository: ThreadRepository
     retriever: KnowledgeRetriever = field(default_factory=UnavailableRetriever)
     selector: LanguageModel | None = None
+    cases: CaseRepository | None = None
 
 
 @dataclass(frozen=True)
@@ -244,6 +267,8 @@ class ConversationConfig:
         urgent_guidance: Si se orienta después del aviso de una urgencia (ADR 0021).
         care_access: Catálogo de datos de acceso (ADR 0023); None si la regla está apagada.
         care_access_activation: Cómo participa la regla de acceso (`CARE_ACCESS_MODE`).
+        escalation: Cómo participa el escalamiento al profesional (HU-16, ADR 0022).
+        escalation_window: Ventana desde el último mensaje hasta que el caso vence.
         clock: Fuente de la fecha y hora (se reemplaza en las pruebas).
         new_id: Generador de identificadores de hilo (se reemplaza en las pruebas).
         timer: Reloj monotónico para medir las etapas (se reemplaza en las pruebas).
@@ -265,6 +290,8 @@ class ConversationConfig:
     urgent_guidance: UrgentGuidanceActivation = UrgentGuidanceActivation.OFF
     care_access: CareAccessCatalog | None = None
     care_access_activation: CareAccessActivation = CareAccessActivation.OFF
+    escalation: EscalationMode = EscalationMode.OFF
+    escalation_window: timedelta = DEFAULT_ESCALATION_WINDOW
     clock: Clock = utc_now
     new_id: IdGenerator = new_uuid
     timer: Timer = time.perf_counter
@@ -299,6 +326,10 @@ class TurnResult:
         trace: Cómo se produjo la respuesta (None si no se consultó al agente).
         out_of_scope: True si el mensaje se descartó por estar fuera de alcance (no se registra).
         urgent_guidance: Orientación que el canal puede pedir después de entregar el aviso.
+        escalated_case_id: Caso del profesional que abrió o sumó el turno, o al que se
+            desvió el mensaje en contacto directo (HU-16).
+        relayed: True si el mensaje fue al profesional en contacto directo y el asistente
+            no respondió (la respuesta está vacía, salvo el aviso de una alarma).
     """
 
     reply: str
@@ -308,6 +339,8 @@ class TurnResult:
     trace: ReplyTrace | None = None
     out_of_scope: bool = False
     urgent_guidance: UrgentGuidanceRequest | None = None
+    escalated_case_id: str | None = None
+    relayed: bool = False
 
 
 @dataclass(frozen=True)
@@ -402,12 +435,16 @@ class ConversationService:
         user_text = redact_identifiers(user_text)
         turn = TurnInput(user_text, self._recent(current))
         pre = self._config.alarm_policy.evaluate([user_text], AlertOrigin.USER)
+        contact = self._contact_case()
+        if contact is not None:
+            return self._relay(contact, user_text, pre)
         if pre is not None and pre.is_immediate:
             outcome = TurnOutcome(compose_reply([pre], None), (pre,))
         else:
             outcome = self._consult_agent(current, turn, pre)
+        outcome, gap = self._escalate(outcome)
         outcome = self._with_care_access(turn, outcome)
-        result = self._finish(current, turn, outcome)
+        result = self._open_case(self._finish(current, turn, outcome), gap, outcome)
         return replace(result, urgent_guidance=self._guidance_request(turn, outcome, result))
 
     def guide(self, request: UrgentGuidanceRequest) -> TurnResult | None:
@@ -913,6 +950,67 @@ class ConversationService:
         exclude |= set(by_text.rule_ids) if by_text is not None else set()
         by_code = policy.evaluate_codes(analysis.reported_signs, exclude)
         return tuple(d for d in (by_text, by_code) if d is not None)
+
+    # --- Escalamiento al profesional (HU-16, ADR 0022) ---------------------------------
+
+    def _escalate(self, outcome: TurnOutcome) -> tuple[TurnOutcome, Gap | None]:
+        """Reconoce el vacío que escala y, en modo activo, pone el aviso de espera."""
+        cases = self._ports.cases
+        if cases is None or self._config.escalation is EscalationMode.OFF:
+            return outcome, None
+        gap = escalation_gap(outcome.reply, outcome.trace, bool(outcome.decisions))
+        if gap is None or outcome.analysis is None:
+            return outcome, None
+        if self._config.escalation is EscalationMode.ACTIVE:
+            waiting = ALREADY_WAITING_TEXT if cases.open_case() else WAITING_TEXT
+            outcome = replace(outcome, reply=with_waiting_text(outcome.reply, waiting))
+        return outcome, gap
+
+    def _open_case(self, result: TurnResult, gap: Gap | None, outcome: TurnOutcome) -> TurnResult:
+        """Abre el caso de la persona o suma el turno al que ya tiene abierto."""
+        cases = self._ports.cases
+        if cases is None or gap is None or outcome.analysis is None or result.thread is None:
+            return result
+        now, window = self._config.clock(), self._config.escalation_window
+        current = cases.open_case()
+        if current is not None:
+            case = with_new_gap(current, now, window)
+        else:
+            snapshot = snapshot_of(gap, outcome.analysis)
+            case = open_case(self._config.new_id(), result.thread.id, snapshot, now, window)
+            notified = self._config.escalation is EscalationMode.ACTIVE
+            case = replace(case, notified=notified)
+        cases.save(case)
+        return replace(result, escalated_case_id=case.id)
+
+    def _contact_case(self) -> ClinicalCase | None:
+        """Caso en contacto directo de la persona, si lo hay (fase 3 de la HU-16)."""
+        cases = self._ports.cases
+        case = cases.open_case() if cases is not None else None
+        return case if case is not None and case.status is CaseStatus.IN_CONTACT else None
+
+    def _relay(self, case: ClinicalCase, user_text: str, pre: AlarmDecision | None) -> TurnResult:
+        """Contacto directo: guarda el mensaje para el profesional, sin llamar a ningún modelo.
+
+        El filtro 1 ya corrió: si el mensaje tiene una alarma, la persona recibe su aviso fijo
+        de inmediato y la alerta queda en el hilo del caso, donde la ve el profesional.
+        """
+        thread = self._ports.repository.get_thread(case.thread_id)
+        if thread is None:
+            raise KeyError(case.thread_id)
+        reply = ""
+        alerts: tuple[Alert, ...] = ()
+        if pre is None:
+            message = ChatMessage(Role.USER, user_text, thread.id, self._config.clock())
+            self._ports.repository.append_message(message)
+        else:
+            reply = compose_reply([pre], None)
+            alerts = self._record(thread.id, user_text, TurnOutcome(reply, (pre,)))
+        if self._ports.cases is not None:
+            self._ports.cases.save(
+                renewed(case, self._config.clock(), self._config.escalation_window)
+            )
+        return TurnResult(reply, thread, False, alerts, escalated_case_id=case.id, relayed=True)
 
     # --- Hilo y registro --------------------------------------------------------------
 

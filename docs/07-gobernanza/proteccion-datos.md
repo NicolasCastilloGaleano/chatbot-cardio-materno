@@ -1,6 +1,6 @@
 # Protección de datos personales
 
-*Última actualización: 2026-11-11*
+*Última actualización: 2026-11-22*
 
 Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de 2019** (telesalud). Los datos de salud son **datos sensibles**.
 
@@ -35,6 +35,15 @@ Marco: **Ley 1581 de 2012** (Habeas Data), Decreto 1377 de 2013 y **Res. 2654 de
 - El texto de los mensajes y las trazas se guardan en `messages`, igual que en el JSON: datos de salud en un archivo (`data/cardio_materno.db`) que no se versiona.
 - `USER_ID_HASH_SECRET` va en `.env` y se respalda junto con la base: si se pierde, las personas quedan desligadas de su historial.
 - Esta fase es solo con números de prueba del equipo. El consentimiento (HU-01) es obligatorio antes de atender a personas reales.
+
+## Escalamiento al profesional de salud (HU-16, ADR 0022 y 0023)
+- **Quién ve qué:** el profesional ve en `/medico` el resumen clínico del caso y los últimos mensajes de la persona (datos de salud). Nunca ve el número ni el nombre: el caso se identifica con un prefijo de su id.
+- **Acceso:** una clave compartida (`CLINICIAN_ACCESS_KEY`) en una interfaz que solo escucha en la propia máquina. No registra qué profesional actuó. Sirve para el prototipo, no para un piloto.
+- **Al modelo solo va el resumen:** el borrador se escribe a partir del resumen clínico (`snapshot_json`), sin los mensajes de la persona. Los mensajes del profesional llegan al modelo como del asistente, con el prefijo "Profesional de salud:".
+- **Número de WhatsApp temporal (excepción al ADR 0015):** para entregar la respuesta, el `wa_id` se guarda en `case_addresses` solo si el caso está abierto y la persona recibió el aviso. Se borra cuando el caso se cierra o vence (24 h desde su último mensaje) y no queda nada por enviarle. No aparece en registros, auditoría ni en `/medico`.
+- **Bandeja de salida:** el texto del profesional se borra de `clinician_outbox` en cuanto se envía o falla; queda solo en el hilo de la persona, como el resto de la conversación.
+- **El profesional usa el número del proyecto:** su teléfono nunca se expone a la persona.
+- Todo esto exige el consentimiento (HU-01) y que el aviso de privacidad mencione la revisión por un profesional y el número temporal **antes de cualquier persona real**. Hoy solo con usuarios y números de prueba del equipo.
 
 ## Pruebas en MareNostrum 5 (BSC, 2026-11-08)
 - Las pruebas de consola pueden correr en MareNostrum 5 ([guía](../08-despliegue/marenostrum5.md)). Los servidores están en España y la carpeta del proyecto (GPFS) es compartida por el grupo `bsc08`.

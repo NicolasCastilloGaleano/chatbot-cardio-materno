@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.request import urlopen
 
-from cardio_materno.adapters.outbound.llm.ollama_http import (
+from cardio_materno.adapters.outbound.shared.ollama_http import (
+    DEFAULT_KEEP_ALIVE,
     MSG_INVALID_RESPONSE,
     OllamaHttpClient,
     OllamaTimeoutError,
     Opener,
 )
-from cardio_materno.adapters.outbound.llm.ollama_language_model import DEFAULT_KEEP_ALIVE
 from cardio_materno.application.errors import LanguageModelError
 
 EMBED_ENDPOINT = "/api/embed"

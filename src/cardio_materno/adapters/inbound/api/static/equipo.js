@@ -365,6 +365,7 @@ function bubbleMeta(entry) {
   if (entry.ephemeral) return UNSAVED_LABELS[entry.unsaved] || UNSAVED_LABELS.out_of_scope;
   const time = formatDate(entry.created_at);
   if (entry.alerts?.length) return `${time} · ⚠️ ${entry.alerts.map((a) => a.rule_ids.join(", ")).join(" · ")}`;
+  if (entry.role === "clinician") return `${time} · Profesional de salud`;
   return entry.role === "assistant" ? `${time} · Selecciona para ver la traza` : time;
 }
 

@@ -1,0 +1,92 @@
+/* Apartado del profesional de salud (HU-16). Usa los colores de styles.css, que en la rama de integración solo carga esta página (pendiente: pasarla a base.css). */
+/* `display` de las reglas de abajo anularía el atributo `hidden`. */
+.key-form[hidden], .clinician-workspace[hidden], .notice[hidden] { display: none; }
+.key-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 40px auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.key-form label { flex: 1 0 100%; font-weight: 600; }
+.key-form input { flex: 1; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
+.form-error { flex: 1 0 100%; margin: 0; color: #a3322a; }
+
+.clinician-workspace {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 18px;
+  min-height: 0;
+  padding-bottom: 20px;
+}
+.cases-panel, .case-detail {
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.case-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.case-item {
+  display: grid;
+  gap: 3px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.case-item:hover, .case-item:focus-visible { border-color: var(--green); }
+.case-item.selected { border-color: var(--green); background: var(--soft); }
+.case-item strong { color: var(--deep); font-size: 13px; }
+.case-item span { color: var(--muted); font-size: 12px; }
+
+.case-detail h2 { margin: 0 0 4px; color: var(--deep); }
+.case-section { display: grid; gap: 8px; margin-top: 18px; }
+.case-section h3 { margin: 0; color: var(--deep); font-size: 14px; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.conversation { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.bubble-row.clinician { align-self: flex-start; align-items: flex-start; }
+
+.draft-box {
+  padding: 12px 14px;
+  border: 1px dashed #b8455a;
+  border-radius: 12px;
+  background: #fdf3f4;
+}
+.draft-box .draft-label { margin: 0 0 6px; color: #8c2f40; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+.draft-box textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: 400 13px/1.6 "DM Sans", system-ui, sans-serif;
+  resize: vertical;
+}
+.contact-input {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: 400 13px/1.6 "DM Sans", system-ui, sans-serif;
+  resize: vertical;
+}
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.notice { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--soft); color: var(--deep); font-size: 13px; }
+.notice.error { background: #fbebeb; color: #a3322a; }
+
+@media (max-width: 860px) {
+  .clinician-workspace { grid-template-columns: 1fr; }
+}

@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from cardio_materno.adapters.inbound.api.citizen_routes import add_citizen_routes
+from cardio_materno.adapters.inbound.api.clinician_routes import add_clinician_routes
 from cardio_materno.adapters.inbound.api.local_only import add_local_only_guard
 from cardio_materno.adapters.inbound.api.serializers import (
     CHANNEL_LABELS,
@@ -29,6 +30,7 @@ from cardio_materno.adapters.inbound.api.serializers import (
     turn_to_dict,
 )
 from cardio_materno.application.citizen_chat import CitizenChat
+from cardio_materno.application.clinician_review import ClinicianReview
 from cardio_materno.application.conversation_service import TurnResult
 from cardio_materno.application.direct_chat import DirectChat
 from cardio_materno.application.errors import (
@@ -105,6 +107,19 @@ class ChatLocks:
 
 
 @dataclass(frozen=True)
+class ClinicianAccess:
+    """Apartado del profesional de salud (HU-16): sus casos y la clave que exige la API.
+
+    Attributes:
+        review: Casos del profesional.
+        access_key: Clave del `.env` (`CLINICIAN_ACCESS_KEY`), no vacía.
+    """
+
+    review: ClinicianReview
+    access_key: str
+
+
+@dataclass(frozen=True)
 class WebServices:
     """Casos de uso y lecturas que necesita la interfaz.
 
@@ -112,11 +127,13 @@ class WebServices:
         chats: Chats directos de consola y web (crear, escribir, liberar).
         citizen: Conversación propia de una persona, con su consentimiento.
         audit: Lectura de los chats y las alertas de todos los canales.
+        clinician: Apartado del profesional (HU-16); None si no hay clave configurada.
     """
 
     chats: DirectChat
     citizen: CitizenChat
     audit: ChatAudit
+    clinician: ClinicianAccess | None = None
 
 
 def create_app(services: WebServices, knowledge: Knowledge, options: WebOptions) -> FastAPI:
@@ -138,6 +155,7 @@ def create_app(services: WebServices, knowledge: Knowledge, options: WebOptions)
     _add_chat_routes(app, services.chats, services.audit, options)
     _add_supervision_routes(app, services.audit)
     _add_message_routes(app, services.chats, services.audit, knowledge, options)
+    _add_clinician(app, services)
     return app
 
 
@@ -206,6 +224,14 @@ def _add_chat_routes(
             raise HTTPException(status_code=409, detail=NOT_LIVE)
         chats.release_console(user_id)
         return chat_to_dict(require_chat(audit, user_id))
+
+
+def _add_clinician(app: FastAPI, services: WebServices) -> None:
+    """Registra el apartado del profesional (HU-16) si hay clave configurada."""
+    clinician = services.clinician
+    if clinician is not None:
+        page = STATIC_DIR / "medico.html"
+        add_clinician_routes(app, clinician.review, services.audit, clinician.access_key, page)
 
 
 def _add_supervision_routes(app: FastAPI, audit: ChatAudit) -> None:

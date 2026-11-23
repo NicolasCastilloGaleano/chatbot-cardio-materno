@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3f6f4">
+    <title>Casos del profesional · cardio-materno</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/medico.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">+</div>
+        <div><p class="eyebrow">PROTOTIPO LOCAL · SOLO USUARIOS DE PRUEBA</p><h1>Casos del profesional</h1></div>
+        <span class="local-pill"><span></span> Consultas sin información en la base</span>
+      </header>
+
+      <form id="key-form" class="key-form" hidden>
+        <label for="key-input">Clave de profesional</label>
+        <input id="key-input" type="password" autocomplete="off" required>
+        <button class="quiet-button" type="submit">Entrar</button>
+        <p id="key-error" class="form-error" hidden></p>
+      </form>
+
+      <main id="clinician-workspace" class="clinician-workspace" hidden>
+        <section class="cases-panel" aria-label="Casos abiertos">
+          <div class="section-heading">
+            <div><p class="eyebrow">PENDIENTES</p><h2>Casos</h2></div>
+            <button id="logout" class="quiet-button" type="button">Salir</button>
+          </div>
+          <div id="case-list" class="case-list"><p class="muted">Cargando casos…</p></div>
+        </section>
+
+        <section id="case-detail" class="case-detail" aria-label="Caso">
+          <p class="muted">Selecciona un caso para revisarlo.</p>
+        </section>
+      </main>
+    </div>
+    <script src="/static/medico.js"></script>
+  </body>
+</html>

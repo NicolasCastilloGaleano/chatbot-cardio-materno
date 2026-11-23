@@ -143,6 +143,41 @@ Clase: `domain/user.py::User`.
 | `channel` | enum | No | Canal de destino | No |
 | `user_id` | string (UUID) | No | Destinatario | No |
 | `thread_id` | string (UUID) | Sí | Hilo del turno, si lo hubo | No |
-| `kind` | enum | No | `respuesta`, `aviso` o `error` | No |
+| `kind` | enum | No | `respuesta`, `aviso`, `error` o `profesional` (mensaje del profesional reenviado, HU-16) | No |
 | `channel_message_id` | string | No | Identificador que devolvió el canal | No |
 | `created_at` | ISO 8601 | No | Envío | No |
+
+### Tabla: `clinical_cases` (HU-16, ADR 0022, esquema v4 en la rama de integración; v3 en la rama de Santiago)
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | TEXT, clave | Identificador del caso |
+| `user_id` | TEXT → `users.id` | Persona del caso (seudónimo; nunca el teléfono) |
+| `thread_id` | TEXT → `threads.id` | Hilo en el que se abrió |
+| `status` | TEXT | `pendiente`, `en_contacto`, `aprobada`, `modificada`, `cerrada` o `expirada` |
+| `notified` | INTEGER | 1 si la persona recibió el aviso de espera (`activo`); 0 si el caso solo se observa |
+| `gap_count` | INTEGER | Turnos sin evidencia que sumó el caso |
+| `snapshot_json` | TEXT | Resumen clínico: dominio, resumen del hilo, síntomas, códigos, consulta, motivo, categoría y similitud. Sin mensajes ni datos de identificación |
+| `created_at`, `expires_at`, `closed_at` | TEXT (ISO 8601) | Apertura; vencimiento (ventana desde el último mensaje); cierre o resolución |
+| `draft_text`, `draft_status` | TEXT | Borrador del profesional, sin respaldo de la base, y su estado: `sin_generar`, `listo` o `fallido` (fase 2) |
+
+En `messages.role` se agrega `clinician`: mensaje de un profesional de salud en un caso escalado. Nunca llega así al modelo: se convierte en un mensaje del asistente con el prefijo "Profesional de salud:".
+
+Cada lado escribe solo sus campos (fase 3): el turno de la persona, `notified`, `gap_count`, `snapshot_json` y `expires_at`, y solo si `status` no cambió; el profesional, `status`, `closed_at`, `draft_text` y `draft_status`, con la condición de que `status` siga siendo el que leyó.
+
+### Tabla: `case_addresses` (HU-16, ADR 0023, esquema v5 en la rama de integración; v4 en la rama de Santiago)
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `case_id` | TEXT, clave → `clinical_cases.id` | Caso abierto al que pertenece la dirección |
+| `user_id` | TEXT → `users.id` | Persona (seudónimo) |
+| `reply_to` | TEXT | **Dato personal:** número de WhatsApp (`wa_id`). Solo mientras el caso esté abierto y en la ventana de 24 h; se borra al cerrar o vencer |
+| `updated_at` | TEXT (ISO 8601) | Último mensaje de la persona que la renovó |
+
+### Tabla: `clinician_outbox` (HU-16, ADR 0022, esquema v5 en la rama de integración; v4 en la rama de Santiago)
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | INTEGER, clave | Orden de envío |
+| `case_id`, `user_id`, `thread_id` | TEXT | Caso, persona e hilo del mensaje |
+| `text` | TEXT | Texto del profesional; se vacía al enviarse o fallar (queda en el hilo) |
+| `status` | TEXT | `pendiente`, `enviando`, `enviado` o `fallido` |
+| `error_code` | TEXT | `sin_direccion`, `envio`, `ventana_cerrada` o `interrumpido`; vacío si salió bien |
+| `created_at`, `finished_at` | TEXT (ISO 8601) | Cuándo lo dejó el profesional y cuándo terminó |

@@ -9,6 +9,8 @@ Resumen obligatorio en [AGENTS.md §3](../../AGENTS.md). Aquí está el detalle.
 - **Tamaño:** ≤ 25 sentencias, ≤ 5 parámetros, complejidad ciclomática ≤ 7 y ≤ 6 ramas. Lo verifica ruff (`C90`, `PLR`).
 - **Profundidad:** máximo 2 niveles de anidación; se prefieren *early returns*.
 - **Puertos:** se definen con `typing.Protocol` en `application/ports/`.
+- **Código compartido entre adaptadores:** va en `adapters/outbound/shared/` (p. ej., `ollama_http.py`, que usan el LLM y los embeddings). Un adaptador nunca importa a otro.
+- **Registro de rutas:** cada función `add_*_routes` agrupa pocas rutas relacionadas, para no pasar de 25 líneas.
 - **Inmutabilidad:** las entidades de valor del dominio son `@dataclass(frozen=True)`.
 - **Inyección de dependencias** por constructor; el armado se hace solo en `bootstrap/`.
 

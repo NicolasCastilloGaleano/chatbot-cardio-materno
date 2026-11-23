@@ -9,13 +9,13 @@ from urllib.request import Request
 
 import pytest
 
-from cardio_materno.adapters.outbound.llm.ollama_http import is_model_installed
 from cardio_materno.adapters.outbound.llm.ollama_language_model import (
     OllamaLanguageModel,
     OllamaSettings,
     build_chat_payload,
     extract_content,
 )
+from cardio_materno.adapters.outbound.shared.ollama_http import is_model_installed
 from cardio_materno.application.errors import LanguageModelError
 from cardio_materno.domain.conversation import ChatMessage, Role
 from cardio_materno.domain.trace import ModelUsage

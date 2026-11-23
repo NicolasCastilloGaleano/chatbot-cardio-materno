@@ -17,7 +17,7 @@ from typing import Any
 from cardio_materno.domain.conversation import ThreadStatus
 
 IN_MEMORY = ":memory:"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 BUSY_TIMEOUT_MS = 5000
 
 SCHEMA_V1: tuple[str, ...] = (
@@ -95,8 +95,60 @@ SCHEMA_V3: tuple[str, ...] = (
     "ALTER TABLE users ADD COLUMN research_consent TEXT NOT NULL DEFAULT 'pendiente'",
     "ALTER TABLE users ADD COLUMN research_at TEXT",
 )
-MIGRATIONS: dict[int, tuple[str, ...]] = {1: SCHEMA_V1, 2: SCHEMA_V2, 3: SCHEMA_V3}
-
+# v4 (HU-16, ADR 0022 de la rama de Santiago): casos escalados a un profesional de salud.
+# Un caso abierto por persona.
+SCHEMA_V4: tuple[str, ...] = (
+    """CREATE TABLE clinical_cases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        thread_id TEXT NOT NULL REFERENCES threads(id),
+        status TEXT NOT NULL,
+        notified INTEGER NOT NULL,
+        gap_count INTEGER NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        closed_at TEXT,
+        draft_text TEXT NOT NULL,
+        draft_status TEXT NOT NULL
+    )""",
+    "CREATE INDEX clinical_cases_by_status ON clinical_cases(status, created_at)",
+    """CREATE UNIQUE INDEX one_open_case_per_user ON clinical_cases(user_id)
+        WHERE status IN ('pendiente', 'en_contacto')""",
+)
+# v5 (HU-16, ADR 0023 de la rama de Santiago): dirección temporal de WhatsApp de un caso
+# abierto y bandeja de salida de los mensajes del profesional. La dirección se borra al
+# cerrar o vencer el caso.
+SCHEMA_V5: tuple[str, ...] = (
+    """CREATE TABLE case_addresses (
+        case_id TEXT PRIMARY KEY REFERENCES clinical_cases(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        reply_to TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""",
+    """CREATE TABLE clinician_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        case_id TEXT NOT NULL REFERENCES clinical_cases(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        thread_id TEXT NOT NULL REFERENCES threads(id),
+        text TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_code TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        finished_at TEXT
+    )""",
+    "CREATE INDEX clinician_outbox_by_status ON clinician_outbox(status, id)",
+)
+# Integración (chore/integracion-pruebas): v3 es la de la rama de Juan y los casos de la
+# rama de Santiago pasan a v4 y v5. Una base migrada con una sola de las dos ramas no es
+# compatible con este orden: usar una copia anterior a esas ramas.
+MIGRATIONS: dict[int, tuple[str, ...]] = {
+    1: SCHEMA_V1,
+    2: SCHEMA_V2,
+    3: SCHEMA_V3,
+    4: SCHEMA_V4,
+    5: SCHEMA_V5,
+}
 
 BACKUP_NAME = "{stem}.respaldo-v{version}{suffix}"
 

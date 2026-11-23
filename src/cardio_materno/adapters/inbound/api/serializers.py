@@ -130,6 +130,7 @@ def turn_to_dict(result: TurnResult, knowledge: Knowledge) -> dict[str, Any]:
         "thread": thread_to_dict(result.thread) if result.thread else None,
         "is_new_thread": result.is_new_thread,
         "out_of_scope": result.out_of_scope,
+        "relayed": result.relayed,
         "alerts": [alert_to_dict(alert) for alert in result.alerts],
         "trace": trace_to_dict(result.trace, knowledge) if result.trace else None,
     }

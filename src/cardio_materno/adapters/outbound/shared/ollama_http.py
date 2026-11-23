@@ -15,6 +15,8 @@ from cardio_materno.application.errors import LanguageModelError
 TAGS_ENDPOINT = "/api/tags"
 DEFAULT_TAG = ":latest"
 MAX_ERROR_DETAIL_CHARS = 300
+# Tiempo que Ollama deja el modelo cargado tras una llamada (LLM y embeddings).
+DEFAULT_KEEP_ALIVE = "30m"
 
 MSG_UNREACHABLE = (
     "No se pudo conectar con Ollama en {url}. Verifica que Ollama esté abierto "

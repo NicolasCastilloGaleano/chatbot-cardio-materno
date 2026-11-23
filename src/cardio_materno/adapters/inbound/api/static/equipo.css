@@ -67,6 +67,9 @@
 .bubble-row { display: flex; flex-direction: column; max-width: 82%; }
 .bubble-row.user { align-self: flex-end; align-items: flex-end; }
 .bubble-row.assistant { align-self: flex-start; align-items: flex-start; }
+/* Mensaje de un profesional de salud en un caso escalado (HU-16). */
+.bubble-row.clinician { align-self: flex-start; align-items: flex-start; }
+.bubble-row.clinician .bubble { border-color: var(--line); border-bottom-left-radius: 5px; background: var(--brand-soft); color: var(--ink); }
 .bubble { padding: 10px 14px; border: 1px solid transparent; border-radius: 18px; font-size: var(--text-sm); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bubble-row.user .bubble { border-bottom-right-radius: 5px; background: color-mix(in srgb, var(--thread, var(--brand)) 88%, #000); color: #fff; }
 .bubble-row.assistant .bubble { border-color: var(--line); border-left: 3px solid var(--thread, var(--line)); border-bottom-left-radius: 5px; background: var(--surface); color: var(--ink); transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease); }
